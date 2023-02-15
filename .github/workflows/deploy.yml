@@ -23,6 +23,7 @@ on:
     branches:
       - '**-release'
       - 'dev-**'
+      - 'cdc*'
 
 env:
   GITHUB_USERNAME: x-access-token
