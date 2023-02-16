@@ -37,6 +37,7 @@ import com.hazelcast.spi.impl.NodeEngine;
 import com.hazelcast.spi.impl.NodeEngineImpl;
 import com.hazelcast.spi.impl.operationservice.LiveOperations;
 import com.hazelcast.spi.impl.operationservice.LiveOperationsTracker;
+import lombok.Getter;
 import lombok.NonNull;
 
 import java.util.Properties;
@@ -57,6 +58,8 @@ public class SeaTunnelServer implements ManagedService, MembershipAwareService, 
     private TaskExecutionService taskExecutionService;
     private CoordinatorService coordinatorService;
     private ScheduledExecutorService monitorService;
+
+    @Getter private SeaTunnelHealthMonitor seaTunnelHealthMonitor;
 
     private final SeaTunnelConfig seaTunnelConfig;
 
@@ -97,7 +100,13 @@ public class SeaTunnelServer implements ManagedService, MembershipAwareService, 
         getSlotService();
         coordinatorService = new CoordinatorService(nodeEngine, this, seaTunnelConfig.getEngineConfig());
         monitorService = Executors.newSingleThreadScheduledExecutor();
-        monitorService.scheduleAtFixedRate(this::printExecutionInfo, 0, seaTunnelConfig.getEngineConfig().getPrintExecutionInfoInterval(), TimeUnit.SECONDS);
+        monitorService.scheduleAtFixedRate(
+                this::printExecutionInfo,
+                0,
+                seaTunnelConfig.getEngineConfig().getPrintExecutionInfoInterval(),
+                TimeUnit.SECONDS);
+
+        seaTunnelHealthMonitor = new SeaTunnelHealthMonitor(((NodeEngineImpl) engine).getNode());
     }
 
     @Override
