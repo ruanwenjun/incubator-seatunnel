@@ -21,7 +21,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.catalog.TablePath;
+import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.catalog.exception.CatalogException;
 import org.apache.seatunnel.api.table.catalog.exception.DatabaseAlreadyExistException;
 import org.apache.seatunnel.api.table.catalog.exception.DatabaseNotExistException;
@@ -37,7 +39,9 @@ import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Elasticsearch catalog implementation.
@@ -111,19 +115,46 @@ public class ElasticSearchCatalog implements Catalog {
     @Override
     public boolean tableExists(TablePath tablePath) throws CatalogException {
         checkNotNull(tablePath);
-        // todo: Check if the database name is the same with table name
         return databaseExists(tablePath.getTableName());
     }
 
     @Override
     public CatalogTable getTable(TablePath tablePath) throws CatalogException, TableNotExistException {
-        // Get the index mapping?
-        return null;
+        checkNotNull(tablePath);
+        if (!Objects.equals(tablePath.getTableName(), tablePath.getDatabaseName())) {
+            throw new IllegalArgumentException(String.format("table name: %s and database name: %s must be the same", tablePath.getTableName(), tablePath.getDatabaseName()));
+        }
+        // todo: Get the index mapping and shard info?
+        CatalogOptionBuilder catalogOptionBuilder = CatalogOptionBuilder.of(pluginConfig);
+        TableIdentifier tableIdentifier = TableIdentifier.of(catalogName, tablePath.getDatabaseName(), tablePath.getTableName());
+        TableSchema tableSchema = TableSchema.builder().build();
+        List<String> partitionKeys = Collections.emptyList();
+        String comment = "";
+        return CatalogTable.of(
+            tableIdentifier,
+            tableSchema,
+            catalogOptionBuilder.buildCatalogOption(),
+            partitionKeys,
+            comment
+        );
     }
 
     @Override
     public void createTable(TablePath tablePath, CatalogTable table, boolean ignoreIfExists) throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
-        // Create the index
+        // todo: create the index with the options in catalogTable
+        if (databaseExists(tablePath.getTableName())) {
+            if (!ignoreIfExists) {
+                throw new DatabaseAlreadyExistException(catalogName, tablePath.getTableName());
+            }
+        } else {
+            try {
+                esRestClient.createIndex(tablePath.getTableName());
+            } catch (Exception ex) {
+                throw new CatalogException(
+                    String.format("Failed to create table %s in catalog %s", tablePath.getTableName(), catalogName), ex);
+            }
+        }
+
     }
 
     @Override
@@ -142,7 +173,7 @@ public class ElasticSearchCatalog implements Catalog {
 
     @Override
     public void createDatabase(TablePath tablePath, boolean ignoreIfExists) throws DatabaseAlreadyExistException, CatalogException {
-        throw new UnsupportedOperationException("Elasticsearch does not support create database");
+        createTable(tablePath, null, ignoreIfExists);
     }
 
     @Override

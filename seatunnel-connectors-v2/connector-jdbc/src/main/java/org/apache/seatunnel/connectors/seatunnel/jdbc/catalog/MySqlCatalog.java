@@ -217,8 +217,8 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
     }
 
     @SuppressWarnings("MagicNumber")
-    private Map<String, String> buildConnectorOptions(TablePath tablePath) {
-        Map<String, String> options = new HashMap<>(8);
+    private Map<String, Object> buildConnectorOptions(TablePath tablePath) {
+        Map<String, Object> options = new HashMap<>(8);
         options.put("connector", "jdbc");
         options.put("url", baseUrl + tablePath.getDatabaseName());
         options.put("table-name", tablePath.getFullName());

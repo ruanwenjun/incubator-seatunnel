@@ -38,7 +38,7 @@ public final class CatalogTable implements Serializable {
      */
     private final TableSchema tableSchema;
 
-    private final Map<String, String> options;
+    private final Map<String, Object> options;
 
     private final List<String> partitionKeys;
 
@@ -47,7 +47,7 @@ public final class CatalogTable implements Serializable {
     public static CatalogTable of(
         TableIdentifier tableId,
         TableSchema tableSchema,
-        Map<String, String> options,
+        Map<String, Object> options,
         List<String> partitionKeys,
         String comment) {
         return new CatalogTable(
@@ -61,7 +61,7 @@ public final class CatalogTable implements Serializable {
     private CatalogTable(
             TableIdentifier tableId,
             TableSchema tableSchema,
-            Map<String, String> options,
+            Map<String, Object> options,
             List<String> partitionKeys,
             String comment) {
         this.tableId = tableId;
@@ -79,7 +79,7 @@ public final class CatalogTable implements Serializable {
         return tableSchema;
     }
 
-    public Map<String, String> getOptions() {
+    public Map<String, Object> getOptions() {
         return options;
     }
 

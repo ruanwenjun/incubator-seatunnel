@@ -346,6 +346,27 @@ public class EsRestClient {
         }
     }
 
+    public void createIndex(String indexName) {
+        // todo：use mapping
+        String endpoint = "/" + indexName;
+        Request request = new Request("PUT", endpoint);
+        try {
+            Response response = restClient.performRequest(request);
+            if (response == null) {
+                throw new ElasticsearchConnectorException(ElasticsearchConnectorErrorCode.CREATE_INDEX_FAILED,
+                    "PUT " + endpoint + " response null");
+            }
+            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+                return;
+            } else {
+                throw new ElasticsearchConnectorException(ElasticsearchConnectorErrorCode.CREATE_INDEX_FAILED,
+                    String.format("PUT %s response status code=%d", endpoint, response.getStatusLine().getStatusCode()));
+            }
+        } catch (IOException ex) {
+            throw new ElasticsearchConnectorException(ElasticsearchConnectorErrorCode.CREATE_INDEX_FAILED, ex);
+        }
+    }
+
     public List<String> listIndex() {
         String endpoint = "/_cat/indices?format=json";
         Request request = new Request("GET", endpoint);

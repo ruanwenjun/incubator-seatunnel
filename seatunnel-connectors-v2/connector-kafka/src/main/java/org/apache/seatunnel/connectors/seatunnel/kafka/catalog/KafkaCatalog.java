@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -138,22 +139,19 @@ public class KafkaCatalog implements Catalog {
     @Override
     public boolean tableExists(TablePath tablePath) throws CatalogException {
         checkNotNull(tablePath, "tablePath cannot be null");
+        if (Objects.equals(tablePath.getTableName(), tablePath.getDatabaseName())) {
+            throw new IllegalArgumentException(String.format("table name: %s and database name: %s cannot be the same", tablePath.getTableName(), tablePath.getDatabaseName()));
+        }
         return databaseExists(tablePath.getDatabaseName());
     }
 
     @Override
     public CatalogTable getTable(TablePath tablePath) throws CatalogException, TableNotExistException {
         checkNotNull(tablePath, "tablePath cannot be null");
-        TopicDescription topicDescription;
-        try {
-            topicDescription = getTopicDescription(tablePath.getTableName());
-            if (topicDescription == null) {
-                throw new TableNotExistException(catalogName, tablePath);
-            }
-        } catch (ExecutionException | InterruptedException e) {
-            throw new CatalogException(
-                String.format("Catalog : %s get table : %s error", catalogName, tablePath), e);
+        if (!tableExists(tablePath)) {
+            throw new TableNotExistException(catalogName, tablePath);
         }
+
         TableIdentifier tableIdentifier = TableIdentifier.of(catalogName, tablePath.getDatabaseName(), tablePath.getTableName());
         // todo: Set the schema of the table?
         TableSchema tableSchema = TableSchema.builder()
@@ -161,7 +159,7 @@ public class KafkaCatalog implements Catalog {
         return CatalogTable.of(
             tableIdentifier,
             tableSchema,
-            buildConnectorOptions(topicDescription),
+            buildConnectorOptions(tablePath),
             Collections.emptyList(),
             "");
     }
@@ -173,9 +171,9 @@ public class KafkaCatalog implements Catalog {
         if (tableExists(tablePath)) {
             throw new TableAlreadyExistException(catalogName, tablePath);
         }
-        Map<String, String> options = table.getOptions();
-        int partitionNumber = Integer.parseInt(options.get(Config.PARTITION.key()));
-        short replicationFactor = Short.parseShort(options.get(Config.REPLICATION_FACTOR));
+        Map<String, Object> options = table.getOptions();
+        int partitionNumber = Integer.parseInt(options.get(Config.PARTITION.key()).toString());
+        short replicationFactor = Short.parseShort(options.get(Config.REPLICATION_FACTOR).toString());
         NewTopic newTopic = new NewTopic(tablePath.getTableName(), partitionNumber, replicationFactor);
         CreateTopicsResult createTopicsResult = adminClient.createTopics(Lists.newArrayList(newTopic));
         try {
@@ -218,12 +216,24 @@ public class KafkaCatalog implements Catalog {
         return topicDescriptionKafkaFuture.get();
     }
 
-    private Map<String, String> buildConnectorOptions(TopicDescription topicDescription) {
+    private Map<String, Object> buildConnectorOptions(TablePath tablePath) {
+        TopicDescription topicDescription;
+        try {
+            topicDescription = getTopicDescription(tablePath.getTableName());
+            if (topicDescription == null) {
+                throw new TableNotExistException(catalogName, tablePath);
+            }
+        } catch (ExecutionException | InterruptedException e) {
+            throw new CatalogException(
+                String.format("Catalog : %s get table : %s error", catalogName, tablePath), e);
+        }
         String topicName = topicDescription.name();
         List<TopicPartitionInfo> partitions = topicDescription.partitions();
         List<Node> replicas = partitions.get(0).replicas();
+
         // todo: Do we need to support partition has different replication factor?
-        Map<String, String> options = new HashMap<>();
+
+        Map<String, Object> options = new HashMap<>();
         options.put(Config.BOOTSTRAP_SERVERS.key(), bootstrapServers);
         options.put(Config.TOPIC.key(), topicName);
         options.put(Config.PARTITION.key(), String.valueOf(partitions.size()));
