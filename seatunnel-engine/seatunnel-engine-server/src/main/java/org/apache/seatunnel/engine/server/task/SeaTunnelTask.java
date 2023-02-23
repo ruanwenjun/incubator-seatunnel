@@ -34,6 +34,7 @@ import org.apache.seatunnel.common.utils.function.ConsumerWithException;
 import org.apache.seatunnel.engine.core.checkpoint.InternalCheckpointListener;
 import org.apache.seatunnel.engine.core.dag.actions.Action;
 import org.apache.seatunnel.engine.core.dag.actions.ShuffleAction;
+import org.apache.seatunnel.engine.core.dag.actions.ShuffleConfig;
 import org.apache.seatunnel.engine.core.dag.actions.SinkAction;
 import org.apache.seatunnel.engine.core.dag.actions.SourceAction;
 import org.apache.seatunnel.engine.core.dag.actions.TransformChainAction;
@@ -64,11 +65,11 @@ import org.apache.seatunnel.engine.server.task.group.AbstractTaskGroupWithInterm
 import org.apache.seatunnel.engine.server.task.record.Barrier;
 import org.apache.seatunnel.engine.server.task.statemachine.SeaTunnelTaskState;
 
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.internal.metrics.MetricDescriptor;
 import com.hazelcast.internal.metrics.MetricsCollectionContext;
 import lombok.NonNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
@@ -83,8 +84,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+@Slf4j
 public abstract class SeaTunnelTask extends AbstractTask {
-    private static final Logger LOG = LoggerFactory.getLogger(SeaTunnelTask.class);
     private static final long serialVersionUID = 2604309561613784425L;
 
     protected volatile SeaTunnelTaskState currState;
@@ -213,12 +214,17 @@ public abstract class SeaTunnelTask extends AbstractTask {
                     new TransformFlowLifeCycle<SeaTunnelRow>((TransformChainAction) f.getAction(), this,
                         new SeaTunnelTransformCollector(flowLifeCycles), completableFuture);
             } else if (f.getAction() instanceof ShuffleAction) {
-                // TODO use index and taskID to create ringbuffer list
+                ShuffleAction shuffleAction = (ShuffleAction) f.getAction();
+                ShuffleConfig shuffleConfig = shuffleAction.getConfig();
+                HazelcastInstance hazelcastInstance = getExecutionContext().getInstance();
                 if (flow.getNext().isEmpty()) {
-                    lifeCycle = new ShuffleSinkFlowLifeCycle(this, completableFuture);
+                    lifeCycle = new ShuffleSinkFlowLifeCycle(
+                        this, indexID, shuffleConfig, hazelcastInstance, completableFuture);
                 } else {
-                    lifeCycle = new ShuffleSourceFlowLifeCycle(this, completableFuture);
+                    lifeCycle = new ShuffleSourceFlowLifeCycle(
+                        this, indexID, shuffleConfig, hazelcastInstance, completableFuture);
                 }
+                outputs = flowLifeCycles;
             } else {
                 throw new UnknownActionException(f.getAction());
             }
@@ -271,7 +277,14 @@ public abstract class SeaTunnelTask extends AbstractTask {
 
     @Override
     public void close() throws IOException {
-        allCycles.parallelStream().forEach(cycle -> sneaky(cycle::close));
+        allCycles.parallelStream()
+                .forEach(flowLifeCycle -> {
+                    try {
+                        flowLifeCycle.close();
+                    } catch (IOException e) {
+                        log.error("Close FlowLifeCycle error.", e);
+                    }
+                });
     }
 
     public void ack(Barrier barrier) {

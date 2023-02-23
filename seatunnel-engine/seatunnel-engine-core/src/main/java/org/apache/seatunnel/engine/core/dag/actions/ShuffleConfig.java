@@ -15,18 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.common.schema;
+package org.apache.seatunnel.engine.core.dag.actions;
 
-import org.apache.seatunnel.api.configuration.util.OptionMark;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.Tolerate;
 
-import lombok.Data;
+import java.util.concurrent.TimeUnit;
 
-import java.util.Map;
+@Getter
+@Setter
+@ToString
+@Builder(toBuilder = true)
+public class ShuffleConfig implements Config {
+    public static final int DEFAULT_BATCH_SIZE = 1024;
+    public static final long DEFAULT_BATCH_FLUSH_INTERVAL = TimeUnit.SECONDS.toMillis(3);
 
-@Data
-public class Schema {
+    @Builder.Default
+    private int batchSize = DEFAULT_BATCH_SIZE;
+    @Builder.Default
+    private long batchFlushInterval = DEFAULT_BATCH_FLUSH_INTERVAL;
+    private ShuffleStrategy shuffleStrategy;
 
-    @OptionMark(description = "The schema fields map")
-    private Map<String, String> fields;
-
+    @Tolerate
+    public ShuffleConfig() {
+    }
 }

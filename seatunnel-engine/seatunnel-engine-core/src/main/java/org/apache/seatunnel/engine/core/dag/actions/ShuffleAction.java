@@ -17,36 +17,21 @@
 
 package org.apache.seatunnel.engine.core.dag.actions;
 
-import org.apache.seatunnel.api.transform.PartitionSeaTunnelTransform;
-
 import lombok.NonNull;
 
-import java.net.URL;
-import java.util.List;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.HashSet;
 
 public class ShuffleAction extends AbstractAction {
 
-    private final PartitionSeaTunnelTransform partitionTransformation;
-
     public ShuffleAction(long id,
                          @NonNull String name,
-                         @NonNull List<Action> upstreams,
-                         @NonNull PartitionSeaTunnelTransform partitionTransformation,
-                         @NonNull Set<URL> jarUrls) {
-        super(id, name, upstreams, jarUrls);
-        this.partitionTransformation = partitionTransformation;
+                         @NonNull ShuffleConfig shuffleConfig) {
+        super(id, name, new ArrayList<>(), new HashSet<>(), shuffleConfig);
     }
 
-    public ShuffleAction(long id,
-                         @NonNull String name,
-                         @NonNull PartitionSeaTunnelTransform partitionTransformation,
-                         @NonNull Set<URL> jarUrls) {
-        super(id, name, jarUrls);
-        this.partitionTransformation = partitionTransformation;
-    }
-
-    public PartitionSeaTunnelTransform getPartitionTransformation() {
-        return partitionTransformation;
+    @Override
+    public ShuffleConfig getConfig() {
+        return (ShuffleConfig) super.getConfig();
     }
 }

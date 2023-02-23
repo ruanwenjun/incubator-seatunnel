@@ -15,14 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.api.source;
+package org.apache.seatunnel.api.common;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 
-public class SourceCommonOptions {
+public interface CommonOptions {
+    Option<String> FACTORY_ID =
+        Options.key("factory")
+            .stringType()
+            .noDefaultValue()
+            .withDescription("Identifier of the SPI factory class.");
 
-    public static final Option<String> RESULT_TABLE_NAME =
+    Option<String> PLUGIN_NAME =
+        Options.key("plugin_name")
+            .stringType()
+            .noDefaultValue()
+            .withDescription("Name of the SPI plugin class.");
+
+    Option<String> RESULT_TABLE_NAME =
         Options.key("result_table_name")
             .stringType()
             .noDefaultValue()
@@ -36,7 +47,16 @@ public class SourceCommonOptions {
                     "The data set (dataStream/dataset) registered here can be directly accessed by other plugins " +
                     "by specifying source_table_name .");
 
-    public static final Option<Integer> PARALLELISM =
+    Option<String> SOURCE_TABLE_NAME =
+        Options.key("source_table_name")
+            .stringType()
+            .noDefaultValue()
+            .withDescription(
+                "When source_table_name is not specified, " +
+                    "the current plug-in processes the data set dataset output by the previous plugin in the configuration file. " +
+                    "When source_table_name is specified, the current plug-in is processing the data set corresponding to this parameter.");
+
+    Option<Integer> PARALLELISM =
         Options.key("parallelism")
             .intType()
             .defaultValue(1)

@@ -21,10 +21,12 @@ import org.apache.seatunnel.shade.com.fasterxml.jackson.core.JsonProcessingExcep
 import org.apache.seatunnel.shade.com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.dataformat.javaprop.JavaPropsMapper;
+import org.apache.seatunnel.shade.com.typesafe.config.Config;
+import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -41,6 +43,7 @@ public class ConfigUtil {
      * </pre>
      */
     public static Map<String, Object> treeMap(Object rawMap) {
+        // TODO: Keeping the order of the values in the map
         try {
             return PROPERTIES_MAPPER.readValue(PROPERTIES_MAPPER.writeValueAsString(rawMap), new TypeReference<Map<String, Object>>() {
             });
@@ -74,7 +77,7 @@ public class ConfigUtil {
             Map<String, Object> rawMap = (Map<String, Object>) rawValue;
             if (!nestedMap) {
                 keys = new ArrayList<>();
-                newMap = new HashMap<>(rawMap.size());
+                newMap = new LinkedHashMap<>(rawMap.size());
             }
             for (Map.Entry<String, Object> entry : rawMap.entrySet()) {
                 keys.add(entry.getKey());
@@ -170,5 +173,13 @@ public class ConfigUtil {
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(String.format("Could not parse json, value: %s", o));
         }
+    }
+
+    public static String convertToJsonString(Config config) {
+        return convertToJsonString(config.root().unwrapped());
+    }
+
+    public static Config convertToConfig(String configJson) {
+        return ConfigFactory.parseString(configJson);
     }
 }
