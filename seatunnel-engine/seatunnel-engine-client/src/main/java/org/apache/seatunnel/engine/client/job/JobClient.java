@@ -46,11 +46,18 @@ public class JobClient {
     }
 
     public long getNewJobId() {
-        return hazelcastClient.getHazelcastInstance().getFlakeIdGenerator(Constant.SEATUNNEL_ID_GENERATOR_NAME).newId();
+        return hazelcastClient
+                .getHazelcastInstance()
+                .getFlakeIdGenerator(Constant.SEATUNNEL_ID_GENERATOR_NAME)
+                .newId();
     }
 
     public ClientJobProxy createJobProxy(@NonNull JobImmutableInformation jobImmutableInformation) {
         return new ClientJobProxy(hazelcastClient, jobImmutableInformation);
+    }
+
+    public ClientJobProxy getJobProxy(@NonNull Long jobId) {
+        return new ClientJobProxy(hazelcastClient, jobId);
     }
 
     public String getJobDetailStatus(Long jobId) {

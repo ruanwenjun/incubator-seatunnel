@@ -3,8 +3,10 @@
 > StarRocks sink connector
 
 ## Description
+
 Used to send data to StarRocks. Both support streaming and batch mode.
 The internal implementation of StarRocks sink connector is cached and imported by stream load in batches.
+
 ## Key features
 
 - [ ] [exactly-once](../../concept/connector-v2-features.md)
@@ -12,9 +14,10 @@ The internal implementation of StarRocks sink connector is cached and imported b
 
 ## Options
 
-| name                        | type    | required | default value   |
+|            name             |  type   | required |  default value  |
 |-----------------------------|---------|----------|-----------------|
 | node_urls                   | list    | yes      | -               |
+| base-url                    | string  | yes      | -               |
 | username                    | string  | yes      | -               |
 | password                    | string  | yes      | -               |
 | database                    | string  | yes      | -               |
@@ -33,6 +36,10 @@ The internal implementation of StarRocks sink connector is cached and imported b
 ### node_urls [list]
 
 `StarRocks` cluster address, the format is `["fe_ip:fe_http_port", ...]`
+
+### base-url [string]
+
+The JDBC URL like `jdbc:mysql://localhost:9030/` or `jdbc:mysql://localhost:9030` or `jdbc:mysql://localhost:9030/db`
 
 ### username [string]
 
@@ -113,7 +120,7 @@ The parameter of the stream load `data_desc`
 
 #### Supported import data formats
 
-The supported formats include CSV and JSON. Default value: CSV
+The supported formats include CSV and JSON. Default value: JSON
 
 ## Example
 
@@ -182,3 +189,4 @@ sink {
 - Add StarRocks Sink Connector
 - [Improve] Change Connector Custom Config Prefix To Map [3719](https://github.com/apache/incubator-seatunnel/pull/3719)
 - [Feature] Support write cdc changelog event(INSERT/UPDATE/DELETE) [3865](https://github.com/apache/incubator-seatunnel/pull/3865)
+

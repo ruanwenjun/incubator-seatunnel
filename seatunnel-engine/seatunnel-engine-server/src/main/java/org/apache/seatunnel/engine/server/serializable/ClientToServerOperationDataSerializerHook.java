@@ -36,9 +36,8 @@ import com.hazelcast.nio.serialization.IdentifiedDataSerializable;
 import com.hazelcast.spi.annotation.PrivateApi;
 
 /**
- * A Java Service Provider hook for Hazelcast's Identified Data Serializable
- * mechanism. This is private API.
- * All about the Operation's data serializable define in this class.
+ * A Java Service Provider hook for Hazelcast's Identified Data Serializable mechanism. This is
+ * private API. All about the Operation's data serializable define in this class.
  */
 @PrivateApi
 public final class ClientToServerOperationDataSerializerHook implements DataSerializerHook {
