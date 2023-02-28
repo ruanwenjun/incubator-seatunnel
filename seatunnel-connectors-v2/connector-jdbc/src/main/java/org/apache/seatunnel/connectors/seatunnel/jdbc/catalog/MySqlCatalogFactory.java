@@ -51,7 +51,7 @@ public class MySqlCatalogFactory implements CatalogFactory {
                 options.get(JdbcCatalogOptions.PASSWORD),
                 defaultDatabase.get(),
                 urlInfo.getUrlWithoutDatabase(),
-                urlInfo.getUrlWithDatabase().get());
+                urlWithDatabase);
     }
 
     @Override
