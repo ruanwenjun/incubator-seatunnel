@@ -61,9 +61,9 @@ public class CatalogTableUtil implements Serializable {
     public static final Option<Map<String, String>> SCHEMA =
             Options.key("schema").mapType().noDefaultValue().withDescription("SeaTunnel Schema");
 
-    public static final Option<String> FIELDS =
+    public static final Option<Map<String, String>> FIELDS =
             Options.key("schema.fields")
-                    .stringType()
+                    .mapType()
                     .noDefaultValue()
                     .withDescription("SeaTunnel Schema Fields");
     private static final String FIELD_KEY = "fields";
@@ -168,6 +168,22 @@ public class CatalogTableUtil implements Serializable {
             }
         }
         return catalogTables;
+    }
+
+    public static CatalogTableUtil buildWithReadonlyConfig(ReadonlyConfig option) {
+        if (option.get(FIELDS) == null) {
+            throw new RuntimeException(
+                    "Schema config need option [schema], please correct your config first");
+        }
+        TableSchema tableSchema = parseTableSchema(option.get(FIELDS));
+        return new CatalogTableUtil(
+                CatalogTable.of(
+                        // TODO: other table info
+                        TableIdentifier.of("", "", ""),
+                        tableSchema,
+                        new HashMap<>(),
+                        new ArrayList<>(),
+                        ""));
     }
 
     public static CatalogTableUtil buildWithConfig(Config config) {
@@ -354,6 +370,20 @@ public class CatalogTableUtil implements Serializable {
         int fieldsNum = fieldsMap.size();
         List<Column> columns = new ArrayList<>(fieldsNum);
         for (Map.Entry<String, String> entry : fieldsMap.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            SeaTunnelDataType<?> dataType = parseDataType(value);
+            // TODO: column
+            PhysicalColumn column = PhysicalColumn.of(key, dataType, 0, true, null, null);
+            columns.add(column);
+        }
+        return TableSchema.builder().columns(columns).build();
+    }
+
+    private static TableSchema parseTableSchema(Map<String, String> config) {
+        int fieldsNum = config.size();
+        List<Column> columns = new ArrayList<>(fieldsNum);
+        for (Map.Entry<String, String> entry : config.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
             SeaTunnelDataType<?> dataType = parseDataType(value);

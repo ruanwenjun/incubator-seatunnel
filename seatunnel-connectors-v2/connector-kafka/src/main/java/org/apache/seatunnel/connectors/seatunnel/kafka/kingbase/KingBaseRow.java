@@ -15,23 +15,36 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.api.common;
+package org.apache.seatunnel.connectors.seatunnel.kafka.kingbase;
 
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * This interface is the life cycle of a plugin, after a plugin created, will execute prepare method
- * to do some initialize operation.
- */
-public interface SeaTunnelPluginLifeCycle {
+import java.util.Map;
 
-    /**
-     * Use the pluginConfig to do some initialize operation.
-     *
-     * @param pluginConfig plugin config.
-     * @throws PrepareFailException if plugin prepare failed, the {@link PrepareFailException} will
-     *     throw.
-     */
-    @Deprecated
-    void prepare(Config pluginConfig) throws PrepareFailException;
+@Data
+@NoArgsConstructor
+public class KingBaseRow {
+
+    @JsonProperty("_source_schema")
+    private String schema;
+
+    @JsonProperty("_source_table")
+    private String table;
+
+    @JsonProperty("_committime")
+    private String commitTime;
+
+    @JsonProperty("_optype")
+    private KingBaseOp op;
+
+    @JsonProperty("_seqno")
+    private String seqNo;
+
+    @JsonProperty("record")
+    private Map<String, String> record;
+
+    @JsonProperty("key")
+    private Map<String, Object> key;
 }
