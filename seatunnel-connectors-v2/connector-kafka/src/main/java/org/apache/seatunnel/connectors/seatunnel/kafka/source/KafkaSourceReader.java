@@ -170,7 +170,7 @@ public class KafkaSourceReader implements SourceReader<SeaTunnelRow, KafkaSource
                                                                             .SKIP) {
                                                                 log.warn(
                                                                         "Deserialize message failed, skip this message, message: {}",
-                                                                        record.value());
+                                                                        new String(record.value()));
                                                                 continue;
                                                             }
                                                             throw e;

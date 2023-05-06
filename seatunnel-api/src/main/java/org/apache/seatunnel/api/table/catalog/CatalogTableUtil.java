@@ -41,8 +41,6 @@ import org.apache.seatunnel.common.config.CheckConfigUtil;
 import org.apache.seatunnel.common.config.CheckResult;
 import org.apache.seatunnel.common.utils.JsonUtils;
 
-import org.apache.commons.lang3.StringUtils;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,7 +52,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 @Slf4j
 public class CatalogTableUtil implements Serializable {
@@ -99,16 +96,12 @@ public class CatalogTableUtil implements Serializable {
         ReadonlyConfig readonlyConfig = ReadonlyConfig.fromConfig(config);
         Map<String, String> catalogOptions =
                 readonlyConfig.getOptional(CatalogOptions.CATALOG_OPTIONS).orElse(new HashMap<>());
-        // TODO: fallback key
-        String factoryId =
-                catalogOptions.getOrDefault(
-                        CommonOptions.FACTORY_ID.key(),
-                        readonlyConfig.get(CommonOptions.PLUGIN_NAME));
+
         Map<String, Object> catalogAllOptions = new HashMap<>();
         catalogAllOptions.putAll(readonlyConfig.toMap());
         catalogAllOptions.putAll(catalogOptions);
         ReadonlyConfig catalogConfig = ReadonlyConfig.fromMap(catalogAllOptions);
-
+        String factoryId = catalogConfig.get(CommonOptions.FACTORY_ID);
         // Highest priority: specified schema
         Map<String, String> schemaMap = readonlyConfig.get(CatalogTableUtil.SCHEMA);
         if (schemaMap != null && schemaMap.size() > 0) {
@@ -124,15 +117,17 @@ public class CatalogTableUtil implements Serializable {
                         factoryId);
         return optionalCatalog
                 .map(
-                        catalog -> {
+                        c -> {
                             long startTime = System.currentTimeMillis();
-                            List<CatalogTable> catalogTables =
-                                    getCatalogTables(catalogConfig, catalog);
-                            log.info(
-                                    String.format(
-                                            "Get catalog tables, cost time: %d",
-                                            System.currentTimeMillis() - startTime));
-                            return catalogTables;
+                            try (Catalog catalog = c) {
+                                catalog.open();
+                                List<CatalogTable> catalogTables = catalog.getTables(catalogConfig);
+                                log.info(
+                                        String.format(
+                                                "Get catalog tables, cost time: %d",
+                                                System.currentTimeMillis() - startTime));
+                                return catalogTables;
+                            }
                         })
                 .orElse(Collections.emptyList());
     }
