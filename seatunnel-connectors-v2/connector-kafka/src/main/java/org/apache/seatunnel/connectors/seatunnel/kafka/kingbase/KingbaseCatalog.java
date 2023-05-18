@@ -203,9 +203,9 @@ public class KingbaseCatalog implements Catalog {
             TableIdentifier tableIdentifier =
                     TableIdentifier.of(
                             catalogName,
-                            tablePath.getDatabaseName().toUpperCase(),
-                            tablePath.getSchemaName().toUpperCase(),
-                            tablePath.getTableName().toUpperCase());
+                            tablePath.getDatabaseName(),
+                            tablePath.getSchemaName(),
+                            tablePath.getTableName());
             return CatalogTable.of(
                     tableIdentifier,
                     builder.build(),
