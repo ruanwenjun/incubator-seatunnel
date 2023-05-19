@@ -30,6 +30,7 @@ import org.apache.seatunnel.common.utils.SeaTunnelException;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -40,6 +41,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@Slf4j
 public class KingbaseJsonDeserializationSchema
         implements DeserializationSchemaWithTopic<SeaTunnelRow> {
 
@@ -56,16 +58,13 @@ public class KingbaseJsonDeserializationSchema
             throws IOException {
         KingBaseRow kingBaseRow = OBJECT_MAPPER.readValue(message, KingBaseRow.class);
         if (kingBaseRow.getOp().equals(KingBaseOp.DDL)) {
+            log.debug("DDL operation, ignore");
             return;
         }
-        String tableId =
-                topic.toUpperCase()
-                        + "."
-                        + kingBaseRow.getSchema().toUpperCase()
-                        + "."
-                        + kingBaseRow.getTable().toUpperCase();
+        String tableId = topic + "." + kingBaseRow.getSchema() + "." + kingBaseRow.getTable();
         SeaTunnelRowType rowType = dataType.getRowType(tableId);
         if (rowType == null) {
+            log.debug("Table {} not found in schema, ignore", tableId);
             return;
         }
         SeaTunnelRow row = new SeaTunnelRow(rowType.getTotalFields());

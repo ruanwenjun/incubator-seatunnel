@@ -32,6 +32,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.Config;
+import org.apache.seatunnel.connectors.seatunnel.kafka.config.MessageFormat;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.StartMode;
 
 import com.google.auto.service.AutoService;
@@ -40,6 +41,8 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.FORMAT;
 
 @AutoService(Factory.class)
 public class KafkaSourceFactory implements TableSourceFactory, SupportMultipleTable {
@@ -73,7 +76,8 @@ public class KafkaSourceFactory implements TableSourceFactory, SupportMultipleTa
             TableSource<T, SplitT, StateT> createSource(TableFactoryContext context) {
         return () -> {
             SeaTunnelDataType<SeaTunnelRow> dataType;
-            if (context.getCatalogTables().size() == 1) {
+            if (context.getCatalogTables().size() == 1
+                    && !context.getOptions().get(FORMAT).equals(MessageFormat.KINGBASE_JSON)) {
                 dataType =
                         context.getCatalogTables().get(0).getTableSchema().toPhysicalRowDataType();
             } else {
