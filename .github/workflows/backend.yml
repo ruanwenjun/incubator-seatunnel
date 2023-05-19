@@ -19,8 +19,12 @@ name: Backend
 on:
   push:
     branches:
-      - dev
+      - business-dev
+      - "v[0-9]+.[0-9]+.[0-9]+-release"
   pull_request:
+    branches:
+      - business-dev
+      - "v[0-9]+.[0-9]+.[0-9]+-release"
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -31,60 +35,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  license-header:
-    if: github.repository == 'apache/incubator-seatunnel'
-    name: License header
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Check license header
-        uses: apache/skywalking-eyes@985866ce7e324454f61e22eb2db2e998db09d6f3
 
   code-style:
-    if: github.repository == 'apache/incubator-seatunnel'
+    if: github.repository == 'WhaleOps/SeaTunnel'
     name: Code style
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 8
+          distribution: 'temurin'
+          cache: 'maven'
       - name: Check code style
         run: ./mvnw --batch-mode --quiet --no-snapshot-updates clean spotless:check
 
-  dead-link:
-    if: github.repository == 'apache/incubator-seatunnel'
-    name: Dead links
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v2
-      - run: sudo npm install -g markdown-link-check@3.8.7
-      - run: |
-          for file in $(find . -name "*.md"); do
-            markdown-link-check -c .dlc.json -q "$file"
-          done
-
   sanity-check:
-    if: github.repository == 'apache/incubator-seatunnel'
+    if: github.repository == 'WhaleOps/SeaTunnel'
     name: Sanity check results
-    needs: [ license-header, code-style, dead-link ]
-    runs-on: ubuntu-latest
+    needs: [ code-style ]
+    runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - name: Check results
         run: |
-          [[ ${{ needs.license-header.result }} == 'success' ]] || exit 1;
           [[ ${{ needs.code-style.result }} == 'success' ]] || exit 1;
-          [[ ${{ needs.dead-link.result }} == 'success' ]] || exit 1;
 
   changes:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # To prevent error when there's no base branch
-    if: github.repository == 'apache/incubator-seatunnel'
+    if: github.repository == 'WhaleOps/SeaTunnel'
     timeout-minutes: 10
     outputs:
       api: ${{ steps.filter.outputs.api }}
@@ -235,40 +219,14 @@ jobs:
           echo $build_modules
           echo "modules=$build_modules" >> $GITHUB_OUTPUT
 
-  dependency-license:
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.engine == 'true'
-    name: Dependency licenses
-    needs: [ changes, sanity-check ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '8'
-          cache: 'maven'
-      - name: Install
-        uses: nick-fields/retry@v2
-        with:
-          timeout_minutes: 40
-          max_attempts: 3
-          retry_on: error
-          command: |
-            ./mvnw -B -q install -DskipTests -D"maven.test.skip"=true -D"maven.javadoc.skip"=true -D"license.skipAddThirdParty"
-      - name: Check Dependencies Licenses
-        run: tools/dependencies/checkLicense.sh
-
   unit-test:
     needs: [ changes, sanity-check ]
     if: needs.changes.outputs.api == 'true' || (needs.changes.outputs.api == 'false' && needs.changes.outputs.ut-modules != '')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest', 'windows-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 36
     steps:
       - uses: actions/checkout@v2
@@ -298,8 +256,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -323,8 +281,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -352,8 +310,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v2
@@ -424,8 +382,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -451,8 +409,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -478,8 +436,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -505,8 +463,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -532,8 +490,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -613,8 +571,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -637,8 +595,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2
@@ -661,8 +619,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        java: [ '8', '11' ]
-        os: [ 'ubuntu-latest' ]
+        java: [ '8' ]
+        os: [ 'self-hosted' ]
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v2

@@ -99,6 +99,7 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                         }
                     } catch (Exception e) {
                         log.error("abort aggregatedCommitInfo error ", e);
+                        throw new RuntimeException(e);
                     }
                 });
     }

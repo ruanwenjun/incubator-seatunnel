@@ -308,7 +308,6 @@ public class SeaTunnelClientTest {
 
         SeaTunnelClient seaTunnelClient = createSeaTunnelClient();
         JobClient jobClient = seaTunnelClient.getJobClient();
-
         try {
             JobExecutionEnvironment jobExecutionEnv =
                     seaTunnelClient.createExecutionContext(filePath, jobConfig);

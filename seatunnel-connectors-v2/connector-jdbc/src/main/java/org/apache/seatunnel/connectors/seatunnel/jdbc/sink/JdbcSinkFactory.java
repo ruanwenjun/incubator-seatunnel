@@ -46,6 +46,7 @@ import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.DRIVER;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.GENERATE_SINK_SQL;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.IS_EXACTLY_ONCE;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.IS_PRIMARY_KEY_UPDATED;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.MAX_COMMIT_ATTEMPTS;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.MAX_RETRIES;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.PASSWORD;
@@ -106,7 +107,8 @@ public class JdbcSinkFactory implements TableSinkFactory {
                         GENERATE_SINK_SQL,
                         AUTO_COMMIT,
                         SUPPORT_UPSERT_BY_QUERY_PRIMARY_KEY_EXIST,
-                        PRIMARY_KEYS)
+                        PRIMARY_KEYS,
+                        IS_PRIMARY_KEY_UPDATED)
                 .conditional(
                         IS_EXACTLY_ONCE,
                         true,

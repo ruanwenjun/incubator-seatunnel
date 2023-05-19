@@ -84,6 +84,7 @@ public class PostgresTypeMapper implements JdbcDialectTypeMapper {
     private static final String PG_CHARACTER_ARRAY = "_character";
     private static final String PG_CHARACTER_VARYING = "varchar";
     private static final String PG_CHARACTER_VARYING_ARRAY = "_varchar";
+    private static final String PG_INTERVAL = "interval";
     private static final String PG_GEOMETRY = "geometry";
     private static final String PG_GEOGRAPHY = "geography";
 
@@ -137,6 +138,7 @@ public class PostgresTypeMapper implements JdbcDialectTypeMapper {
             case PG_CHARACTER:
             case PG_CHARACTER_VARYING:
             case PG_TEXT:
+            case PG_INTERVAL:
             case PG_GEOMETRY:
             case PG_GEOGRAPHY:
                 return BasicType.STRING_TYPE;
@@ -146,6 +148,7 @@ public class PostgresTypeMapper implements JdbcDialectTypeMapper {
             case PG_TEXT_ARRAY:
                 return ArrayType.STRING_ARRAY_TYPE;
             case PG_TIMESTAMP:
+            case PG_TIMESTAMPTZ:
                 return LocalTimeType.LOCAL_DATE_TIME_TYPE;
             case PG_TIME:
                 return LocalTimeType.LOCAL_TIME_TYPE;
@@ -154,7 +157,6 @@ public class PostgresTypeMapper implements JdbcDialectTypeMapper {
 
             case PG_TIMESTAMP_ARRAY:
             case PG_NUMERIC_ARRAY:
-            case PG_TIMESTAMPTZ:
             case PG_TIMESTAMPTZ_ARRAY:
             case PG_TIME_ARRAY:
             case PG_DATE_ARRAY:

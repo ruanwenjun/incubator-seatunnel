@@ -110,4 +110,3 @@ if [[ $DAEMON == true && $HELP == false ]]; then
  else
  java ${JAVA_OPTS} -cp ${CLASS_PATH} ${APP_MAIN} ${args}
 fi
-
