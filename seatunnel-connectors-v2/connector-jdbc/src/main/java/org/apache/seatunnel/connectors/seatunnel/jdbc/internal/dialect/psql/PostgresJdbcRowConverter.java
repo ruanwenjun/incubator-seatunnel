@@ -34,6 +34,10 @@ import java.util.Locale;
 import java.util.Optional;
 
 public class PostgresJdbcRowConverter extends AbstractJdbcRowConverter {
+
+    private static final String PG_GEOMETRY = "GEOMETRY";
+    private static final String PG_GEOGRAPHY = "GEOGRAPHY";
+
     @Override
     public String converterName() {
         return null;
@@ -48,6 +52,7 @@ public class PostgresJdbcRowConverter extends AbstractJdbcRowConverter {
         for (int fieldIndex = 0; fieldIndex < typeInfo.getTotalFields(); fieldIndex++) {
             SeaTunnelDataType<?> seaTunnelDataType = typeInfo.getFieldType(fieldIndex);
             int resultSetIndex = fieldIndex + 1;
+
             switch (seaTunnelDataType.getSqlType()) {
                 case STRING:
                     String columnTypeName =
