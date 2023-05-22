@@ -20,17 +20,20 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.sink;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialectLoader;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.google.auto.service.AutoService;
 
@@ -70,10 +73,25 @@ public class JdbcSinkFactory implements TableSinkFactory {
     public TableSink createSink(TableFactoryContext context) {
         ReadonlyConfig config = context.getOptions();
         CatalogTable catalogTable = context.getCatalogTable();
+        Map<String, String> catalogOptions = config.get(CatalogOptions.CATALOG_OPTIONS);
         Optional<String> optionalTable = config.getOptional(TABLE);
         if (!optionalTable.isPresent()) {
             Map<String, String> map = config.toMap();
-            map.put(TABLE.key(), catalogTable.getTableId().getTableName());
+            if (StringUtils.isNotBlank(catalogOptions.get(JdbcCatalogOptions.SCHEMA.key()))) {
+                map.put(
+                        TABLE.key(),
+                        catalogOptions.get(JdbcCatalogOptions.SCHEMA.key())
+                                + "."
+                                + catalogTable.getTableId().getTableName());
+            } else if (StringUtils.isNotBlank(catalogTable.getTableId().getSchemaName())) {
+                map.put(
+                        TABLE.key(),
+                        catalogTable.getTableId().getSchemaName()
+                                + "."
+                                + catalogTable.getTableId().getTableName());
+            } else {
+                map.put(TABLE.key(), catalogTable.getTableId().getTableName());
+            }
 
             PrimaryKey primaryKey = catalogTable.getTableSchema().getPrimaryKey();
             if (primaryKey != null && !CollectionUtils.isEmpty(primaryKey.getColumnNames())) {

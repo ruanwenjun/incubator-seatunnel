@@ -15,16 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.cdc.oracle.catalog;
+package org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.configuration.util.OptionValidationException;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.factory.Factory;
+import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
 
 import com.google.auto.service.AutoService;
+
+import java.util.Optional;
 
 @AutoService(Factory.class)
 public class OracleCatalogFactory implements CatalogFactory {
@@ -36,12 +40,18 @@ public class OracleCatalogFactory implements CatalogFactory {
 
     @Override
     public Catalog createCatalog(String catalogName, ReadonlyConfig options) {
-        String url = options.get(JdbcCatalogOptions.BASE_URL);
+        String urlWithDatabase = options.get(JdbcCatalogOptions.BASE_URL);
+        JdbcUrlUtil.UrlInfo urlInfo = OracleURLParser.parse(urlWithDatabase);
+        Optional<String> defaultDatabase = urlInfo.getDefaultDatabase();
+        if (!defaultDatabase.isPresent()) {
+            throw new OptionValidationException(JdbcCatalogOptions.BASE_URL);
+        }
         return new OracleCatalog(
                 catalogName,
                 options.get(JdbcCatalogOptions.USERNAME),
                 options.get(JdbcCatalogOptions.PASSWORD),
-                url);
+                urlInfo,
+                options.get(JdbcCatalogOptions.SCHEMA));
     }
 
     @Override

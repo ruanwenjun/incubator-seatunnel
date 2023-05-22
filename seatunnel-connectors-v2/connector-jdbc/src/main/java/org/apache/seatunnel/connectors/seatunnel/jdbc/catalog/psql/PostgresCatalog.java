@@ -34,6 +34,7 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalo
 
 import com.mysql.cj.MysqlType;
 import com.mysql.cj.jdbc.result.ResultSetImpl;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -52,7 +53,55 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_BIT;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_BYTEA;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_CHAR;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_CHARACTER;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_CHARACTER_VARYING;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_GEOGRAPHY;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_GEOMETRY;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_INTERVAL;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_TEXT;
+
+@Slf4j
 public class PostgresCatalog extends AbstractJdbcCatalog {
+
+    private static final String SELECT_COLUMNS_SQL =
+            "SELECT \n"
+                    + "    a.attname AS column_name, \n"
+                    + "\t\tt.typname as type_name,\n"
+                    + "    CASE \n"
+                    + "        WHEN t.typname = 'varchar' THEN t.typname || '(' || (a.atttypmod - 4) || ')'\n"
+                    + "        WHEN t.typname = 'bpchar' THEN 'char' || '(' || (a.atttypmod - 4) || ')'\n"
+                    + "        WHEN t.typname = 'numeric' OR t.typname = 'decimal' THEN t.typname || '(' || ((a.atttypmod - 4) >> 16) || ', ' || ((a.atttypmod - 4) & 65535) || ')'\n"
+                    + "        WHEN t.typname = 'bit' OR t.typname = 'bit varying' THEN t.typname || '(' || (a.atttypmod - 4) || ')'\n"
+                    + "        ELSE t.typname\n"
+                    + "    END AS full_type_name,\n"
+                    + "    CASE\n"
+                    + "        WHEN t.typname IN ('varchar', 'bpchar', 'bit', 'bit varying') THEN a.atttypmod - 4\n"
+                    + "        WHEN t.typname IN ('numeric', 'decimal') THEN (a.atttypmod - 4) >> 16\n"
+                    + "        ELSE NULL\n"
+                    + "    END AS column_length,\n"
+                    + "\t\tCASE\n"
+                    + "        WHEN t.typname IN ('numeric', 'decimal') THEN (a.atttypmod - 4) & 65535\n"
+                    + "        ELSE NULL\n"
+                    + "    END AS column_scale,\n"
+                    + "\t\td.description AS column_comment,\n"
+                    + "\t\tpg_get_expr(ad.adbin, ad.adrelid) AS default_value,\n"
+                    + "\t\tCASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END AS is_nullable\n"
+                    + "FROM \n"
+                    + "    pg_class c\n"
+                    + "    JOIN pg_namespace n ON c.relnamespace = n.oid\n"
+                    + "    JOIN pg_attribute a ON a.attrelid = c.oid\n"
+                    + "    JOIN pg_type t ON a.atttypid = t.oid\n"
+                    + "    LEFT JOIN pg_description d ON c.oid = d.objoid AND a.attnum = d.objsubid\n"
+                    + "    LEFT JOIN pg_attrdef ad ON a.attnum = ad.adnum AND a.attrelid = ad.adrelid\n"
+                    + "WHERE \n"
+                    + "    n.nspname = '%s'\n"
+                    + "    AND c.relname = '%s'\n"
+                    + "    AND a.attnum > 0\n"
+                    + "ORDER BY \n"
+                    + "    a.attnum;";
 
     protected static final Set<String> SYS_DATABASES = new HashSet<>(9);
 
@@ -71,8 +120,12 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
     protected final Map<String, Connection> connectionMap;
 
     public PostgresCatalog(
-            String catalogName, String username, String pwd, JdbcUrlUtil.UrlInfo urlInfo) {
-        super(catalogName, username, pwd, urlInfo);
+            String catalogName,
+            String username,
+            String pwd,
+            JdbcUrlUtil.UrlInfo urlInfo,
+            String defaultSchema) {
+        super(catalogName, username, pwd, urlInfo, defaultSchema);
         this.connectionMap = new ConcurrentHashMap<>();
     }
 
@@ -132,10 +185,10 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
         }
 
         String dbUrl = getUrlFromDatabaseName(databaseName);
+        Connection connection = getConnection(dbUrl);
         try (PreparedStatement ps =
-                getConnection(dbUrl)
-                        .prepareStatement(
-                                "SELECT table_schema, table_name FROM information_schema.tables;")) {
+                connection.prepareStatement(
+                        "SELECT table_schema, table_name FROM information_schema.tables;")) {
 
             ResultSet rs = ps.executeQuery();
 
@@ -165,7 +218,8 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
         }
 
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
-        try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd)) {
+        Connection conn = getConnection(dbUrl);
+        try {
             DatabaseMetaData metaData = conn.getMetaData();
             Optional<PrimaryKey> primaryKey =
                     getPrimaryKey(
@@ -180,40 +234,20 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
                             tablePath.getSchemaName(),
                             tablePath.getTableName());
 
-            try (PreparedStatement ps =
-                    conn.prepareStatement(
-                            String.format(
-                                    "SELECT * FROM %s WHERE 1 = 0;",
-                                    tablePath.getFullNameWithQuoted("\"")))) {
-                ResultSetMetaData tableMetaData = ps.getMetaData();
+            String sql =
+                    String.format(
+                            SELECT_COLUMNS_SQL,
+                            tablePath.getSchemaName(),
+                            tablePath.getTableName());
+            try (PreparedStatement ps = conn.prepareStatement(sql);
+                    ResultSet resultSet = ps.executeQuery()) {
                 TableSchema.Builder builder = TableSchema.builder();
-                // add column
-                for (int i = 1; i <= tableMetaData.getColumnCount(); i++) {
-                    String columnName = tableMetaData.getColumnName(i);
-                    SeaTunnelDataType<?> type = fromJdbcType(tableMetaData, i);
-                    int columnDisplaySize = tableMetaData.getColumnDisplaySize(i);
-                    String comment = tableMetaData.getColumnLabel(i);
-                    boolean isNullable =
-                            tableMetaData.isNullable(i) == ResultSetMetaData.columnNullable;
-                    Object defaultValue =
-                            getColumnDefaultValue(
-                                            metaData,
-                                            tablePath.getDatabaseName(),
-                                            tablePath.getSchemaName(),
-                                            tablePath.getTableName(),
-                                            columnName)
-                                    .orElse(null);
 
-                    PhysicalColumn physicalColumn =
-                            PhysicalColumn.of(
-                                    columnName,
-                                    type,
-                                    columnDisplaySize,
-                                    isNullable,
-                                    defaultValue,
-                                    comment);
-                    builder.column(physicalColumn);
+                // add column
+                while (resultSet.next()) {
+                    buildColumn(resultSet, builder);
                 }
+
                 // add primary key
                 primaryKey.ifPresent(builder::primaryKey);
                 // add constraint key
@@ -229,7 +263,8 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
                         builder.build(),
                         buildConnectorOptions(tablePath),
                         Collections.emptyList(),
-                        "");
+                        "",
+                        "postgres");
             }
 
         } catch (Exception e) {
@@ -238,43 +273,76 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
         }
     }
 
-    public static Map<String, Object> getColumnsDefaultValue(TablePath tablePath, Connection conn) {
-        Map<String, Object> columnsDefaultValue = new HashMap<>();
+    private void buildColumn(ResultSet resultSet, TableSchema.Builder builder) throws SQLException {
+        String columnName = resultSet.getString("column_name");
+        String typeName = resultSet.getString("type_name");
+        String fullTypeName = resultSet.getString("full_type_name");
+        long columnLength = resultSet.getLong("column_length");
+        long columnScale = resultSet.getLong("column_scale");
+        String columnComment = resultSet.getString("column_comment");
+        Object defaultValue = resultSet.getObject("default_value");
+        boolean isNullable = resultSet.getString("is_nullable").equals("YES");
 
-        String schemaName = tablePath.getSchemaName();
-        String tableName = tablePath.getTableName();
+        if (defaultValue != null && defaultValue.toString().contains("regclass"))
+            defaultValue = null;
 
-        String sql =
-                "SELECT column_name, column_default "
-                        + "FROM information_schema.columns "
-                        + "WHERE table_schema = ? AND table_name = ?";
-
-        try (PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
-            preparedStatement.setString(1, schemaName);
-            preparedStatement.setString(2, tableName);
-
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                while (resultSet.next()) {
-                    String columnName = resultSet.getString("column_name");
-                    Object defaultValue = resultSet.getObject("column_default");
-                    columnsDefaultValue.put(columnName, defaultValue);
-                }
-            }
-        } catch (SQLException e) {
-            throw new CatalogException(
-                    String.format(
-                            "Failed getting table(%s) columns default value",
-                            tablePath.getFullName()),
-                    e);
+        SeaTunnelDataType<?> type = fromJdbcType(typeName, columnLength, columnScale);
+        long bitLen = 0;
+        switch (typeName) {
+            case PG_BYTEA:
+                bitLen = -1;
+                break;
+            case PG_TEXT:
+                columnLength = -1;
+                break;
+            case PG_INTERVAL:
+                columnLength = 50;
+                break;
+            case PG_GEOMETRY:
+            case PG_GEOGRAPHY:
+                columnLength = 255;
+                break;
+            case PG_BIT:
+                bitLen = columnLength;
+                break;
+            case PG_CHAR:
+            case PG_CHARACTER:
+            case PG_CHARACTER_VARYING:
+            default:
+                break;
         }
 
-        return columnsDefaultValue;
+        PhysicalColumn physicalColumn =
+                PhysicalColumn.of(
+                        columnName,
+                        type,
+                        0,
+                        isNullable,
+                        defaultValue,
+                        columnComment,
+                        fullTypeName,
+                        false,
+                        false,
+                        bitLen,
+                        null,
+                        columnLength);
+        builder.column(physicalColumn);
     }
 
     @Override
     protected boolean createTableInternal(TablePath tablePath, CatalogTable table)
             throws CatalogException {
-        throw new UnsupportedOperationException("Unsupported create table");
+        String createTableSql = new PostgresCreateTableSqlBuilder(table).build(tablePath);
+        String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
+        Connection conn = getConnection(dbUrl);
+        log.info("create table sql: {}", createTableSql);
+        try (PreparedStatement ps = conn.prepareStatement(createTableSql)) {
+            ps.execute();
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format("Failed creating table %s", tablePath.getFullName()), e);
+        }
+        return true;
     }
 
     @Override
@@ -285,26 +353,13 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
         String tableName = tablePath.getTableName();
 
         String sql = "DROP TABLE IF EXISTS \"" + schemaName + "\".\"" + tableName + "\"";
-
-        try (PreparedStatement ps = getConnection(dbUrl).prepareStatement(sql)) {
+        Connection connection = getConnection(dbUrl);
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
             // Will there exist concurrent drop for one table?
             return ps.execute();
         } catch (SQLException e) {
             throw new CatalogException(
                     String.format("Failed dropping table %s", tablePath.getFullName()), e);
-        }
-    }
-
-    protected boolean createDatabaseInternal(String databaseName, Connection conn) {
-        String sql = "CREATE DATABASE \"" + databaseName + "\"";
-
-        try (PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
-            preparedStatement.executeUpdate();
-            return true;
-        } catch (SQLException e) {
-            // Handle the exception or rethrow it as needed
-            e.printStackTrace();
-            return false;
         }
     }
 
@@ -360,6 +415,13 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
                 PostgresDataTypeConvertor.PRECISION, metadata.getPrecision(colIndex));
         dataTypeProperties.put(PostgresDataTypeConvertor.SCALE, metadata.getScale(colIndex));
         return new PostgresDataTypeConvertor().toSeaTunnelType(columnTypeName, dataTypeProperties);
+    }
+
+    private SeaTunnelDataType<?> fromJdbcType(String typeName, long precision, long scale) {
+        Map<String, Object> dataTypeProperties = new HashMap<>();
+        dataTypeProperties.put(PostgresDataTypeConvertor.PRECISION, precision);
+        dataTypeProperties.put(PostgresDataTypeConvertor.SCALE, scale);
+        return new PostgresDataTypeConvertor().toSeaTunnelType(typeName, dataTypeProperties);
     }
 
     @SuppressWarnings("MagicNumber")

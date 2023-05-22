@@ -45,12 +45,14 @@ import com.google.auto.service.AutoService;
 import io.debezium.connector.oracle.OracleConnection;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import lombok.NoArgsConstructor;
 
 import java.time.ZoneId;
 
 import static org.apache.seatunnel.connectors.seatunnel.cdc.oracle.utils.OracleConnectionUtils.createOracleConnection;
 import static org.apache.seatunnel.connectors.seatunnel.cdc.oracle.utils.OracleTypeUtils.convertFromTable;
 
+@NoArgsConstructor
 @AutoService(SeaTunnelSource.class)
 public class OracleIncrementalSource<T> extends IncrementalSource<T, JdbcSourceConfig>
         implements SupportParallelism {

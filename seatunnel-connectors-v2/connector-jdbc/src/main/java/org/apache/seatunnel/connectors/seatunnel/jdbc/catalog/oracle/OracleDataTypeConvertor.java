@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.cdc.oracle.catalog;
+package org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle;
 
 import org.apache.seatunnel.api.table.catalog.DataTypeConvertException;
 import org.apache.seatunnel.api.table.catalog.DataTypeConvertor;
@@ -46,33 +46,33 @@ public class OracleDataTypeConvertor implements DataTypeConvertor<String> {
     public static final Integer DEFAULT_SCALE = 18;
 
     // ============================data types=====================
-    private static final String ORACLE_UNKNOWN = "UNKNOWN";
+    public static final String ORACLE_UNKNOWN = "UNKNOWN";
     // -------------------------number----------------------------
-    private static final String ORACLE_BINARY_DOUBLE = "BINARY_DOUBLE";
-    private static final String ORACLE_BINARY_FLOAT = "BINARY_FLOAT";
-    private static final String ORACLE_NUMBER = "NUMBER";
-    private static final String ORACLE_FLOAT = "FLOAT";
-    private static final String ORACLE_REAL = "REAL";
-    private static final String ORACLE_INTEGER = "INTEGER";
+    public static final String ORACLE_BINARY_DOUBLE = "BINARY_DOUBLE";
+    public static final String ORACLE_BINARY_FLOAT = "BINARY_FLOAT";
+    public static final String ORACLE_NUMBER = "NUMBER";
+    public static final String ORACLE_FLOAT = "FLOAT";
+    public static final String ORACLE_REAL = "REAL";
+    public static final String ORACLE_INTEGER = "INTEGER";
     // -------------------------string----------------------------
-    private static final String ORACLE_CHAR = "CHAR";
-    private static final String ORACLE_VARCHAR2 = "VARCHAR2";
-    private static final String ORACLE_NCHAR = "NCHAR";
-    private static final String ORACLE_NVARCHAR2 = "NVARCHAR2";
-    private static final String ORACLE_LONG = "LONG";
-    private static final String ORACLE_ROWID = "ROWID";
-    private static final String ORACLE_CLOB = "CLOB";
-    private static final String ORACLE_NCLOB = "NCLOB";
+    public static final String ORACLE_CHAR = "CHAR";
+    public static final String ORACLE_VARCHAR2 = "VARCHAR2";
+    public static final String ORACLE_NCHAR = "NCHAR";
+    public static final String ORACLE_NVARCHAR2 = "NVARCHAR2";
+    public static final String ORACLE_LONG = "LONG";
+    public static final String ORACLE_ROWID = "ROWID";
+    public static final String ORACLE_CLOB = "CLOB";
+    public static final String ORACLE_NCLOB = "NCLOB";
     // ------------------------------time-------------------------
-    private static final String ORACLE_DATE = "DATE";
-    private static final String ORACLE_TIMESTAMP = "TIMESTAMP";
-    private static final String ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE =
+    public static final String ORACLE_DATE = "DATE";
+    public static final String ORACLE_TIMESTAMP = "TIMESTAMP";
+    public static final String ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE =
             "TIMESTAMP WITH LOCAL TIME ZONE";
     // ------------------------------blob-------------------------
-    private static final String ORACLE_BLOB = "BLOB";
-    private static final String ORACLE_BFILE = "BFILE";
-    private static final String ORACLE_RAW = "RAW";
-    private static final String ORACLE_LONG_RAW = "LONG RAW";
+    public static final String ORACLE_BLOB = "BLOB";
+    public static final String ORACLE_BFILE = "BFILE";
+    public static final String ORACLE_RAW = "RAW";
+    public static final String ORACLE_LONG_RAW = "LONG RAW";
 
     @Override
     public SeaTunnelDataType<?> toSeaTunnelType(String connectorDataType) {
