@@ -188,20 +188,30 @@ public class SubPlan {
                         if (finishedTaskNum.incrementAndGet()
                                 == (physicalVertexList.size() + coordinatorVertexList.size())) {
                             PipelineStatus pipelineEndState = getPipelineEndState();
-                            subPlanDone(pipelineEndState);
                             LOGGER.info(
                                     String.format(
                                             "%s end with state %s",
                                             this.pipelineFullName, pipelineEndState));
 
-                            if (!checkNeedRestore(pipelineEndState) || !prepareRestorePipeline()) {
+                            if (!checkNeedRestore(pipelineEndState)) {
+                                subPlanDone(pipelineEndState);
+                                turnToEndState(pipelineEndState);
                                 pipelineFuture.complete(
                                         new PipelineExecutionState(
                                                 pipelineId,
                                                 pipelineEndState,
                                                 errorByPhysicalVertex.get()));
                             } else {
-                                restorePipeline();
+                                turnToEndState(pipelineEndState);
+                                if (prepareRestorePipeline()) {
+                                    restorePipeline();
+                                } else {
+                                    pipelineFuture.complete(
+                                            new PipelineExecutionState(
+                                                    pipelineId,
+                                                    pipelineEndState,
+                                                    errorByPhysicalVertex.get()));
+                                }
                             }
                         }
                     } catch (Throwable e) {
@@ -278,7 +288,6 @@ public class SubPlan {
                     jobMaster.removeMetricsContext(getPipelineLocation(), pipelineStatus);
                     jobMaster.releasePipelineResource(this);
                     notifyCheckpointManagerPipelineEnd(pipelineStatus);
-                    turnToEndState(pipelineStatus);
                     return null;
                 },
                 new RetryUtils.RetryMaterial(
@@ -295,7 +304,7 @@ public class SubPlan {
         return jobMaster.isNeedRestore() && getPipelineRestoreNum() < PIPELINE_MAX_RESTORE_NUM;
     }
 
-    private void turnToEndState(@NonNull PipelineStatus endState) {
+    private void turnToEndState(@NonNull PipelineStatus endState) throws Exception {
         synchronized (this) {
             // consistency check
             if (this.currPipelineStatus.isEndState() && !endState.isEndState()) {
@@ -313,15 +322,27 @@ public class SubPlan {
 
             // we must update runningJobStateTimestampsIMap first and then can update
             // runningJobStateIMap
-            updateStateTimestamps(endState);
-
-            runningJobStateIMap.set(pipelineLocation, endState);
+            RetryUtils.retryWithException(
+                    () -> {
+                        updateStateTimestamps(endState);
+                        runningJobStateIMap.set(pipelineLocation, endState);
+                        return null;
+                    },
+                    new RetryUtils.RetryMaterial(
+                            Constant.OPERATION_RETRY_TIME,
+                            true,
+                            exception ->
+                                    exception instanceof OperationTimeoutException
+                                            || exception
+                                                    instanceof HazelcastInstanceNotActiveException
+                                            || exception instanceof InterruptedException,
+                            Constant.OPERATION_RETRY_SLEEP));
             this.currPipelineStatus = endState;
         }
     }
 
     public boolean updatePipelineState(
-            @NonNull PipelineStatus current, @NonNull PipelineStatus targetState) {
+            @NonNull PipelineStatus current, @NonNull PipelineStatus targetState) throws Exception {
         synchronized (this) {
             // consistency check
             if (current.isEndState()) {
@@ -360,8 +381,22 @@ public class SubPlan {
 
                 // we must update runningJobStateTimestampsIMap first and then can update
                 // runningJobStateIMap
-                updateStateTimestamps(targetState);
-                runningJobStateIMap.set(pipelineLocation, targetState);
+                RetryUtils.retryWithException(
+                        () -> {
+                            updateStateTimestamps(targetState);
+                            runningJobStateIMap.set(pipelineLocation, targetState);
+                            return null;
+                        },
+                        new RetryUtils.RetryMaterial(
+                                Constant.OPERATION_RETRY_TIME,
+                                true,
+                                exception ->
+                                        exception instanceof OperationTimeoutException
+                                                || exception
+                                                        instanceof
+                                                        HazelcastInstanceNotActiveException
+                                                || exception instanceof InterruptedException,
+                                Constant.OPERATION_RETRY_SLEEP));
                 this.currPipelineStatus = targetState;
                 return true;
             } else {
@@ -456,7 +491,7 @@ public class SubPlan {
     }
 
     /** Before restore a pipeline, the pipeline must do reset */
-    private synchronized void reset() {
+    private synchronized void reset() throws Exception {
         resetPipelineState();
         finishedTaskNum.set(0);
         canceledTaskNum.set(0);
@@ -475,20 +510,33 @@ public class SubPlan {
         runningJobStateTimestampsIMap.set(pipelineLocation, stateTimestamps);
     }
 
-    private void resetPipelineState() {
-        PipelineStatus pipelineState = getPipelineState();
-        if (!pipelineState.isEndState()) {
-            String message =
-                    String.format(
-                            "%s reset state failed, only end state can be reset, current is %s",
-                            getPipelineFullName(), pipelineState);
-            LOGGER.severe(message);
-            throw new IllegalStateException(message);
-        }
+    private void resetPipelineState() throws Exception {
+        RetryUtils.retryWithException(
+                () -> {
+                    PipelineStatus pipelineState = getPipelineState();
+                    if (!pipelineState.isEndState()) {
+                        String message =
+                                String.format(
+                                        "%s reset state failed, only end state can be reset, current is %s",
+                                        getPipelineFullName(), pipelineState);
+                        LOGGER.severe(message);
+                        throw new IllegalStateException(message);
+                    }
 
-        updateStateTimestamps(PipelineStatus.CREATED);
-        runningJobStateIMap.set(pipelineLocation, PipelineStatus.CREATED);
-        this.currPipelineStatus = PipelineStatus.CREATED;
+                    updateStateTimestamps(PipelineStatus.CREATED);
+                    runningJobStateIMap.set(pipelineLocation, PipelineStatus.CREATED);
+                    this.currPipelineStatus = PipelineStatus.CREATED;
+                    ;
+                    return null;
+                },
+                new RetryUtils.RetryMaterial(
+                        Constant.OPERATION_RETRY_TIME,
+                        true,
+                        exception ->
+                                exception instanceof OperationTimeoutException
+                                        || exception instanceof HazelcastInstanceNotActiveException
+                                        || exception instanceof InterruptedException,
+                        Constant.OPERATION_RETRY_SLEEP));
     }
 
     /**
@@ -513,14 +561,14 @@ public class SubPlan {
                     reSchedulerPipelineFuture.join();
                 }
                 reset();
-                initStateFuture();
+                jobMaster.getPhysicalPlan().addPipelineEndCallback(this);
                 return true;
             } catch (Throwable e) {
                 if (this.currPipelineStatus.isEndState()) {
                     // restore failed
                     return false;
                 }
-                initStateFuture();
+                jobMaster.getPhysicalPlan().addPipelineEndCallback(this);
                 return true;
             }
         }
