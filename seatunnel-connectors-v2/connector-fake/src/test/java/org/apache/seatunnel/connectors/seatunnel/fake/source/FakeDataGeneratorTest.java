@@ -56,27 +56,14 @@ public class FakeDataGeneratorTest {
         fakeDataGenerator.collectFakedRows(
                 fakeConfig.getRowNum(),
                 new Collector<SeaTunnelRow>() {
-                    private volatile long rowCountThisPollNext;
-
                     @Override
                     public void collect(SeaTunnelRow record) {
                         seaTunnelRows.add(record);
-                        rowCountThisPollNext++;
                     }
 
                     @Override
                     public Object getCheckpointLock() {
                         throw new UnsupportedOperationException();
-                    }
-
-                    @Override
-                    public long getRowCountThisPollNext() {
-                        return this.rowCountThisPollNext;
-                    }
-
-                    @Override
-                    public void resetRowCountThisPollNext() {
-                        this.rowCountThisPollNext = 0;
                     }
                 });
         Assertions.assertNotNull(seaTunnelRows);
@@ -131,27 +118,14 @@ public class FakeDataGeneratorTest {
         fakeDataGenerator.collectFakedRows(
                 fakeConfig.getRowNum(),
                 new Collector<SeaTunnelRow>() {
-                    private volatile long rowCountThisPollNext;
-
                     @Override
                     public void collect(SeaTunnelRow record) {
                         seaTunnelRows.add(record);
-                        this.rowCountThisPollNext++;
                     }
 
                     @Override
                     public Object getCheckpointLock() {
                         throw new UnsupportedOperationException();
-                    }
-
-                    @Override
-                    public long getRowCountThisPollNext() {
-                        return this.rowCountThisPollNext;
-                    }
-
-                    @Override
-                    public void resetRowCountThisPollNext() {
-                        this.rowCountThisPollNext = 0;
                     }
                 });
         Assertions.assertIterableEquals(expected, seaTunnelRows);

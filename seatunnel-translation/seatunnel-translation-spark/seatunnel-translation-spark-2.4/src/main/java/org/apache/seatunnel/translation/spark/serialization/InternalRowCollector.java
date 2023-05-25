@@ -31,7 +31,6 @@ public class InternalRowCollector implements Collector<SeaTunnelRow> {
     private final Object checkpointLock;
     private final InternalRowConverter rowSerialization;
     private final AtomicLong collectTotalCount;
-    private volatile long rowCountThisPollNext;
 
     public InternalRowCollector(
             Handover<InternalRow> handover, Object checkpointLock, SeaTunnelDataType<?> dataType) {
@@ -48,7 +47,6 @@ public class InternalRowCollector implements Collector<SeaTunnelRow> {
                 handover.produce(rowSerialization.convert(record));
             }
             collectTotalCount.incrementAndGet();
-            rowCountThisPollNext++;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -61,15 +59,5 @@ public class InternalRowCollector implements Collector<SeaTunnelRow> {
     @Override
     public Object getCheckpointLock() {
         return this.checkpointLock;
-    }
-
-    @Override
-    public long getRowCountThisPollNext() {
-        return this.rowCountThisPollNext;
-    }
-
-    @Override
-    public void resetRowCountThisPollNext() {
-        this.rowCountThisPollNext = 0;
     }
 }
