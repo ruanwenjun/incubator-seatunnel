@@ -22,7 +22,10 @@ on:
   push:
     branches:
       - '**-release'
-
+env:
+  GH_USERNAME: ${{ secrets.GH_PACKAGE_USER }}
+  GH_TOKEN: ${{ secrets.GH_PACKAGE_TOKEN }}
+  
 jobs:
   deploy:
     name: Deploy maven packages to pkg.github
