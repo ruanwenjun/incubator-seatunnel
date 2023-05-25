@@ -170,15 +170,27 @@ public class CanalJsonSerDeSchemaTest {
     private static class SimpleCollector implements Collector<SeaTunnelRow> {
 
         private List<SeaTunnelRow> list = new ArrayList<>();
+        private volatile long rowCountThisPollNext;
 
         @Override
         public void collect(SeaTunnelRow record) {
             list.add(record);
+            rowCountThisPollNext++;
         }
 
         @Override
         public Object getCheckpointLock() {
             return null;
+        }
+
+        @Override
+        public long getRowCountThisPollNext() {
+            return rowCountThisPollNext;
+        }
+
+        @Override
+        public void resetRowCountThisPollNext() {
+            rowCountThisPollNext = 0;
         }
     }
 }

@@ -32,4 +32,14 @@ public interface Collector<T> {
      * @return The object to use as the lock
      */
     Object getCheckpointLock();
+
+    /**
+     * Returns the row count in this poll next
+     *
+     * @return
+     */
+    long getRowCountThisPollNext();
+
+    /** Reset the row count to 0 */
+    void resetRowCountThisPollNext();
 }

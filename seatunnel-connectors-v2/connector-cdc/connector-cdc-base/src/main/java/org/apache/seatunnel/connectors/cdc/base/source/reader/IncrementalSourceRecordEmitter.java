@@ -147,15 +147,27 @@ public class IncrementalSourceRecordEmitter<T>
 
     private static class OutputCollector<T> implements Collector<T> {
         private Collector<T> output;
+        private volatile long rowCountThisPollNext;
 
         @Override
         public void collect(T record) {
             output.collect(record);
+            rowCountThisPollNext++;
         }
 
         @Override
         public Object getCheckpointLock() {
             return null;
+        }
+
+        @Override
+        public long getRowCountThisPollNext() {
+            return this.rowCountThisPollNext;
+        }
+
+        @Override
+        public void resetRowCountThisPollNext() {
+            this.rowCountThisPollNext = 0;
         }
     }
 }
