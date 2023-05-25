@@ -179,6 +179,10 @@ public class CheckpointManager {
         return getCheckpointCoordinator(taskLocation.getPipelineId());
     }
 
+    public void reportCheckpointErrorFromTask(TaskLocation taskLocation, String errorMsg) {
+        getCheckpointCoordinator(taskLocation).reportCheckpointErrorFromTask(errorMsg);
+    }
+
     private CheckpointCoordinator getCheckpointCoordinator(int pipelineId) {
         CheckpointCoordinator coordinator = coordinatorMap.get(pipelineId);
         if (coordinator == null) {
