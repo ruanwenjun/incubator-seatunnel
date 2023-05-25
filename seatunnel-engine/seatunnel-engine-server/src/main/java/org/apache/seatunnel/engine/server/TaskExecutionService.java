@@ -48,6 +48,7 @@ import org.apache.seatunnel.engine.server.task.operation.NotifyTaskStatusOperati
 import org.apache.commons.collections4.CollectionUtils;
 
 import com.google.common.collect.Lists;
+import com.hazelcast.instance.impl.NodeState;
 import com.hazelcast.internal.metrics.DynamicMetricsProvider;
 import com.hazelcast.internal.metrics.MetricDescriptor;
 import com.hazelcast.internal.metrics.MetricsCollectionContext;
@@ -132,12 +133,15 @@ public class TaskExecutionService implements DynamicMetricsProvider {
     private final SeaTunnelConfig seaTunnelConfig;
 
     private final ScheduledExecutorService scheduledExecutorService;
+    private final IMap<Long, HashMap<TaskLocation, SeaTunnelMetricsContext>> metricsImap;
 
     public TaskExecutionService(NodeEngineImpl nodeEngine, HazelcastProperties properties) {
         seaTunnelConfig = ConfigProvider.locateAndGetSeaTunnelConfig();
         this.hzInstanceName = nodeEngine.getHazelcastInstance().getName();
         this.nodeEngine = nodeEngine;
         this.logger = nodeEngine.getLoggingService().getLogger(TaskExecutionService.class);
+        this.metricsImap =
+                nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_RUNNING_JOB_METRICS);
 
         MetricsRegistry registry = nodeEngine.getMetricsRegistry();
         MetricDescriptor descriptor =
@@ -471,7 +475,6 @@ public class TaskExecutionService implements DynamicMetricsProvider {
                                             task.provideDynamicMetrics(copy3, context);
                                         });
                     });
-            updateMetricsContextInImap();
         } catch (Throwable t) {
             logger.warning("Dynamic metric collection failed", t);
             throw t;
@@ -479,34 +482,51 @@ public class TaskExecutionService implements DynamicMetricsProvider {
     }
 
     private synchronized void updateMetricsContextInImap() {
+        if (!nodeEngine.getNode().getState().equals(NodeState.ACTIVE)) {
+            logger.warning(
+                    String.format(
+                            "The Node is not ready yet, Node state %s,looking forward to the next "
+                                    + "scheduling",
+                            nodeEngine.getNode().getState()));
+            return;
+        }
         Map<TaskGroupLocation, TaskGroupContext> contextMap = new HashMap<>();
         contextMap.putAll(finishedExecutionContexts);
         contextMap.putAll(executionContexts);
-        try {
-            IMap<TaskLocation, SeaTunnelMetricsContext> map =
-                    nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_RUNNING_JOB_METRICS);
-            contextMap.forEach(
-                    (taskGroupLocation, taskGroupContext) -> {
-                        taskGroupContext
-                                .getTaskGroup()
-                                .getTasks()
-                                .forEach(
-                                        task -> {
-                                            // MetricsContext only exists in SeaTunnelTask
-                                            if (task instanceof SeaTunnelTask) {
-                                                SeaTunnelTask seaTunnelTask = (SeaTunnelTask) task;
-                                                if (null != seaTunnelTask.getMetricsContext()) {
-                                                    map.put(
-                                                            seaTunnelTask.getTaskLocation(),
-                                                            seaTunnelTask.getMetricsContext());
-                                                }
+        HashMap<TaskLocation, SeaTunnelMetricsContext> localMap = new HashMap<>();
+        contextMap.forEach(
+                (taskGroupLocation, taskGroupContext) -> {
+                    taskGroupContext
+                            .getTaskGroup()
+                            .getTasks()
+                            .forEach(
+                                    task -> {
+                                        // MetricsContext only exists in SeaTunnelTask
+                                        if (task instanceof SeaTunnelTask) {
+                                            SeaTunnelTask seaTunnelTask = (SeaTunnelTask) task;
+                                            if (null != seaTunnelTask.getMetricsContext()) {
+                                                localMap.put(
+                                                        seaTunnelTask.getTaskLocation(),
+                                                        seaTunnelTask.getMetricsContext());
                                             }
-                                        });
-                    });
-        } catch (Exception e) {
-            logger.warning(
-                    "The Imap acquisition failed due to the hazelcast node being offline or restarted, and will be retried next time",
-                    e);
+                                        }
+                                    });
+                });
+        if (localMap.size() > 0) {
+            try {
+                metricsImap.lock(Constant.IMAP_RUNNING_JOB_METRICS_KEY);
+                HashMap<TaskLocation, SeaTunnelMetricsContext> centralMap =
+                        metricsImap.computeIfAbsent(
+                                Constant.IMAP_RUNNING_JOB_METRICS_KEY, k -> new HashMap<>());
+                centralMap.putAll(localMap);
+                metricsImap.put(Constant.IMAP_RUNNING_JOB_METRICS_KEY, centralMap);
+            } catch (Exception e) {
+                logger.warning(
+                        "The Imap acquisition failed due to the hazelcast node being offline or restarted, and will be retried next time",
+                        e);
+            } finally {
+                metricsImap.unlock(Constant.IMAP_RUNNING_JOB_METRICS_KEY);
+            }
         }
         this.printTaskExecutionRuntimeInfo();
     }
