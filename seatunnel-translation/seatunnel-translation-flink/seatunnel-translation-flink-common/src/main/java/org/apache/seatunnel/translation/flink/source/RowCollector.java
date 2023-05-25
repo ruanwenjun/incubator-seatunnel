@@ -32,7 +32,6 @@ public class RowCollector implements Collector<SeaTunnelRow> {
     protected final SourceFunction.SourceContext<Row> internalCollector;
     protected final FlinkRowConverter rowSerialization;
     protected final Object checkpointLock;
-    private volatile long rowCountThisPollNext;
 
     public RowCollector(
             SourceFunction.SourceContext<Row> internalCollector,
@@ -47,7 +46,6 @@ public class RowCollector implements Collector<SeaTunnelRow> {
     public void collect(SeaTunnelRow record) {
         try {
             internalCollector.collect(rowSerialization.convert(record));
-            rowCountThisPollNext++;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -56,15 +54,5 @@ public class RowCollector implements Collector<SeaTunnelRow> {
     @Override
     public Object getCheckpointLock() {
         return this.checkpointLock;
-    }
-
-    @Override
-    public long getRowCountThisPollNext() {
-        return this.rowCountThisPollNext;
-    }
-
-    @Override
-    public void resetRowCountThisPollNext() {
-        this.rowCountThisPollNext = 0;
     }
 }
