@@ -125,6 +125,8 @@ public class ParquetReadStrategyTest {
 
         private final List<SeaTunnelRow> rows = new ArrayList<>();
 
+        private volatile long rowCountThisPollNext;
+
         public List<SeaTunnelRow> getRows() {
             return rows;
         }
@@ -134,11 +136,22 @@ public class ParquetReadStrategyTest {
         public void collect(SeaTunnelRow record) {
             System.out.println(record);
             rows.add(record);
+            rowCountThisPollNext++;
         }
 
         @Override
         public Object getCheckpointLock() {
             return null;
+        }
+
+        @Override
+        public long getRowCountThisPollNext() {
+            return rowCountThisPollNext;
+        }
+
+        @Override
+        public void resetRowCountThisPollNext() {
+            rowCountThisPollNext = 0;
         }
     }
 
