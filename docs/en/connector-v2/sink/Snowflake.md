@@ -6,7 +6,7 @@
 >
 > Spark<br/>
 > Flink<br/>
-> SeaTunnel Zeta<br/>
+> Seatunnel Zeta<br/>
 >
   ## Key features
 
@@ -30,7 +30,7 @@ Write data through jdbc. Support Batch mode and Streaming mode, support concurre
 >
   ## Data Type Mapping
 
-|                             Snowflake Data type                             | SeaTunnel Data type |
+|                             Snowflake Data type                             | Seatunnel Data type |
 |-----------------------------------------------------------------------------|---------------------|
 | BOOLEAN                                                                     | BOOLEAN             |
 | TINYINT<br/>SMALLINT<br/>BYTEINT<br/>                                       | SHORT_TYPE          |
