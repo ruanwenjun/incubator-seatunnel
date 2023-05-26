@@ -218,7 +218,9 @@ public class PhysicalVertex {
                 LOGGER.warning(
                         "The node:"
                                 + worker.toString()
-                                + " running the taskGroup no longer exists, return false.");
+                                + " running the taskGroup "
+                                + taskGroupLocation
+                                + " no longer exists, return false.");
                 return false;
             }
             InvocationFuture<Object> invoke =
@@ -233,7 +235,9 @@ public class PhysicalVertex {
                 return (Boolean) invoke.get();
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.warning(
-                        "Execution of CheckTaskGroupIsExecutingOperation failed, checkTaskGroupIsExecuting return false. ",
+                        "Execution of CheckTaskGroupIsExecutingOperation "
+                                + taskGroupLocation
+                                + " failed, checkTaskGroupIsExecuting return false. ",
                         e);
             }
         }
