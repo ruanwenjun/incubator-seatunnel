@@ -198,5 +198,16 @@
             <outputDirectory>/lib</outputDirectory>
             <scope>provided</scope>
         </dependencySet>
+        <dependencySet>
+            <useProjectArtifact>false</useProjectArtifact>
+            <useTransitiveDependencies>true</useTransitiveDependencies>
+            <unpack>false</unpack>
+            <includes>
+                <include>com.kingbase8:kingbase8:jar</include>
+            </includes>
+            <outputFileNameMapping>${artifact.file.name}</outputFileNameMapping>
+            <outputDirectory>/lib</outputDirectory>
+            <scope>system</scope>
+        </dependencySet>
     </dependencySets>
 </assembly>

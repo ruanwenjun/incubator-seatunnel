@@ -167,7 +167,9 @@ public class MysqlDataTypeConvertor implements DataTypeConvertor<MysqlType> {
         SqlType sqlType = seaTunnelDataType.getSqlType();
         // todo: verify
         switch (sqlType) {
-            case ARRAY:
+                // from pg array not support
+                //            case ARRAY:
+                //                return MysqlType.ENUM;
             case MAP:
             case ROW:
             case STRING:
@@ -195,9 +197,9 @@ public class MysqlDataTypeConvertor implements DataTypeConvertor<MysqlType> {
             case DATE:
                 return MysqlType.DATE;
             case TIME:
-                return MysqlType.DATETIME;
+                return MysqlType.TIME;
             case TIMESTAMP:
-                return MysqlType.TIMESTAMP;
+                return MysqlType.DATETIME;
             default:
                 throw new JdbcConnectorException(
                         CommonErrorCode.UNSUPPORTED_DATA_TYPE,

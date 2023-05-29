@@ -391,6 +391,9 @@ public class TaskExecutionService implements DynamicMetricsProvider {
                 notifyStateSuccess = true;
             } catch (InterruptedException e) {
                 logger.severe("send notify task status failed", e);
+            } catch (JobNotFoundException e) {
+                logger.warning("send notify task status failed because can't find job", e);
+                notifyStateSuccess = true;
             } catch (ExecutionException e) {
                 if (e.getCause() instanceof JobNotFoundException) {
                     logger.warning("send notify task status failed because can't find job", e);
