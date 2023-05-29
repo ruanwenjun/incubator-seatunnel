@@ -436,6 +436,7 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
     }
 
     private String getUrlFromDatabaseName(String databaseName) {
-        return baseUrl + databaseName + suffix;
+        String url = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        return url + databaseName + suffix;
     }
 }

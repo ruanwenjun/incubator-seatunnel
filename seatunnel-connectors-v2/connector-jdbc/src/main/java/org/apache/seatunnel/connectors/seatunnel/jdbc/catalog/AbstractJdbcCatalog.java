@@ -84,8 +84,7 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         this.defaultDatabase = urlInfo.getDefaultDatabase().get();
         this.username = username;
         this.pwd = pwd;
-        String baseUrl = urlInfo.getUrlWithoutDatabase();
-        this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        this.baseUrl = urlInfo.getUrlWithoutDatabase();
         this.defaultUrl = urlInfo.getOrigin();
         this.suffix = urlInfo.getSuffix();
         this.defaultSchema = Optional.ofNullable(defaultSchema);
