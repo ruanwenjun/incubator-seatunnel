@@ -81,7 +81,7 @@ public class JdbcOutputFormatBuilder {
                                     table,
                                     seaTunnelRowType,
                                     primaryKeys.toArray(new String[0]),
-                                    jdbcSinkConfig.isSupportUpsertByQueryPrimaryKeyExist(),
+                                    jdbcSinkConfig.isEnableUpsert(),
                                     jdbcSinkConfig.isPrimaryKeyUpdated(),
                                     jdbcSinkConfig.isSupportUpsertByInsertOnly());
         }
@@ -111,7 +111,7 @@ public class JdbcOutputFormatBuilder {
             String table,
             SeaTunnelRowType rowType,
             String[] pkNames,
-            boolean supportUpsertByQueryPrimaryKeyExist,
+            boolean enableUpsert,
             boolean isPrimaryKeyUpdated,
             boolean supportUpsertByInsertOnly) {
         int[] pkFields = Arrays.stream(pkNames).mapToInt(rowType::indexOf).toArray();
@@ -132,7 +132,7 @@ public class JdbcOutputFormatBuilder {
                         pkNames,
                         pkTypes,
                         keyExtractor,
-                        supportUpsertByQueryPrimaryKeyExist,
+                        enableUpsert,
                         isPrimaryKeyUpdated,
                         supportUpsertByInsertOnly);
         return new BufferReducedBatchStatementExecutor(
@@ -147,18 +147,18 @@ public class JdbcOutputFormatBuilder {
             String[] pkNames,
             SeaTunnelDataType[] pkTypes,
             Function<SeaTunnelRow, SeaTunnelRow> keyExtractor,
-            boolean supportUpsertByQueryPrimaryKeyExist,
+            boolean enableUpsert,
             boolean isPrimaryKeyUpdated,
             boolean supportUpsertByInsertOnly) {
         if (supportUpsertByInsertOnly) {
             return createInsertOnlyExecutor(dialect, database, table, rowType);
         }
-        Optional<String> upsertSQL =
+        if (enableUpsert) {
+            Optional<String> upsertSQL =
                 dialect.getUpsertStatement(database, table, rowType.getFieldNames(), pkNames);
-        if (upsertSQL.isPresent()) {
-            return createSimpleExecutor(upsertSQL.get(), rowType, dialect.getRowConverter());
-        }
-        if (supportUpsertByQueryPrimaryKeyExist) {
+            if (upsertSQL.isPresent()) {
+                return createSimpleExecutor(upsertSQL.get(), rowType, dialect.getRowConverter());
+            }
             return createInsertOrUpdateByQueryExecutor(
                     dialect,
                     database,
