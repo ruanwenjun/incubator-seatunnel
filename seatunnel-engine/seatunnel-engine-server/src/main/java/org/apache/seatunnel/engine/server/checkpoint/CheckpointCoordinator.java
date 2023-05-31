@@ -770,6 +770,12 @@ public class CheckpointCoordinator {
         try {
             RetryUtils.retryWithException(
                     () -> {
+                        LOG.info(
+                                String.format(
+                                        "Turn %s state from %s to %s",
+                                        checkpointStateImapKey,
+                                        runningJobStateIMap.get(checkpointStateImapKey),
+                                        targetStatus));
                         runningJobStateIMap.set(checkpointStateImapKey, targetStatus);
                         return null;
                     },
