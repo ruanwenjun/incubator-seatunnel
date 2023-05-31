@@ -342,7 +342,8 @@ public abstract class SeaTunnelTask extends AbstractTask {
                                 new TaskAcknowledgeOperation(
                                         this.taskLocation,
                                         (CheckpointBarrier) barrier,
-                                        checkpointStates.get(barrier.getId())));
+                                        checkpointStates.get(barrier.getId())))
+                        .join();
             }
         }
     }
