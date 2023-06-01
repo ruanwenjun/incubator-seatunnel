@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 public class OracleURLParser {
     private static final Pattern ORACLE_URL_PATTERN =
             Pattern.compile(
-                    "^(?<url>jdbc:oracle:thin:@(?<host>[^:]+):(?<port>\\d+):)(?<database>.+?)((?<suffix>\\?.*)?)$");
+                    "^(?<url>jdbc:oracle:thin:@(//)?(?<host>[^:]+):(?<port>\\d+)[:/])(?<database>.+?)((?<suffix>\\?.*)?)$");
 
     public static JdbcUrlUtil.UrlInfo parse(String url) {
         Matcher matcher = ORACLE_URL_PATTERN.matcher(url);
