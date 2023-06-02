@@ -69,6 +69,8 @@ public class DamengSourceConfigFactory extends JdbcSourceConfigFactory {
                 splitSize,
                 distributionFactorUpper,
                 distributionFactorLower,
+                sampleShardingThreshold,
+                inverseSamplingRate,
                 props,
                 DRIVER_CLASS_NAME,
                 hostname,

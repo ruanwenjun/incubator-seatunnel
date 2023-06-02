@@ -43,6 +43,13 @@ public interface JdbcCatalogOptions {
                     .noDefaultValue()
                     .withDescription("Password to use when connecting to the database server.");
 
+    Option<String> SCHEMA =
+            Options.key("schema")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "for databases that support the schema parameter, give it priority.");
+
     OptionRule.Builder BASE_RULE =
-            OptionRule.builder().required(BASE_URL).required(USERNAME, PASSWORD);
+            OptionRule.builder().required(BASE_URL).required(USERNAME, PASSWORD).optional(SCHEMA);
 }

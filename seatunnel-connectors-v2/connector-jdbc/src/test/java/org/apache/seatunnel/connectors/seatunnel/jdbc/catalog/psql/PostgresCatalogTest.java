@@ -20,11 +20,10 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MySqlCatalog;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 @Disabled("Please Test it in your local environment")
 class PostgresCatalogTest {
@@ -32,25 +31,29 @@ class PostgresCatalogTest {
     @Test
     void testCatalog() {
         JdbcUrlUtil.UrlInfo urlInfo =
-                JdbcUrlUtil.getUrlInfo("jdbc:postgresql://127.0.0.1:5432/st_test");
-        PostgresCatalog catalog = new PostgresCatalog("postgres", "postgres", "postgres", urlInfo);
+                JdbcUrlUtil.getUrlInfo("jdbc:postgresql://127.0.0.1:5432/liulitest");
+        PostgresCatalog catalog =
+                new PostgresCatalog("postgres", "postgres", "postgres", urlInfo, null);
 
         catalog.open();
 
-        List<String> databases = catalog.listDatabases();
-        System.out.println("find databases: " + databases);
+        MySqlCatalog mySqlCatalog =
+                new MySqlCatalog(
+                        "mysql",
+                        "root",
+                        "root@123",
+                        JdbcUrlUtil.getUrlInfo("jdbc:mysql://127.0.0.1:33062/mingdongtest"));
 
-        if (!catalog.databaseExists("default")) {
-            catalog.createDatabase(TablePath.of("default", null), true);
-        }
+        mySqlCatalog.open();
 
-        databases = catalog.listDatabases();
-        System.out.println("find databases: " + databases);
+        CatalogTable table1 =
+                mySqlCatalog.getTable(TablePath.of("mingdongtest", "all_types_table_02"));
 
-        List<String> st_test = catalog.listTables("st_test");
-        System.out.println("find tables: " + st_test);
-
-        CatalogTable table = catalog.getTable(TablePath.of("st_test", "public", "user_info_2"));
+        CatalogTable table =
+                catalog.getTable(TablePath.of("st_test", "public", "all_types_table_02"));
         System.out.println("find table: " + table);
+
+        catalog.createTableInternal(
+                new TablePath("liulitest", "public", "all_types_table_02"), table);
     }
 }

@@ -20,6 +20,7 @@ package org.apache.seatunnel.engine.server.dag.physical;
 import org.apache.seatunnel.common.utils.ExceptionUtils;
 import org.apache.seatunnel.common.utils.RetryUtils;
 import org.apache.seatunnel.engine.common.Constant;
+import org.apache.seatunnel.engine.common.utils.ExceptionUtil;
 import org.apache.seatunnel.engine.common.utils.PassiveCompletableFuture;
 import org.apache.seatunnel.engine.core.job.JobImmutableInformation;
 import org.apache.seatunnel.engine.server.SeaTunnelServer;
@@ -41,8 +42,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.hazelcast.cluster.Address;
 import com.hazelcast.cluster.Member;
-import com.hazelcast.core.HazelcastInstanceNotActiveException;
-import com.hazelcast.core.OperationTimeoutException;
 import com.hazelcast.flakeidgen.FlakeIdGenerator;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
@@ -218,7 +217,9 @@ public class PhysicalVertex {
                 LOGGER.warning(
                         "The node:"
                                 + worker.toString()
-                                + " running the taskGroup no longer exists, return false.");
+                                + " running the taskGroup "
+                                + taskGroupLocation
+                                + " no longer exists, return false.");
                 return false;
             }
             InvocationFuture<Object> invoke =
@@ -233,7 +234,9 @@ public class PhysicalVertex {
                 return (Boolean) invoke.get();
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.warning(
-                        "Execution of CheckTaskGroupIsExecutingOperation failed, checkTaskGroupIsExecuting return false. ",
+                        "Execution of CheckTaskGroupIsExecutingOperation "
+                                + taskGroupLocation
+                                + " failed, checkTaskGroupIsExecuting return false. ",
                         e);
             }
         }
@@ -244,9 +247,9 @@ public class PhysicalVertex {
             TaskGroupLocation taskGroupLocation,
             IMap<PipelineLocation, Map<TaskGroupLocation, SlotProfile>> ownedSlotProfilesIMap) {
         PipelineLocation pipelineLocation = taskGroupLocation.getPipelineLocation();
-        if (ownedSlotProfilesIMap.containsKey(pipelineLocation)
-                && ownedSlotProfilesIMap.get(pipelineLocation).containsKey(taskGroupLocation)) {
+        try {
             return ownedSlotProfilesIMap.get(pipelineLocation).get(taskGroupLocation);
+        } catch (NullPointerException ignore) {
         }
         return null;
     }
@@ -278,7 +281,16 @@ public class PhysicalVertex {
                                                 slotProfile.getWorker())
                                         .get();
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        if (getExecutionState().isEndState()) {
+                            LOGGER.warning(ExceptionUtils.getMessage(e));
+                            LOGGER.warning(
+                                    String.format(
+                                            "%s deploy error, but the state is already in end state %s, skip this error",
+                                            getTaskFullName(), currExecutionState));
+                            return TaskDeployState.success();
+                        } else {
+                            return TaskDeployState.failed(e);
+                        }
                     }
                 });
     }
@@ -362,12 +374,7 @@ public class PhysicalVertex {
                         new RetryUtils.RetryMaterial(
                                 Constant.OPERATION_RETRY_TIME,
                                 true,
-                                exception ->
-                                        exception instanceof OperationTimeoutException
-                                                || exception
-                                                        instanceof
-                                                        HazelcastInstanceNotActiveException
-                                                || exception instanceof InterruptedException,
+                                exception -> ExceptionUtil.isOperationNeedRetryException(exception),
                                 Constant.OPERATION_RETRY_SLEEP));
             } catch (Exception e) {
                 LOGGER.warning(ExceptionUtils.getMessage(e));
@@ -432,11 +439,7 @@ public class PhysicalVertex {
                                     Constant.OPERATION_RETRY_TIME,
                                     true,
                                     exception ->
-                                            exception instanceof OperationTimeoutException
-                                                    || exception
-                                                            instanceof
-                                                            HazelcastInstanceNotActiveException
-                                                    || exception instanceof InterruptedException,
+                                            ExceptionUtil.isOperationNeedRetryException(exception),
                                     Constant.OPERATION_RETRY_SLEEP));
                 } catch (Exception e) {
                     LOGGER.warning(ExceptionUtils.getMessage(e));
@@ -471,6 +474,8 @@ public class PhysicalVertex {
                     new TaskExecutionState(this.taskGroupLocation, ExecutionState.CANCELED));
         } else if (updateTaskState(ExecutionState.RUNNING, ExecutionState.CANCELING)) {
             noticeTaskExecutionServiceCancel();
+        } else if (ExecutionState.CANCELING.equals(runningJobStateIMap.get(taskGroupLocation))) {
+            noticeTaskExecutionServiceCancel();
         }
 
         LOGGER.info(
@@ -492,21 +497,25 @@ public class PhysicalVertex {
         int i = 0;
         // In order not to generate uncontrolled tasks, We will try again until the taskFuture is
         // completed
+        Address executionAddress;
         while (!taskFuture.isDone()
-                && nodeEngine.getClusterService().getMember(getCurrentExecutionAddress()) != null
+                && nodeEngine
+                                .getClusterService()
+                                .getMember(executionAddress = getCurrentExecutionAddress())
+                        != null
                 && i < Constant.OPERATION_RETRY_TIME) {
             try {
                 i++;
                 LOGGER.info(
                         String.format(
                                 "Send cancel %s operator to member %s",
-                                taskFullName, getCurrentExecutionAddress()));
+                                taskFullName, executionAddress));
                 nodeEngine
                         .getOperationService()
                         .createInvocationBuilder(
                                 Constant.SEATUNNEL_SERVICE_NAME,
                                 new CancelTaskOperation(taskGroupLocation),
-                                getCurrentExecutionAddress())
+                                executionAddress)
                         .invoke()
                         .get();
                 return;
@@ -557,12 +566,7 @@ public class PhysicalVertex {
                         new RetryUtils.RetryMaterial(
                                 Constant.OPERATION_RETRY_TIME,
                                 true,
-                                exception ->
-                                        exception instanceof OperationTimeoutException
-                                                || exception
-                                                        instanceof
-                                                        HazelcastInstanceNotActiveException
-                                                || exception instanceof InterruptedException,
+                                exception -> ExceptionUtil.isOperationNeedRetryException(exception),
                                 Constant.OPERATION_RETRY_SLEEP));
             } catch (Exception e) {
                 LOGGER.warning(ExceptionUtils.getMessage(e));
