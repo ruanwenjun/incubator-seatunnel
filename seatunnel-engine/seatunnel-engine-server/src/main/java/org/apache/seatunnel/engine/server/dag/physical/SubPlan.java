@@ -294,7 +294,7 @@ public class SubPlan {
                 new RetryUtils.RetryMaterial(
                         Constant.OPERATION_RETRY_TIME,
                         true,
-                        exception -> ExceptionUtil.isOperationNeedRetryException(exception),
+                        ExceptionUtil::isOperationNeedRetryException,
                         Constant.OPERATION_RETRY_SLEEP));
     }
 
