@@ -245,18 +245,18 @@ public class SqlServerCreateTableSqlBuilder {
             columnSqls.add("NOT NULL");
         }
         // default value
-        if (column.getDefaultValue() != null) {
-            String defaultValue = "'" + column.getDefaultValue().toString() + "'";
-            if (StringUtils.equals(SqlServerType.BINARY.getName(), tyNameDef)
-                    && defaultValue.contains("b'")) {
-                String rep = defaultValue.replace("b", "").replace("'", "");
-                defaultValue = "0x" + Integer.toHexString(Integer.parseInt(rep));
-            } else if (StringUtils.equals(SqlServerType.BIT.getName(), tyNameDef)
-                    && defaultValue.contains("b'")) {
-                defaultValue = defaultValue.replace("b", "").replace("'", "");
-            }
-            columnSqls.add("DEFAULT " + defaultValue);
-        }
+        //        if (column.getDefaultValue() != null) {
+        //            String defaultValue = "'" + column.getDefaultValue().toString() + "'";
+        //            if (StringUtils.equals(SqlServerType.BINARY.getName(), tyNameDef)
+        //                    && defaultValue.contains("b'")) {
+        //                String rep = defaultValue.replace("b", "").replace("'", "");
+        //                defaultValue = "0x" + Integer.toHexString(Integer.parseInt(rep));
+        //            } else if (StringUtils.equals(SqlServerType.BIT.getName(), tyNameDef)
+        //                    && defaultValue.contains("b'")) {
+        //                defaultValue = defaultValue.replace("b", "").replace("'", "");
+        //            }
+        //            columnSqls.add("DEFAULT " + defaultValue);
+        //        }
         // comment
         if (column.getComment() != null) {
             columnComments.put(column.getName(), column.getComment());
