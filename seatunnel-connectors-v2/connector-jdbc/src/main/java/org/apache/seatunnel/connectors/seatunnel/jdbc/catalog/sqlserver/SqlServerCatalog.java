@@ -211,6 +211,10 @@ public class SqlServerCatalog extends AbstractJdbcCatalog {
         SeaTunnelDataType<?> type = fromJdbcType(sourceType, precision, scale);
         String comment = resultSet.getString("comment");
         Object defaultValue = resultSet.getObject("default_value");
+        if (defaultValue != null) {
+            defaultValue =
+                    defaultValue.toString().replace("(", "").replace("'", "").replace(")", "");
+        }
         boolean isNullable = resultSet.getBoolean("is_nullable");
         long bitLen = 0;
         StringBuilder sb = new StringBuilder(sourceType);

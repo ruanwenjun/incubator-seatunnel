@@ -158,6 +158,7 @@ public class MysqlCreateTableSqlBuilder {
     private String buildColumnIdentifySql(Column column, String catalogName) {
         final List<String> columnSqls = new ArrayList<>();
         columnSqls.add(column.getName());
+        boolean isSupportDef = true;
         if (StringUtils.equals(catalogName, "mysql")) {
             columnSqls.add(column.getSourceType());
         } else {
@@ -181,14 +182,18 @@ public class MysqlCreateTableSqlBuilder {
                     } else {
                         columnSqls.add(MysqlType.LONGBLOB.getName());
                     }
+                    isSupportDef = false;
                 }
             } else {
                 if (columnLength >= 16383 && columnLength <= 65535) {
                     columnSqls.add(MysqlType.TEXT.getName());
+                    isSupportDef = false;
                 } else if (columnLength >= 65535 && columnLength <= 16777215) {
                     columnSqls.add(MysqlType.MEDIUMTEXT.getName());
+                    isSupportDef = false;
                 } else if (columnLength > 16777215 || columnLength == -1) {
                     columnSqls.add(MysqlType.LONGTEXT.getName());
+                    isSupportDef = false;
                 } else {
                     // Column type
                     columnSqls.add(
@@ -230,9 +235,9 @@ public class MysqlCreateTableSqlBuilder {
             columnSqls.add("NOT NULL");
         }
         // default value
-        if (column.getDefaultValue() != null) {
-            columnSqls.add("DEFAULT '" + column.getDefaultValue() + "'");
-        }
+        //        if (column.getDefaultValue() != null && isSupportDef) {
+        //            columnSqls.add("DEFAULT '" + column.getDefaultValue() + "'");
+        //        }
         // comment
         if (column.getComment() != null) {
             columnSqls.add("COMMENT '" + column.getComment() + "'");
