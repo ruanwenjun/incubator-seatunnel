@@ -76,9 +76,9 @@ public class OracleCreateTableSqlBuilder {
             columnSql.append(" NOT NULL");
         }
 
-        if (column.getDefaultValue() != null) {
-            columnSql.append(" DEFAULT '").append(column.getDefaultValue().toString()).append("'");
-        }
+//        if (column.getDefaultValue() != null) {
+//            columnSql.append(" DEFAULT '").append(column.getDefaultValue().toString()).append("'");
+//        }
 
         return columnSql.toString();
     }

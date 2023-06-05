@@ -80,9 +80,9 @@ public class PostgresCreateTableSqlBuilder {
         }
 
         // Add default value if exists
-        if (column.getDefaultValue() != null) {
-            columnSql.append(" DEFAULT '").append(column.getDefaultValue().toString()).append("'");
-        }
+//        if (column.getDefaultValue() != null) {
+//            columnSql.append(" DEFAULT '").append(column.getDefaultValue().toString()).append("'");
+//        }
 
         return columnSql.toString();
     }
