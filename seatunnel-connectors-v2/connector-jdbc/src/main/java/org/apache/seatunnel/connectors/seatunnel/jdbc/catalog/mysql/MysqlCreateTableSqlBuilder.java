@@ -235,9 +235,9 @@ public class MysqlCreateTableSqlBuilder {
             columnSqls.add("NOT NULL");
         }
         // default value
-//        if (column.getDefaultValue() != null && isSupportDef) {
-//            columnSqls.add("DEFAULT '" + column.getDefaultValue() + "'");
-//        }
+        //        if (column.getDefaultValue() != null && isSupportDef) {
+        //            columnSqls.add("DEFAULT '" + column.getDefaultValue() + "'");
+        //        }
         // comment
         if (column.getComment() != null) {
             columnSqls.add("COMMENT '" + column.getComment() + "'");
