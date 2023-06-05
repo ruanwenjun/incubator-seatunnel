@@ -186,6 +186,7 @@ public class SqlServerCreateTableSqlBuilder {
             Column column, String catalogName, Map<String, String> columnComments) {
         final List<String> columnSqls = new ArrayList<>();
         columnSqls.add(column.getName());
+        String tyNameDef = "";
         if (StringUtils.equals(catalogName, "sqlserver")) {
             columnSqls.add(column.getSourceType());
         } else {
@@ -200,6 +201,7 @@ public class SqlServerCreateTableSqlBuilder {
                     columnSqls.add(SqlServerType.VARBINARY.getName());
                 } else {
                     columnSqls.add(SqlServerType.BINARY.getName());
+                    tyNameDef = SqlServerType.BINARY.getName();
                 }
                 columnSqls.add("(" + (bitLen == -1 || bitLen > 8000 ? "max)" : bitLen + ")"));
             } else {
@@ -208,6 +210,7 @@ public class SqlServerCreateTableSqlBuilder {
                         sqlServerDataTypeConvertor.toConnectorType(column.getDataType(), null);
                 String typeName = sqlServerType.getName();
                 String fieldSuffixSql = null;
+                tyNameDef = typeName;
                 // Add column length
                 if (StringUtils.equals(SqlServerType.VARCHAR.getName(), typeName)) {
                     if (columnLength > 8000 || columnLength == -1) {
@@ -243,7 +246,16 @@ public class SqlServerCreateTableSqlBuilder {
         }
         // default value
         if (column.getDefaultValue() != null) {
-            columnSqls.add("DEFAULT '" + column.getDefaultValue() + "'");
+            String defaultValue = "'" + column.getDefaultValue().toString() + "'";
+            if (StringUtils.equals(SqlServerType.BINARY.getName(), tyNameDef)
+                    && defaultValue.contains("b'")) {
+                String rep = defaultValue.replace("b", "").replace("'", "");
+                defaultValue = "0x" + Integer.toHexString(Integer.parseInt(rep));
+            } else if (StringUtils.equals(SqlServerType.BIT.getName(), tyNameDef)
+                    && defaultValue.contains("b'")) {
+                defaultValue = defaultValue.replace("b", "").replace("'", "");
+            }
+            columnSqls.add("DEFAULT " + defaultValue);
         }
         // comment
         if (column.getComment() != null) {
