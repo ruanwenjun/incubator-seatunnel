@@ -87,7 +87,7 @@ public class JdbcSourceOptions extends SourceOptions {
     public static final Option<Integer> CONNECTION_POOL_SIZE =
             Options.key("connection.pool.size")
                     .intType()
-                    .defaultValue(20)
+                    .defaultValue(6)
                     .withDescription("The connection pool size.");
 
     public static final Option<Integer> CONNECT_MAX_RETRIES =
