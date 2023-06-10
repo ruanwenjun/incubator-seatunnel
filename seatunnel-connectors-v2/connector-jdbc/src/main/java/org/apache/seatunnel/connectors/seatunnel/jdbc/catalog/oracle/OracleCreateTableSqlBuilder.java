@@ -38,7 +38,9 @@ public class OracleCreateTableSqlBuilder {
                 columns.stream().map(this::buildColumnSql).collect(Collectors.toList());
 
         // Add primary key directly in the create table statement
-        if (primaryKey.getColumnNames() != null && primaryKey.getColumnNames().size() > 0) {
+        if (primaryKey != null
+                && primaryKey.getColumnNames() != null
+                && primaryKey.getColumnNames().size() > 0) {
             columnSqls.add(buildPrimaryKeySql(primaryKey));
         }
 

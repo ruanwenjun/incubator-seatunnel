@@ -91,7 +91,10 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     private static final String SELECT_COLUMNS_SQL =
             "SELECT\n"
                     + "    cols.COLUMN_NAME,\n"
-                    + "    cols.data_type as TYPE_NAME,\n"
+                    + "    CASE \n"
+                    + "        WHEN cols.data_type LIKE 'INTERVAL%%' THEN 'INTERVAL'\n"
+                    + "        ELSE REGEXP_SUBSTR(cols.data_type, '^[^(]+')\n"
+                    + "    END as TYPE_NAME,\n"
                     + "    cols.data_type || \n"
                     + "        CASE \n"
                     + "            WHEN cols.data_type IN ('VARCHAR2', 'CHAR') THEN '(' || cols.data_length || ')'\n"
