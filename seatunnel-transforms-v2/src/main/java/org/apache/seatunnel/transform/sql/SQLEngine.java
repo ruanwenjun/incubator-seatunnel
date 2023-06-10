@@ -15,33 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.transform.sqlengine.zeta;
+package org.apache.seatunnel.transform.sql;
 
-import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 
 import java.util.List;
 
-public interface ZetaUDF {
-    /**
-     * Function name
-     *
-     * @return function name
-     */
-    String functionName();
+public interface SQLEngine {
+    void init(String inputTableName, SeaTunnelRowType inputRowType, String sql);
 
-    /**
-     * The type of function result
-     *
-     * @param argsType input arguments type
-     * @return result type
-     */
-    SeaTunnelDataType<?> resultType(List<SeaTunnelDataType<?>> argsType);
+    SeaTunnelRowType typeMapping(List<String> inputColumnsMapping);
 
-    /**
-     * Evaluate
-     *
-     * @param args input arguments
-     * @return result value
-     */
-    Object evaluate(List<Object> args);
+    SeaTunnelRow transformBySQL(SeaTunnelRow inputRow);
+
+    default void close() {}
 }
