@@ -21,10 +21,14 @@ import org.apache.seatunnel.connectors.cdc.base.source.offset.Offset;
 
 import io.debezium.relational.TableId;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.util.List;
 
 @Getter
+@ToString(
+        of = {"tableIds", "startupOffset", "stopOffset"},
+        callSuper = true)
 public class IncrementalSplit extends SourceSplitBase {
     private static final long serialVersionUID = 1L;
 
