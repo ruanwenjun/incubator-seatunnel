@@ -34,6 +34,8 @@ import com.google.auto.service.AutoService;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -84,6 +86,7 @@ public class OracleDataTypeConvertor implements DataTypeConvertor<String> {
             String connectorDataType, Map<String, Object> dataTypeProperties)
             throws DataTypeConvertException {
         checkNotNull(connectorDataType, "Oracle Type cannot be null");
+        connectorDataType = normalizeTimestamp(connectorDataType);
         switch (connectorDataType) {
             case ORACLE_INTEGER:
                 return BasicType.INT_TYPE;
@@ -173,6 +176,20 @@ public class OracleDataTypeConvertor implements DataTypeConvertor<String> {
                 throw new UnsupportedOperationException(
                         String.format(
                                 "Doesn't support SeaTunnel type '%s' yet.", seaTunnelDataType));
+        }
+    }
+
+    public static String normalizeTimestamp(String oracleType) {
+        // Create a pattern to match TIMESTAMP followed by an optional (0-9)
+        String pattern = "^TIMESTAMP(\\([0-9]\\))?$";
+        // Create a Pattern object
+        Pattern r = Pattern.compile(pattern);
+        // Now create matcher object.
+        Matcher m = r.matcher(oracleType);
+        if (m.find()) {
+            return "TIMESTAMP";
+        } else {
+            return oracleType;
         }
     }
 
