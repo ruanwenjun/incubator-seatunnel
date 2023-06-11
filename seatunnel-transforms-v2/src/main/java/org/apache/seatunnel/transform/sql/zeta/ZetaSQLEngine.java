@@ -106,11 +106,11 @@ public class ZetaSQLEngine implements SQLEngine {
                 if (table.getAlias() != null) {
                     throw new IllegalArgumentException("Unsupported table alias name syntax");
                 }
-                String tableName = table.getName();
-                if (!inputTableName.equalsIgnoreCase(tableName)) {
-                    throw new IllegalArgumentException(
-                            String.format("Table name: %s not found", tableName));
-                }
+                //                String tableName = table.getName();
+                //                if (!inputTableName.equalsIgnoreCase(tableName)) {
+                //                    throw new IllegalArgumentException(
+                //                        String.format("Table name: %s not found", tableName));
+                //                }
             } else {
                 throw new IllegalArgumentException("Unsupported sub table syntax");
             }
