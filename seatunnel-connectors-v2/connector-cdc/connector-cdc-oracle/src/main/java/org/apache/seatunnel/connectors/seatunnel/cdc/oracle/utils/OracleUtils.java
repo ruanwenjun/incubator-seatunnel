@@ -288,19 +288,22 @@ public class OracleUtils {
             OracleConnectorConfig dbzOracleConfig) {
         TopicSelector<TableId> topicSelector = OracleTopicSelector.defaultSelector(dbzOracleConfig);
         SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create();
-        OracleConnection oracleConnection =
-                OracleConnectionUtils.createOracleConnection(dbzOracleConfig.getJdbcConfig());
-        //        OracleConnectionUtils.createOracleConnection((Configuration) dbzOracleConfig);
-        OracleValueConverters oracleValueConverters =
-                new OracleValueConverters(dbzOracleConfig, oracleConnection);
-        StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity =
-                dbzOracleConfig.getAdapter().getTableNameCaseSensitivity(oracleConnection);
-        return new OracleDatabaseSchema(
-                dbzOracleConfig,
-                oracleValueConverters,
-                schemaNameAdjuster,
-                topicSelector,
-                tableNameCaseSensitivity);
+        try (OracleConnection oracleConnection =
+                OracleConnectionUtils.createOracleConnection(dbzOracleConfig.getJdbcConfig())) {
+            OracleValueConverters oracleValueConverters =
+                    new OracleValueConverters(dbzOracleConfig, oracleConnection);
+            StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity =
+                    dbzOracleConfig.getAdapter().getTableNameCaseSensitivity(oracleConnection);
+
+            return new OracleDatabaseSchema(
+                    dbzOracleConfig,
+                    oracleValueConverters,
+                    schemaNameAdjuster,
+                    topicSelector,
+                    tableNameCaseSensitivity);
+        } catch (SQLException e) {
+            throw new SeaTunnelException("Failed to create Oracle connection.", e);
+        }
     }
 
     /** Creates a new {@link OracleDatabaseSchema} to monitor the latest oracle database schemas. */
@@ -308,20 +311,23 @@ public class OracleUtils {
             OracleConnectorConfig dbzOracleConfig, boolean tableIdCaseInsensitive) {
         TopicSelector<TableId> topicSelector = OracleTopicSelector.defaultSelector(dbzOracleConfig);
         SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create();
-        OracleConnection oracleConnection =
-                OracleConnectionUtils.createOracleConnection((Configuration) dbzOracleConfig);
-        OracleValueConverters oracleValueConverters =
-                new OracleValueConverters(dbzOracleConfig, oracleConnection);
-        StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity =
-                tableIdCaseInsensitive
-                        ? StreamingAdapter.TableNameCaseSensitivity.SENSITIVE
-                        : StreamingAdapter.TableNameCaseSensitivity.INSENSITIVE;
-        return new OracleDatabaseSchema(
-                dbzOracleConfig,
-                oracleValueConverters,
-                schemaNameAdjuster,
-                topicSelector,
-                tableNameCaseSensitivity);
+        try (OracleConnection oracleConnection =
+                OracleConnectionUtils.createOracleConnection((Configuration) dbzOracleConfig)) {
+            OracleValueConverters oracleValueConverters =
+                    new OracleValueConverters(dbzOracleConfig, oracleConnection);
+            StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity =
+                    tableIdCaseInsensitive
+                            ? StreamingAdapter.TableNameCaseSensitivity.SENSITIVE
+                            : StreamingAdapter.TableNameCaseSensitivity.INSENSITIVE;
+            return new OracleDatabaseSchema(
+                    dbzOracleConfig,
+                    oracleValueConverters,
+                    schemaNameAdjuster,
+                    topicSelector,
+                    tableNameCaseSensitivity);
+        } catch (SQLException e) {
+            throw new SeaTunnelException("Failed to create Oracle connection.", e);
+        }
     }
 
     public static RedoLogOffset getRedoLogPosition(SourceRecord dataRecord) {

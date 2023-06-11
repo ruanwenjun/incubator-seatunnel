@@ -40,8 +40,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 
-import static org.apache.seatunnel.connectors.seatunnel.cdc.oracle.utils.OracleConnectionUtils.createOracleConnection;
-
 /** The task to work for fetching data of Oracle table snapshot split. */
 @Slf4j
 public class OracleSnapshotFetchTask implements FetchTask<SourceSplitBase> {
@@ -159,7 +157,7 @@ public class OracleSnapshotFetchTask implements FetchTask<SourceSplitBase> {
         // task to read binlog and backfill for current split
         return new OracleStreamFetchTask.RedoLogSplitReadTask(
                 new OracleConnectorConfig(dezConf),
-                createOracleConnection(context.getSourceConfig().getDbzConfiguration()),
+                context.getConnection(),
                 context.getDispatcher(),
                 context.getErrorHandler(),
                 context.getDatabaseSchema(),
