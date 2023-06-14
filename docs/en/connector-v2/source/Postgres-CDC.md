@@ -49,6 +49,7 @@ describes how to setup the PostgreSQL CDC connector to run SQL queries against P
 | chunk-key.even-distribution.factor.lower-bound | Double   | No       | 0.05          |
 | sample-sharding.threshold                      | int      | No       | 1000          |
 | inverse-sampling.rate                          | int      | No       | 1000          |
+| exactly_once                                   | Boolean  | No       | true          |
 | debezium.*                                     | config   | No       | -             |
 | common-options                                 |          | no       | -             |
 
@@ -180,6 +181,10 @@ The max retry times that the connector should retry to build database server con
 ### connection.pool.size [Integer]
 
 The connection pool size.
+
+### exactly_once [Boolean]
+
+Enable exactly once semantic.
 
 ### debezium [Config]
 

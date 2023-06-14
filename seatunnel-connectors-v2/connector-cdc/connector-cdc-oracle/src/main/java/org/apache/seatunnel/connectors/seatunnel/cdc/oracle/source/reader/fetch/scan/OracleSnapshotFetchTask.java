@@ -86,46 +86,54 @@ public class OracleSnapshotFetchTask implements FetchTask<SourceSplitBase> {
         SnapshotResult snapshotResult =
                 snapshotSplitReadTask.execute(
                         changeEventSourceContext, sourceFetchContext.getOffsetContext());
+        if (!snapshotResult.isCompletedOrSkipped()) {
+            taskRunning = false;
+            throw new IllegalStateException(
+                    String.format("Read snapshot for split %s fail", split));
+        }
 
-        final IncrementalSplit backfillBinlogSplit =
-                createBackfillRedoLogSplit(changeEventSourceContext);
+        boolean changed =
+                changeEventSourceContext
+                        .getHighWatermark()
+                        .isAfter(changeEventSourceContext.getLowWatermark());
+        if (!context.isExactlyOnce()) {
+            taskRunning = false;
+            if (changed) {
+                log.debug("Skip merge changelog(exactly-once) for snapshot split {}", split);
+            }
+            return;
+        }
+
+        final IncrementalSplit backfillSplit = createBackfillRedoLogSplit(changeEventSourceContext);
         // optimization that skip the binlog read when the low watermark equals high
         // watermark
-
-        final boolean binlogBackfillRequired =
-                backfillBinlogSplit.getStopOffset().isAfter(backfillBinlogSplit.getStartupOffset());
-
-        if (!binlogBackfillRequired) {
+        if (!changed) {
             dispatchBinlogEndEvent(
-                    backfillBinlogSplit,
+                    backfillSplit,
                     ((OracleSourceFetchTaskContext) context).getOffsetContext().getPartition(),
                     ((OracleSourceFetchTaskContext) context).getDispatcher());
             taskRunning = false;
             return;
         }
         // execute redoLog read task
-        if (snapshotResult.isCompletedOrSkipped()) {
-            final OracleStreamFetchTask.RedoLogSplitReadTask backfillBinlogReadTask =
-                    createBackfillRedoLogReadTask(backfillBinlogSplit, sourceFetchContext);
+        final OracleStreamFetchTask.RedoLogSplitReadTask backfillReadTask =
+                createBackfillRedoLogReadTask(backfillSplit, sourceFetchContext);
 
-            OracleConnectorConfig oracleConnectorConfig =
-                    sourceFetchContext.getSourceConfig().getDbzConnectorConfig();
-            final OffsetContext.Loader<OracleOffsetContext> loader =
-                    new LogMinerOracleOffsetContextLoader(oracleConnectorConfig);
-            final OracleOffsetContext oracleOffsetContext =
-                    loader.load(backfillBinlogSplit.getStartupOffset().getOffset());
-            log.info(
-                    "start execute backfillBinlogReadTask, start offset : {}, stop offset : {}",
-                    backfillBinlogSplit.getStartupOffset(),
-                    backfillBinlogSplit.getStopOffset());
-            backfillBinlogReadTask.execute(
-                    new SnapshotBinlogSplitChangeEventSourceContext(), oracleOffsetContext);
-            log.info("backfillBinlogReadTask execute end");
-        } else {
-            taskRunning = false;
-            throw new IllegalStateException(
-                    String.format("Read snapshot for oracle split %s fail", split));
-        }
+        OracleConnectorConfig oracleConnectorConfig =
+                sourceFetchContext.getSourceConfig().getDbzConnectorConfig();
+        final OffsetContext.Loader<OracleOffsetContext> loader =
+                new LogMinerOracleOffsetContextLoader(oracleConnectorConfig);
+        final OracleOffsetContext oracleOffsetContext =
+                loader.load(backfillSplit.getStartupOffset().getOffset());
+        log.info(
+                "start execute backfillReadTask, start offset : {}, stop offset : {}",
+                backfillSplit.getStartupOffset(),
+                backfillSplit.getStopOffset());
+        backfillReadTask.execute(
+                new SnapshotBinlogSplitChangeEventSourceContext(), oracleOffsetContext);
+        log.info("backfillReadTask execute end");
+
+        taskRunning = false;
     }
 
     private IncrementalSplit createBackfillRedoLogSplit(

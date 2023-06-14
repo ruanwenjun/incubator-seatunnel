@@ -26,11 +26,13 @@ import org.apache.seatunnel.connectors.cdc.base.source.split.wartermark.Watermar
 import org.apache.seatunnel.connectors.seatunnel.cdc.postgres.source.reader.PostgresSourceFetchTaskContext;
 
 import io.debezium.pipeline.spi.SnapshotResult;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 
+@Slf4j
 public class PostgresSnapshotFetchTask implements FetchTask<SourceSplitBase> {
 
     private final SnapshotSplit split;
@@ -62,17 +64,30 @@ public class PostgresSnapshotFetchTask implements FetchTask<SourceSplitBase> {
         SnapshotResult snapshotResult =
                 snapshotSplitReadTask.execute(
                         changeEventSourceContext, sourceFetchContext.getOffsetContext());
+        if (!snapshotResult.isCompletedOrSkipped()) {
+            taskRunning = false;
+            throw new IllegalStateException(
+                    String.format("Read snapshot for split %s fail", split));
+        }
+        boolean changed =
+                changeEventSourceContext
+                        .getHighWatermark()
+                        .isAfter(changeEventSourceContext.getLowWatermark());
+        if (!context.isExactlyOnce()) {
+            taskRunning = false;
+            if (changed) {
+                log.debug("Skip merge changelog(exactly-once) for snapshot split {}", split);
+            }
+            return;
+        }
 
-        final IncrementalSplit backfillBinlogSplit =
-                createBackFillWalSplit(changeEventSourceContext);
-
+        final IncrementalSplit backfillSplit = createBackFillWalSplit(changeEventSourceContext);
         // optimization that skip the binlog read when the low watermark equals high
         // watermark
-        final boolean binlogBackfillRequired =
-                backfillBinlogSplit.getStopOffset().isAfter(backfillBinlogSplit.getStartupOffset());
+        // todo Add backfill task
         if (true) {
             dispatchBinlogEndEvent(
-                    backfillBinlogSplit,
+                    backfillSplit,
                     ((PostgresSourceFetchTaskContext) context).getOffsetContext().getPartition(),
                     ((PostgresSourceFetchTaskContext) context).getDispatcher());
             taskRunning = false;
