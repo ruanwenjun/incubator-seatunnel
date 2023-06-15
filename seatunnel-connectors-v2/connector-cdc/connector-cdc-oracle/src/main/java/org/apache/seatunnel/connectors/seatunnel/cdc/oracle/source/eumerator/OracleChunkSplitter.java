@@ -369,7 +369,7 @@ public class OracleChunkSplitter implements JdbcSourceChunkSplitter {
         Object[] splitStart = chunkStart == null ? null : new Object[] {chunkStart};
         Object[] splitEnd = chunkEnd == null ? null : new Object[] {chunkEnd};
         return new SnapshotSplit(
-                splitId(tableId, chunkId), tableId, splitKeyType, splitStart, splitEnd, null);
+                splitId(tableId, chunkId), tableId, splitKeyType, splitStart, splitEnd);
     }
 
     // ------------------------------------------------------------------------------------------

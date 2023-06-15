@@ -74,9 +74,6 @@ public class OracleSourceConfigFactory extends JdbcSourceConfigFactory {
         // disable tombstones
         props.setProperty("tombstones.on.delete", String.valueOf(false));
 
-        if (databaseList != null) {
-            props.setProperty("database.include.list", String.join(",", databaseList));
-        }
         if (tableList != null) {
             // Oracle identifier is of the form schemaName.tableName
             props.setProperty(
@@ -123,7 +120,8 @@ public class OracleSourceConfigFactory extends JdbcSourceConfigFactory {
                 serverTimeZone,
                 connectTimeoutMillis,
                 connectMaxRetries,
-                connectionPoolSize);
+                connectionPoolSize,
+                exactlyOnce);
     }
 
     private void validateConfig() throws IllegalArgumentException {
