@@ -67,6 +67,30 @@ public class DamengConncetionUtils {
         return jdbc.prepareQueryAndMap(minQuery, ps -> ps.setObject(1, excludedLowerBound), mapper);
     }
 
+    public static Object[] sampleDataFromColumn(
+            JdbcConnection jdbc, TableId tableId, String columnName, int inverseSamplingRate)
+            throws SQLException {
+        final String minQuery =
+                String.format(
+                        "SELECT %s FROM %s WHERE MOD((%s - (SELECT MIN(%s) FROM %s)), %s) = 0 ORDER BY %s",
+                        quote(columnName),
+                        quote(tableId),
+                        quote(columnName),
+                        quote(columnName),
+                        quote(tableId),
+                        inverseSamplingRate,
+                        quote(columnName));
+        return jdbc.queryAndMap(
+                minQuery,
+                resultSet -> {
+                    List<Object> results = new ArrayList<>();
+                    while (resultSet.next()) {
+                        results.add(resultSet.getObject(1));
+                    }
+                    return results.toArray();
+                });
+    }
+
     public static Object queryNextChunkMax(
             JdbcConnection jdbc,
             TableId tableId,

@@ -32,6 +32,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.cdc.base.option.JdbcSourceOptions;
+import org.apache.seatunnel.connectors.cdc.base.option.StartupMode;
 import org.apache.seatunnel.connectors.seatunnel.cdc.postgres.option.PostgresOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
 
@@ -66,6 +67,10 @@ public class PostgresIncrementalSourceFactory implements TableSourceFactory, Sup
                         PostgresOptions.DECODING_PLUGIN_NAME,
                         PostgresOptions.SLOT_NAME)
                 .optional(PostgresSourceOptions.STARTUP_MODE, PostgresSourceOptions.STOP_MODE)
+                .conditional(
+                        PostgresSourceOptions.STARTUP_MODE,
+                        StartupMode.INITIAL,
+                        JdbcSourceOptions.EXACTLY_ONCE)
                 .build();
     }
 

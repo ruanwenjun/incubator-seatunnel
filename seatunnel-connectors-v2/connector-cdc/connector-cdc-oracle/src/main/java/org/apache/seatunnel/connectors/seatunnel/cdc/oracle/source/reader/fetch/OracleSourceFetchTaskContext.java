@@ -109,7 +109,7 @@ public class OracleSourceFetchTaskContext extends JdbcSourceFetchTaskContext {
         final OracleConnectorConfig connectorConfig = getDbzConnectorConfig();
         this.topicSelector = OracleTopicSelector.defaultSelector(connectorConfig);
 
-        this.databaseSchema = OracleUtils.createOracleDatabaseSchema(connectorConfig);
+        this.databaseSchema = OracleUtils.createOracleDatabaseSchema(connectorConfig, connection);
         // todo logMiner or xStream
         this.offsetContext =
                 loadStartingOffsetState(

@@ -44,6 +44,8 @@ public class OracleSourceConfig extends JdbcSourceConfig {
             int splitSize,
             double distributionFactorUpper,
             double distributionFactorLower,
+            int sampleShardingThreshold,
+            int inverseSamplingRate,
             Properties dbzProperties,
             String driverClassName,
             String hostname,
@@ -55,7 +57,8 @@ public class OracleSourceConfig extends JdbcSourceConfig {
             String serverTimeZone,
             long connectTimeoutMillis,
             int connectMaxRetries,
-            int connectionPoolSize) {
+            int connectionPoolSize,
+            boolean exactlyOnce) {
         super(
                 startupConfig,
                 stopConfig,
@@ -64,6 +67,8 @@ public class OracleSourceConfig extends JdbcSourceConfig {
                 splitSize,
                 distributionFactorUpper,
                 distributionFactorLower,
+                sampleShardingThreshold,
+                inverseSamplingRate,
                 dbzProperties,
                 driverClassName,
                 hostname,
@@ -75,7 +80,8 @@ public class OracleSourceConfig extends JdbcSourceConfig {
                 serverTimeZone,
                 connectTimeoutMillis,
                 connectMaxRetries,
-                connectionPoolSize);
+                connectionPoolSize,
+                exactlyOnce);
     }
 
     @Override

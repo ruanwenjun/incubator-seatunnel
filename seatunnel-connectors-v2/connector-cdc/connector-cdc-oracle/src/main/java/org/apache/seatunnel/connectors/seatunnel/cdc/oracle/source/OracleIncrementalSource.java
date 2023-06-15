@@ -23,6 +23,7 @@ import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SupportParallelism;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.config.SourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.dialect.DataSourceDialect;
@@ -45,12 +46,15 @@ import com.google.auto.service.AutoService;
 import io.debezium.connector.oracle.OracleConnection;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import lombok.NoArgsConstructor;
 
+import java.sql.SQLException;
 import java.time.ZoneId;
 
 import static org.apache.seatunnel.connectors.seatunnel.cdc.oracle.utils.OracleConnectionUtils.createOracleConnection;
 import static org.apache.seatunnel.connectors.seatunnel.cdc.oracle.utils.OracleTypeUtils.convertFromTable;
 
+@NoArgsConstructor
 @AutoService(SeaTunnelSource.class)
 public class OracleIncrementalSource<T> extends IncrementalSource<T, JdbcSourceConfig>
         implements SupportParallelism {
@@ -104,12 +108,16 @@ public class OracleIncrementalSource<T> extends IncrementalSource<T, JdbcSourceC
                     (OracleSourceConfig) this.configFactory.create(0);
             TableId tableId =
                     this.dataSourceDialect.discoverDataCollections(oracleSourceConfig).get(0);
-            OracleConnection oracleConnection =
-                    createOracleConnection(oracleSourceConfig.getDbzConfiguration());
-            Table table =
-                    ((OracleDialect) dataSourceDialect)
-                            .queryTableSchema(oracleConnection, tableId)
-                            .getTable();
+            Table table;
+            try (OracleConnection oracleConnection =
+                    createOracleConnection(oracleSourceConfig.getDbzConfiguration())) {
+                table =
+                        ((OracleDialect) dataSourceDialect)
+                                .queryTableSchema(oracleConnection, tableId)
+                                .getTable();
+            } catch (SQLException e) {
+                throw new SeaTunnelException(e);
+            }
             physicalRowType = convertFromTable(table);
         } else {
             physicalRowType = dataType;

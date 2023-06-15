@@ -65,44 +65,46 @@ public class PostgresDataTypeConvertor implements DataTypeConvertor<String> {
     // float <=> float8
     // boolean <=> bool
     // decimal <=> numeric
-    private static final String PG_SMALLSERIAL = "smallserial";
-    private static final String PG_SERIAL = "serial";
-    private static final String PG_BIGSERIAL = "bigserial";
-    private static final String PG_BYTEA = "bytea";
-    private static final String PG_BYTEA_ARRAY = "_bytea";
-    private static final String PG_SMALLINT = "int2";
-    private static final String PG_SMALLINT_ARRAY = "_int2";
-    private static final String PG_INTEGER = "int4";
-    private static final String PG_INTEGER_ARRAY = "_int4";
-    private static final String PG_BIGINT = "int8";
-    private static final String PG_BIGINT_ARRAY = "_int8";
-    private static final String PG_REAL = "float4";
-    private static final String PG_REAL_ARRAY = "_float4";
-    private static final String PG_DOUBLE_PRECISION = "float8";
-    private static final String PG_DOUBLE_PRECISION_ARRAY = "_float8";
-    private static final String PG_NUMERIC = "numeric";
-    private static final String PG_NUMERIC_ARRAY = "_numeric";
-    private static final String PG_BOOLEAN = "bool";
-    private static final String PG_BOOLEAN_ARRAY = "_bool";
-    private static final String PG_TIMESTAMP = "timestamp";
-    private static final String PG_TIMESTAMP_ARRAY = "_timestamp";
-    private static final String PG_TIMESTAMPTZ = "timestamptz";
-    private static final String PG_TIMESTAMPTZ_ARRAY = "_timestamptz";
-    private static final String PG_DATE = "date";
-    private static final String PG_DATE_ARRAY = "_date";
-    private static final String PG_TIME = "time";
-    private static final String PG_TIME_ARRAY = "_time";
-    private static final String PG_TEXT = "text";
-    private static final String PG_TEXT_ARRAY = "_text";
-    private static final String PG_CHAR = "bpchar";
-    private static final String PG_CHAR_ARRAY = "_bpchar";
-    private static final String PG_CHARACTER = "character";
-    private static final String PG_CHARACTER_ARRAY = "_character";
-    private static final String PG_CHARACTER_VARYING = "varchar";
-    private static final String PG_CHARACTER_VARYING_ARRAY = "_varchar";
-    private static final String PG_INTERVAL = "interval";
-    private static final String PG_GEOMETRY = "geometry";
-    private static final String PG_GEOGRAPHY = "geography";
+    public static final String PG_SMALLSERIAL = "smallserial";
+    public static final String PG_SERIAL = "serial";
+    public static final String PG_BIGSERIAL = "bigserial";
+    public static final String PG_BYTEA = "bytea";
+
+    public static final String PG_BIT = "bit";
+    public static final String PG_BYTEA_ARRAY = "_bytea";
+    public static final String PG_SMALLINT = "int2";
+    public static final String PG_SMALLINT_ARRAY = "_int2";
+    public static final String PG_INTEGER = "int4";
+    public static final String PG_INTEGER_ARRAY = "_int4";
+    public static final String PG_BIGINT = "int8";
+    public static final String PG_BIGINT_ARRAY = "_int8";
+    public static final String PG_REAL = "float4";
+    public static final String PG_REAL_ARRAY = "_float4";
+    public static final String PG_DOUBLE_PRECISION = "float8";
+    public static final String PG_DOUBLE_PRECISION_ARRAY = "_float8";
+    public static final String PG_NUMERIC = "numeric";
+    public static final String PG_NUMERIC_ARRAY = "_numeric";
+    public static final String PG_BOOLEAN = "bool";
+    public static final String PG_BOOLEAN_ARRAY = "_bool";
+    public static final String PG_TIMESTAMP = "timestamp";
+    public static final String PG_TIMESTAMP_ARRAY = "_timestamp";
+    public static final String PG_TIMESTAMPTZ = "timestamptz";
+    public static final String PG_TIMESTAMPTZ_ARRAY = "_timestamptz";
+    public static final String PG_DATE = "date";
+    public static final String PG_DATE_ARRAY = "_date";
+    public static final String PG_TIME = "time";
+    public static final String PG_TIME_ARRAY = "_time";
+    public static final String PG_TEXT = "text";
+    public static final String PG_TEXT_ARRAY = "_text";
+    public static final String PG_CHAR = "bpchar";
+    public static final String PG_CHAR_ARRAY = "_bpchar";
+    public static final String PG_CHARACTER = "character";
+    public static final String PG_CHARACTER_ARRAY = "_character";
+    public static final String PG_CHARACTER_VARYING = "varchar";
+    public static final String PG_CHARACTER_VARYING_ARRAY = "_varchar";
+    public static final String PG_INTERVAL = "interval";
+    public static final String PG_GEOMETRY = "geometry";
+    public static final String PG_GEOGRAPHY = "geography";
 
     @Override
     public SeaTunnelDataType<?> toSeaTunnelType(String connectorDataType) {
@@ -120,6 +122,7 @@ public class PostgresDataTypeConvertor implements DataTypeConvertor<String> {
             case PG_BOOLEAN_ARRAY:
                 return ArrayType.BOOLEAN_ARRAY_TYPE;
             case PG_BYTEA:
+            case PG_BIT:
                 return PrimitiveByteArrayType.INSTANCE;
             case PG_BYTEA_ARRAY:
                 return ArrayType.BYTE_ARRAY_TYPE;

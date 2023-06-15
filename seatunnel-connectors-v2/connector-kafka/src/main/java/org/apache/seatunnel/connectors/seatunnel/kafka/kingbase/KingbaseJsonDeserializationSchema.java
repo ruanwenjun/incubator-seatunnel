@@ -120,17 +120,26 @@ public class KingbaseJsonDeserializationSchema
             case STRING:
                 return data;
             case DATE:
-                return LocalDate.parse(
-                        data.substring(0, data.lastIndexOf(".")),
-                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                {
+                    return LocalDate.parse(data);
+                }
             case TIME:
                 return LocalTime.parse(data);
             case TIMESTAMP:
-                return LocalDateTime.parse(
-                        data.substring(0, data.lastIndexOf(".")),
-                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                {
+                    int index = data.lastIndexOf(".");
+                    if (index > 0) {
+                        data = data.substring(0, index);
+                    }
+                    return LocalDateTime.parse(
+                            data, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                }
             case BOOLEAN:
-                return Boolean.parseBoolean(data);
+                if (data.length() == 1) {
+                    return data.equals("f");
+                } else {
+                    return Boolean.parseBoolean(data);
+                }
             case BYTES:
                 return data.getBytes();
             case NULL:

@@ -30,11 +30,13 @@ import io.debezium.connector.dameng.DamengOffsetContext;
 import io.debezium.pipeline.source.spi.ChangeEventSource;
 import io.debezium.pipeline.spi.SnapshotResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
 
+@Slf4j
 @RequiredArgsConstructor
 public class DamengSnapshotFetchTask implements FetchTask<SourceSplitBase> {
     private final SnapshotSplit split;
@@ -60,15 +62,28 @@ public class DamengSnapshotFetchTask implements FetchTask<SourceSplitBase> {
         SnapshotResult snapshotResult =
                 snapshotSplitReadTask.execute(
                         changeEventSourceContext, sourceFetchContext.getOffsetContext());
+        if (!snapshotResult.isCompletedOrSkipped()) {
+            taskRunning = false;
+            throw new IllegalStateException(
+                    String.format("Read snapshot for split %s fail", split));
+        }
+
+        boolean changed =
+                changeEventSourceContext
+                        .getHighWatermark()
+                        .isAfter(changeEventSourceContext.getLowWatermark());
+        if (!context.isExactlyOnce()) {
+            taskRunning = false;
+            if (changed) {
+                log.debug("Skip merge changelog(exactly-once) for snapshot split {}", split);
+            }
+            return;
+        }
+
         IncrementalSplit backfillLogMinerSplit =
                 createBackfillLogMinerSplit(changeEventSourceContext);
-
         // optimization that skip the logminer read when the low watermark equals high watermark
-        boolean logMinerBackfillRequired =
-                backfillLogMinerSplit
-                        .getStopOffset()
-                        .isAfter(backfillLogMinerSplit.getStartupOffset());
-        if (!logMinerBackfillRequired) {
+        if (!changed) {
             dispatchLogMinerEndEvent(
                     backfillLogMinerSplit,
                     ((DamengSourceFetchTaskContext) context).getOffsetContext().getPartition(),
@@ -77,17 +92,17 @@ public class DamengSnapshotFetchTask implements FetchTask<SourceSplitBase> {
             return;
         }
         // execute logminer read task
-        if (snapshotResult.isCompletedOrSkipped()) {
-            DamengLogMinerSplitReadTask backfillLogMinerReadTask =
-                    createBackfillLogMinerReadTask(backfillLogMinerSplit, sourceFetchContext);
-            backfillLogMinerReadTask.execute(
-                    new SnapshotScnSplitChangeEventSourceContext(),
-                    sourceFetchContext.getOffsetContext());
-        } else {
-            taskRunning = false;
-            throw new IllegalStateException(
-                    String.format("Read snapshot for dameng split %s fail", split));
-        }
+        DamengLogMinerSplitReadTask backfillLogMinerReadTask =
+                createBackfillLogMinerReadTask(backfillLogMinerSplit, sourceFetchContext);
+
+        log.info(
+                "start execute backfillReadTask, start offset : {}, stop offset : {}",
+                backfillLogMinerSplit.getStartupOffset(),
+                backfillLogMinerSplit.getStopOffset());
+        backfillLogMinerReadTask.execute(
+                new SnapshotScnSplitChangeEventSourceContext(),
+                sourceFetchContext.getOffsetContext());
+        log.info("backfillReadTask execute end");
     }
 
     @Override
