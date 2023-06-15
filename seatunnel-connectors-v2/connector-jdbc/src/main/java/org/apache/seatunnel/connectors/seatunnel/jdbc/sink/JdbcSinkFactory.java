@@ -23,6 +23,7 @@ import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
+import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
@@ -77,6 +78,29 @@ public class JdbcSinkFactory implements TableSinkFactory {
         Map<String, String> catalogOptions = config.get(CatalogOptions.CATALOG_OPTIONS);
         Optional<String> optionalTable = config.getOptional(TABLE);
         if (!optionalTable.isPresent()) {
+            String prefix = catalogOptions.get(JdbcCatalogOptions.TABLE_PREFIX.key());
+            String suffix = catalogOptions.get(JdbcCatalogOptions.TABLE_SUFFIX.key());
+            if (StringUtils.isNotEmpty(prefix) || StringUtils.isNotEmpty(suffix)) {
+                TableIdentifier tableId = catalogTable.getTableId();
+                String tableName =
+                        StringUtils.isNotEmpty(prefix)
+                                ? prefix + tableId.getTableName()
+                                : tableId.getTableName();
+                tableName = StringUtils.isNotEmpty(suffix) ? tableName + suffix : tableName;
+                TableIdentifier newTableId =
+                        TableIdentifier.of(
+                                tableId.getCatalogName(),
+                                tableId.getDatabaseName(),
+                                tableId.getSchemaName(),
+                                tableName);
+                catalogTable =
+                        CatalogTable.of(
+                                newTableId,
+                                catalogTable.getTableSchema(),
+                                catalogTable.getOptions(),
+                                catalogTable.getPartitionKeys(),
+                                catalogTable.getCatalogName());
+            }
             Map<String, String> map = config.toMap();
             if (StringUtils.isNotBlank(catalogOptions.get(JdbcCatalogOptions.SCHEMA.key()))) {
                 map.put(
@@ -103,13 +127,14 @@ public class JdbcSinkFactory implements TableSinkFactory {
         final ReadonlyConfig options = config;
         JdbcSinkConfig sinkConfig = JdbcSinkConfig.of(config);
         JdbcDialect dialect = JdbcDialectLoader.load(sinkConfig.getJdbcConnectionConfig().getUrl());
+        CatalogTable finalCatalogTable = catalogTable;
         return () ->
                 new JdbcSink(
                         options,
                         sinkConfig,
                         dialect,
                         DataSaveMode.KEEP_SCHEMA_AND_DATA,
-                        catalogTable);
+                        finalCatalogTable);
     }
 
     @Override

@@ -19,9 +19,12 @@ package org.apache.seatunnel.connectors.cdc.base.source.split;
 
 import org.apache.seatunnel.api.source.SourceSplit;
 
+import lombok.ToString;
+
 import java.util.Objects;
 
 /** The split of table comes from a Table that splits by primary key. */
+@ToString
 public abstract class SourceSplitBase implements SourceSplit {
 
     protected final String splitId;

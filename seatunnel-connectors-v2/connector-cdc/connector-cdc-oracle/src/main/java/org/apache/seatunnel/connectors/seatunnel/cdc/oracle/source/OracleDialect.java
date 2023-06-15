@@ -89,10 +89,11 @@ public class OracleDialect implements JdbcDataSourceDialect {
     @Override
     public List<TableId> discoverDataCollections(JdbcSourceConfig sourceConfig) {
         OracleSourceConfig oracleSourceConfig = (OracleSourceConfig) sourceConfig;
+        String database = oracleSourceConfig.getDbzConnectorConfig().getDatabaseName();
 
         try (JdbcConnection jdbcConnection = openJdbcConnection(sourceConfig)) {
             return OracleConnectionUtils.listTables(
-                    jdbcConnection, oracleSourceConfig.getTableFilters());
+                    jdbcConnection, database, oracleSourceConfig.getTableFilters());
         } catch (SQLException e) {
             throw new SeaTunnelException("Error to discover tables: " + e.getMessage(), e);
         }
