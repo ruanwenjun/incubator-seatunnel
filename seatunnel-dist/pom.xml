@@ -116,6 +116,18 @@
                 <!-- connectors -->
                 <dependency>
                     <groupId>org.apache.seatunnel</groupId>
+                    <artifactId>connector-mongodb</artifactId>
+                    <version>${project.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.seatunnel</groupId>
+                    <artifactId>connector-hive</artifactId>
+                    <version>${project.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.seatunnel</groupId>
                     <artifactId>connector-fake</artifactId>
                     <version>${project.version}</version>
                     <scope>provided</scope>
@@ -233,6 +245,12 @@
                 <dependency>
                     <groupId>com.oracle.database.jdbc</groupId>
                     <artifactId>ojdbc8</artifactId>
+                    <version>${oracle.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.oracle.database.nls</groupId>
+                    <artifactId>orai18n</artifactId>
                     <version>${oracle.version}</version>
                     <scope>provided</scope>
                 </dependency>
@@ -785,6 +803,12 @@
                 <dependency>
                     <groupId>com.oracle.database.jdbc</groupId>
                     <artifactId>ojdbc8</artifactId>
+                    <version>${oracle.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.oracle.database.nls</groupId>
+                    <artifactId>orai18n</artifactId>
                     <version>${oracle.version}</version>
                     <scope>provided</scope>
                 </dependency>

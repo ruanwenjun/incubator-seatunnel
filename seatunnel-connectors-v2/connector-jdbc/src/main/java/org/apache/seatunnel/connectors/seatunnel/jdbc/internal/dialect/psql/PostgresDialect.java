@@ -88,4 +88,16 @@ public class PostgresDialect implements JdbcDialect {
         }
         return statement;
     }
+
+    @Override
+    public String tableIdentifier(String database, String tableName) {
+        String[] strings = tableName.split("\\.");
+        String returnStr = "";
+
+        returnStr += "\"" + database + "\"";
+        for (String s : strings) {
+            returnStr += "." + "\"" + s + "\"";
+        }
+        return returnStr;
+    }
 }

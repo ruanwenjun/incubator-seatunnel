@@ -25,7 +25,6 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle.source.offset.RedoLo
 
 import org.apache.kafka.connect.source.SourceRecord;
 
-import io.debezium.config.Configuration;
 import io.debezium.connector.oracle.OracleConnection;
 import io.debezium.connector.oracle.OracleConnectorConfig;
 import io.debezium.connector.oracle.OracleDatabaseSchema;
@@ -42,6 +41,7 @@ import io.debezium.util.SchemaNameAdjuster;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -115,6 +115,30 @@ public class OracleUtils {
                                         "No result returned after running query [%s]", minQuery));
                     }
                     return rs.getObject(1);
+                });
+    }
+
+    public static Object[] sampleDataFromColumn(
+            JdbcConnection jdbc, TableId tableId, String columnName, int inverseSamplingRate)
+            throws SQLException {
+        final String minQuery =
+                String.format(
+                        "SELECT %s FROM %s WHERE MOD((%s - (SELECT MIN(%s) FROM %s)), %s) = 0 ORDER BY %s",
+                        quote(columnName),
+                        quoteSchemaAndTable(tableId),
+                        quote(columnName),
+                        quote(columnName),
+                        quoteSchemaAndTable(tableId),
+                        inverseSamplingRate,
+                        quote(columnName));
+        return jdbc.queryAndMap(
+                minQuery,
+                resultSet -> {
+                    List<Object> results = new ArrayList<>();
+                    while (resultSet.next()) {
+                        results.add(resultSet.getObject(1));
+                    }
+                    return results.toArray();
                 });
     }
 
@@ -260,16 +284,14 @@ public class OracleUtils {
 
     /** Creates a new {@link OracleDatabaseSchema} to monitor the latest oracle database schemas. */
     public static OracleDatabaseSchema createOracleDatabaseSchema(
-            OracleConnectorConfig dbzOracleConfig) {
+            OracleConnectorConfig dbzOracleConfig, OracleConnection connection) {
         TopicSelector<TableId> topicSelector = OracleTopicSelector.defaultSelector(dbzOracleConfig);
         SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create();
-        OracleConnection oracleConnection =
-                OracleConnectionUtils.createOracleConnection(dbzOracleConfig.getJdbcConfig());
-        //        OracleConnectionUtils.createOracleConnection((Configuration) dbzOracleConfig);
         OracleValueConverters oracleValueConverters =
-                new OracleValueConverters(dbzOracleConfig, oracleConnection);
+                new OracleValueConverters(dbzOracleConfig, connection);
         StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity =
-                dbzOracleConfig.getAdapter().getTableNameCaseSensitivity(oracleConnection);
+                dbzOracleConfig.getAdapter().getTableNameCaseSensitivity(connection);
+
         return new OracleDatabaseSchema(
                 dbzOracleConfig,
                 oracleValueConverters,
@@ -280,13 +302,13 @@ public class OracleUtils {
 
     /** Creates a new {@link OracleDatabaseSchema} to monitor the latest oracle database schemas. */
     public static OracleDatabaseSchema createOracleDatabaseSchema(
-            OracleConnectorConfig dbzOracleConfig, boolean tableIdCaseInsensitive) {
+            OracleConnectorConfig dbzOracleConfig,
+            OracleConnection connection,
+            boolean tableIdCaseInsensitive) {
         TopicSelector<TableId> topicSelector = OracleTopicSelector.defaultSelector(dbzOracleConfig);
         SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create();
-        OracleConnection oracleConnection =
-                OracleConnectionUtils.createOracleConnection((Configuration) dbzOracleConfig);
         OracleValueConverters oracleValueConverters =
-                new OracleValueConverters(dbzOracleConfig, oracleConnection);
+                new OracleValueConverters(dbzOracleConfig, connection);
         StreamingAdapter.TableNameCaseSensitivity tableNameCaseSensitivity =
                 tableIdCaseInsensitive
                         ? StreamingAdapter.TableNameCaseSensitivity.SENSITIVE

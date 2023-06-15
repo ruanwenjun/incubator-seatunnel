@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect;
 
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.converter.JdbcRowConverter;
 
@@ -58,6 +59,10 @@ public interface JdbcDialect extends Serializable {
      * @return a type mapper for the database
      */
     JdbcDialectTypeMapper getJdbcDialectTypeMapper();
+
+    default String hashModForField(String fieldName, int mod) {
+        return "ABS(MD5(" + quoteIdentifier(fieldName) + ") % " + mod + ")";
+    }
 
     /** Quotes the identifier for table name or field name */
     default String quoteIdentifier(String identifier) {
@@ -209,5 +214,9 @@ public interface JdbcDialect extends Serializable {
             Connection conn, JdbcSourceConfig jdbcSourceConfig) throws SQLException {
         PreparedStatement ps = conn.prepareStatement(jdbcSourceConfig.getQuery());
         return ps.getMetaData();
+    }
+
+    default String extractTableName(TablePath tablePath) {
+        return tablePath.getSchemaAndTableName();
     }
 }

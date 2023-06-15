@@ -166,6 +166,7 @@ public abstract class SeaTunnelTask extends AbstractTask {
                 if (prepareCloseStatus) {
                     currState = PREPARE_CLOSE;
                 }
+                Thread.sleep(10);
                 break;
             case PREPARE_CLOSE:
                 if (closeCalled) {
@@ -313,6 +314,7 @@ public abstract class SeaTunnelTask extends AbstractTask {
 
     @Override
     public void close() throws IOException {
+        super.close();
         allCycles
                 .parallelStream()
                 .forEach(
@@ -340,7 +342,8 @@ public abstract class SeaTunnelTask extends AbstractTask {
                                 new TaskAcknowledgeOperation(
                                         this.taskLocation,
                                         (CheckpointBarrier) barrier,
-                                        checkpointStates.get(barrier.getId())));
+                                        checkpointStates.get(barrier.getId())))
+                        .join();
             }
         }
     }

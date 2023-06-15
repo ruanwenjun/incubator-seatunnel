@@ -111,6 +111,14 @@ public class DamengChunkSplitter implements JdbcSourceChunkSplitter {
     }
 
     @Override
+    public Object[] sampleDataFromColumn(
+            JdbcConnection jdbc, TableId tableId, String columnName, int inverseSamplingRate)
+            throws SQLException {
+        return DamengConncetionUtils.sampleDataFromColumn(
+                jdbc, tableId, columnName, inverseSamplingRate);
+    }
+
+    @Override
     public Object queryNextChunkMax(
             JdbcConnection jdbc,
             TableId tableId,
@@ -217,12 +225,51 @@ public class DamengChunkSplitter implements JdbcSourceChunkSplitter {
                 return splitEvenlySizedChunks(
                         tableId, min, max, approximateRowCnt, chunkSize, dynamicChunkSize);
             } else {
+                int shardCount = (int) (approximateRowCnt / chunkSize);
+                if (sourceConfig.getSampleShardingThreshold() < shardCount) {
+                    Object[] sample =
+                            sampleDataFromColumn(
+                                    jdbc,
+                                    tableId,
+                                    splitColumnName,
+                                    sourceConfig.getInverseSamplingRate());
+                    // In order to prevent data loss due to the absence of the minimum value in the
+                    // sampled data, the minimum value is directly added here.
+                    Object[] newSample = new Object[sample.length + 1];
+                    newSample[0] = min;
+                    System.arraycopy(sample, 0, newSample, 1, sample.length);
+                    return efficientShardingThroughSampling(
+                            tableId, newSample, approximateRowCnt, shardCount);
+                }
                 return splitUnevenlySizedChunks(
                         jdbc, tableId, splitColumnName, min, max, chunkSize);
             }
         } else {
             return splitUnevenlySizedChunks(jdbc, tableId, splitColumnName, min, max, chunkSize);
         }
+    }
+
+    private List<ChunkRange> efficientShardingThroughSampling(
+            TableId tableId, Object[] sampleData, long approximateRowCnt, int shardCount) {
+        log.info(
+                "Use efficient sharding through sampling optimization for table {}, the approximate row count is {}, the shardCount is {}",
+                tableId,
+                approximateRowCnt,
+                shardCount);
+
+        final List<ChunkRange> splits = new ArrayList<>();
+
+        // Calculate the shard boundaries
+        for (int i = 0; i < shardCount; i++) {
+            Object chunkStart = sampleData[(int) ((long) i * sampleData.length / shardCount)];
+            Object chunkEnd =
+                    i < shardCount - 1
+                            ? sampleData[(int) (((long) i + 1) * sampleData.length / shardCount)]
+                            : null;
+            splits.add(ChunkRange.of(chunkStart, chunkEnd));
+        }
+
+        return splits;
     }
 
     private List<ChunkRange> splitEvenlySizedChunks(
@@ -331,7 +378,7 @@ public class DamengChunkSplitter implements JdbcSourceChunkSplitter {
         Object[] splitStart = chunkStart == null ? null : new Object[] {chunkStart};
         Object[] splitEnd = chunkEnd == null ? null : new Object[] {chunkEnd};
         return new SnapshotSplit(
-                splitId(tableId, chunkId), tableId, splitKeyType, splitStart, splitEnd, null);
+                splitId(tableId, chunkId), tableId, splitKeyType, splitStart, splitEnd);
     }
 
     private static String splitId(TableId tableId, int chunkId) {

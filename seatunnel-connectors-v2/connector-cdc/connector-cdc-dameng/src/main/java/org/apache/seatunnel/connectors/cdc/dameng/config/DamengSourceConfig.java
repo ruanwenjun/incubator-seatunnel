@@ -37,6 +37,8 @@ public class DamengSourceConfig extends JdbcSourceConfig {
             int splitSize,
             double distributionFactorUpper,
             double distributionFactorLower,
+            int sampleShardingThreshold,
+            int inverseSamplingRate,
             Properties dbzProperties,
             String driverClassName,
             String hostname,
@@ -48,7 +50,8 @@ public class DamengSourceConfig extends JdbcSourceConfig {
             String serverTimeZone,
             long connectTimeoutMillis,
             int connectMaxRetries,
-            int connectionPoolSize) {
+            int connectionPoolSize,
+            boolean exactlyOnce) {
         super(
                 startupConfig,
                 stopConfig,
@@ -57,6 +60,8 @@ public class DamengSourceConfig extends JdbcSourceConfig {
                 splitSize,
                 distributionFactorUpper,
                 distributionFactorLower,
+                sampleShardingThreshold,
+                inverseSamplingRate,
                 dbzProperties,
                 driverClassName,
                 hostname,
@@ -68,7 +73,8 @@ public class DamengSourceConfig extends JdbcSourceConfig {
                 serverTimeZone,
                 connectTimeoutMillis,
                 connectMaxRetries,
-                connectionPoolSize);
+                connectionPoolSize,
+                exactlyOnce);
     }
 
     @Override

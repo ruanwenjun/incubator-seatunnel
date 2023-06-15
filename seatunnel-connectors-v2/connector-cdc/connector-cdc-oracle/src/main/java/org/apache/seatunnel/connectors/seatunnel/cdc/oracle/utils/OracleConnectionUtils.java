@@ -84,7 +84,7 @@ public class OracleConnectionUtils {
     }
 
     public static List<TableId> listTables(
-            JdbcConnection jdbcConnection, RelationalTableFilters tableFilters)
+            JdbcConnection jdbcConnection, String database, RelationalTableFilters tableFilters)
             throws SQLException {
         final List<TableId> capturedTableIds = new ArrayList<>();
 
@@ -99,8 +99,7 @@ public class OracleConnectionUtils {
                         while (rs.next()) {
                             String schemaName = rs.getString(1);
                             String tableName = rs.getString(2);
-                            TableId tableId =
-                                    new TableId(jdbcConnection.database(), schemaName, tableName);
+                            TableId tableId = new TableId(database, schemaName, tableName);
                             tableIdSet.add(tableId);
                         }
                     });

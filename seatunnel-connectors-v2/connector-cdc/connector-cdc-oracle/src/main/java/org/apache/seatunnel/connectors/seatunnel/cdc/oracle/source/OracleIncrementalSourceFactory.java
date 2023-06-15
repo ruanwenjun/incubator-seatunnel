@@ -83,6 +83,10 @@ public class OracleIncrementalSourceFactory implements TableSourceFactory, Suppo
                         OracleSourceOptions.STOP_MODE,
                         StopMode.TIMESTAMP,
                         SourceOptions.STOP_TIMESTAMP)
+                .conditional(
+                        OracleSourceOptions.STARTUP_MODE,
+                        StartupMode.INITIAL,
+                        SourceOptions.EXACTLY_ONCE)
                 .build();
     }
 
