@@ -31,8 +31,6 @@ public final class TablePath implements Serializable {
     private final String databaseName;
     private final String schemaName;
     private final String tableName;
-    private final String tablePrefix;
-    private final String tableSuffix;
 
     public static TablePath of(String fullName) {
         String[] paths = fullName.split("\\.");
@@ -53,19 +51,6 @@ public final class TablePath implements Serializable {
 
     public static TablePath of(String databaseName, String schemaName, String tableName) {
         return new TablePath(databaseName, schemaName, tableName);
-    }
-
-    public TablePath(String databaseName, String schemaName, String tableName) {
-        this(databaseName, schemaName, tableName, "", "");
-    }
-
-    public static TablePath of(
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tablePrefix,
-            String tableSuffix) {
-        return new TablePath(databaseName, schemaName, tableName, tablePrefix, tableSuffix);
     }
 
     public String getSchemaAndTableName() {
