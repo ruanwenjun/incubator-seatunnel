@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import com.google.auto.service.AutoService;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -91,7 +92,7 @@ public class HiveDataTypeConvertor implements DataTypeConvertor<String> {
             throws DataTypeConvertException {
         checkNotNull(connectorDataType, "Postgres Type cannot be null");
 
-        switch (connectorDataType) {
+        switch (connectorDataType.toLowerCase(Locale.ROOT)) {
             case HIVE_BOOLEAN:
                 return BasicType.BOOLEAN_TYPE;
             case HIVE_TINYINT:
