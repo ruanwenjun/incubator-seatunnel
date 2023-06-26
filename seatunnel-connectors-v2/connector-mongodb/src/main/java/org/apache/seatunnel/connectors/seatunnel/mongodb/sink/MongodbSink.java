@@ -33,6 +33,7 @@ import org.apache.seatunnel.connectors.seatunnel.mongodb.serde.RowDataToBsonConv
 
 import com.google.auto.service.AutoService;
 
+import java.io.IOException;
 import java.util.List;
 
 import static org.apache.seatunnel.connectors.seatunnel.mongodb.config.MongodbConfig.CONNECTOR_IDENTITY;
@@ -109,7 +110,8 @@ public class MongodbSink extends AbstractSimpleSink<SeaTunnelRow, Void> {
     }
 
     @Override
-    public AbstractSinkWriter<SeaTunnelRow, Void> createWriter(SinkWriter.Context context) {
+    public AbstractSinkWriter<SeaTunnelRow, Void> createWriter(SinkWriter.Context context)
+            throws IOException {
         return new MongodbWriter(
                 new RowDataDocumentSerializer(
                         RowDataToBsonConverters.createConverter(seaTunnelRowType),
