@@ -18,11 +18,8 @@
 package org.apache.seatunnel.engine.client.job;
 
 import org.apache.seatunnel.common.utils.ExceptionUtils;
-import org.apache.seatunnel.common.utils.RetryUtils;
 import org.apache.seatunnel.engine.client.SeaTunnelHazelcastClient;
-import org.apache.seatunnel.engine.common.Constant;
 import org.apache.seatunnel.engine.common.exception.SeaTunnelEngineException;
-import org.apache.seatunnel.engine.common.utils.ExceptionUtil;
 import org.apache.seatunnel.engine.common.utils.PassiveCompletableFuture;
 import org.apache.seatunnel.engine.core.job.Job;
 import org.apache.seatunnel.engine.core.job.JobImmutableInformation;
@@ -93,19 +90,8 @@ public class ClientJobProxy implements Job {
     @Override
     public JobStatus waitForJobComplete() {
         try {
-            jobResult =
-                    RetryUtils.retryWithException(
-                            () -> {
-                                PassiveCompletableFuture<JobResult> jobFuture =
-                                        doWaitForJobComplete();
-                                return jobFuture.get();
-                            },
-                            new RetryUtils.RetryMaterial(
-                                    100000,
-                                    true,
-                                    exception ->
-                                            ExceptionUtil.isOperationNeedRetryException(exception),
-                                    Constant.OPERATION_RETRY_SLEEP));
+            PassiveCompletableFuture<JobResult> jobFuture = doWaitForJobComplete();
+            jobResult = jobFuture.get();
             if (jobResult == null) {
                 throw new SeaTunnelEngineException("failed to fetch job result");
             }
