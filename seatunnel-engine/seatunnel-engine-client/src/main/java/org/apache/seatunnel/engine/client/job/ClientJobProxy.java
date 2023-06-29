@@ -19,7 +19,6 @@ package org.apache.seatunnel.engine.client.job;
 
 import org.apache.seatunnel.common.utils.ExceptionUtils;
 import org.apache.seatunnel.engine.client.SeaTunnelHazelcastClient;
-import org.apache.seatunnel.engine.common.exception.SeaTunnelEngineException;
 import org.apache.seatunnel.engine.common.utils.PassiveCompletableFuture;
 import org.apache.seatunnel.engine.core.job.Job;
 import org.apache.seatunnel.engine.core.job.JobImmutableInformation;
@@ -93,7 +92,9 @@ public class ClientJobProxy implements Job {
             PassiveCompletableFuture<JobResult> jobFuture = doWaitForJobComplete();
             jobResult = jobFuture.get();
             if (jobResult == null) {
-                throw new SeaTunnelEngineException("failed to fetch job result");
+                LOGGER.severe(
+                        "Unable to obtain the status of the job, it may have been running during the last cluster shutdown.");
+                return JobStatus.FAILED;
             }
         } catch (Exception e) {
             LOGGER.info(
@@ -105,7 +106,7 @@ public class ClientJobProxy implements Job {
         LOGGER.info(String.format("Job (%s) end with state %s", jobId, jobResult.getStatus()));
         if (StringUtils.isNotEmpty(jobResult.getError())
                 || jobResult.getStatus().equals(JobStatus.FAILED)) {
-            throw new SeaTunnelEngineException(jobResult.getError());
+            LOGGER.severe(jobResult.getError());
         }
         return jobResult.getStatus();
     }
