@@ -38,6 +38,8 @@ import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
@@ -209,14 +211,17 @@ public class JdbcSink
                                     catalogFactory.factoryIdentifier(),
                                     ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
                         catalog.open();
+                        String fieldIde = config.get(JdbcOptions.FIELD_IDE);
                         TablePath tablePath =
                                 TablePath.of(
                                         jdbcSinkConfig.getDatabase()
                                                 + "."
-                                                + jdbcSinkConfig.getTable());
+                                                + CatalogUtils.quoteTableIdentifier(
+                                                        jdbcSinkConfig.getTable(), fieldIde));
                         if (!catalog.databaseExists(jdbcSinkConfig.getDatabase())) {
                             catalog.createDatabase(tablePath, true);
                         }
+                        catalogTable.getOptions().put("fieldIde", fieldIde);
                         if (!catalog.tableExists(tablePath)) {
                             catalog.createTable(tablePath, catalogTable, true);
                         }
