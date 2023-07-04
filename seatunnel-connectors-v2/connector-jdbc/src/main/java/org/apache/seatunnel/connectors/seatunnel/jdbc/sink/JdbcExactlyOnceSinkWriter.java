@@ -146,7 +146,7 @@ public class JdbcExactlyOnceSinkWriter implements SinkWriter<SeaTunnelRow, XidIn
         } catch (Exception e) {
             if (Throwables.getRootCause(e) instanceof XaFacade.EmptyXaTransactionException) {
                 emptyXaTransaction = true;
-                LOG.debug("skip prepare empty xa transaction, xid={}", currentXid);
+                LOG.warn("skip prepare empty xa transaction, xid={}", currentXid);
             } else {
                 throw e;
             }
