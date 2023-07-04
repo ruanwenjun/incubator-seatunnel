@@ -176,15 +176,14 @@ public class SinkFlowLifeCycle<T, CommitInfoT extends Serializable, AggregatedCo
                             commitInfoT = lastCommitInfo.get();
                         }
                         runningTask
-                            .getExecutionContext()
-                            .sendToMember(
-                                new SinkPrepareCommitOperation(
-                                    barrier,
-                                    committerTaskLocation,
-                                    SerializationUtils.serialize(
-                                        commitInfoT)),
-                                committerTaskAddress)
-                            .join();
+                                .getExecutionContext()
+                                .sendToMember(
+                                        new SinkPrepareCommitOperation(
+                                                barrier,
+                                                committerTaskLocation,
+                                                SerializationUtils.serialize(commitInfoT)),
+                                        committerTaskAddress)
+                                .join();
                     }
                 } else {
                     if (containAggCommitter) {

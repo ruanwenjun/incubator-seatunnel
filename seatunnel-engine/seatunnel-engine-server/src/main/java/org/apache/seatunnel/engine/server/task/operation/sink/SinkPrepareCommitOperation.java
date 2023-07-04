@@ -81,7 +81,7 @@ public class SinkPrepareCommitOperation extends BarrierFlowOperation {
                         .getClassLoader();
         if (commitInfos != null) {
             committerTask.receivedWriterCommitInfo(
-                barrier.getId(), SerializationUtils.deserialize(commitInfos, classLoader));
+                    barrier.getId(), SerializationUtils.deserialize(commitInfos, classLoader));
         }
         committerTask.triggerBarrier(barrier);
     }
