@@ -20,7 +20,8 @@ package org.apache.seatunnel.connectors.seatunnel.redshift.exception;
 import org.apache.seatunnel.common.exception.SeaTunnelErrorCode;
 
 public enum S3RedshiftConnectorErrorCode implements SeaTunnelErrorCode {
-    AGGREGATE_COMMIT_ERROR("S3RedShift-01", "Aggregate committer error");
+    AGGREGATE_COMMIT_ERROR("S3RedShift-01", "Aggregate committer error"),
+    UPDATE_REDSHIFT_SCHEMA_FAILED("S3RedShift-02", "Update redshift schema error");
 
     private final String code;
 
