@@ -219,8 +219,13 @@ public class IncrementalSourceReader<T, C extends SourceConfig>
         IncrementalSplit incrementalSplit = stateSplits.get(0).asIncrementalSplit();
         // Snapshot current datatype to checkpoint
         SeaTunnelDataType<T> checkpointDataType = debeziumDeserializationSchema.getProducedType();
+
+        // Snapshot current history table changes to checkpoint for debezium
         IncrementalSplit newIncrementalSplit =
-                new IncrementalSplit(incrementalSplit, checkpointDataType);
+                new IncrementalSplit(
+                        incrementalSplit,
+                        checkpointDataType,
+                        debeziumDeserializationSchema.getHistoryTableChanges());
         log.debug(
                 "Snapshot checkpoint datatype {} into split[{}] state.",
                 checkpointDataType,

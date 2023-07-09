@@ -17,7 +17,6 @@
 
 package org.apache.seatunnel.connectors.cdc.dameng.source;
 
-import org.apache.seatunnel.common.utils.ExceptionUtils;
 import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.dialect.JdbcDataSourceDialect;
@@ -26,8 +25,6 @@ import org.apache.seatunnel.connectors.cdc.base.relational.connection.JdbcConnec
 import org.apache.seatunnel.connectors.cdc.base.source.enumerator.splitter.ChunkSplitter;
 import org.apache.seatunnel.connectors.cdc.base.source.reader.external.FetchTask;
 import org.apache.seatunnel.connectors.cdc.base.source.reader.external.JdbcSourceFetchTaskContext;
-import org.apache.seatunnel.connectors.cdc.base.source.split.IncrementalSplit;
-import org.apache.seatunnel.connectors.cdc.base.source.split.SnapshotSplit;
 import org.apache.seatunnel.connectors.cdc.base.source.split.SourceSplitBase;
 import org.apache.seatunnel.connectors.cdc.dameng.config.DamengSourceConfig;
 import org.apache.seatunnel.connectors.cdc.dameng.config.DamengSourceConfigFactory;
@@ -37,14 +34,12 @@ import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.logminer.D
 import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.snapshot.DamengSnapshotFetchTask;
 import org.apache.seatunnel.connectors.cdc.dameng.utils.DamengSchema;
 
-import io.debezium.config.Configuration;
 import io.debezium.connector.dameng.DamengConnection;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.TableId;
 import io.debezium.relational.history.TableChanges;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
 public class DamengDialect implements JdbcDataSourceDialect {
@@ -122,24 +117,8 @@ public class DamengDialect implements JdbcDataSourceDialect {
     @Override
     public JdbcSourceFetchTaskContext createFetchTaskContext(
             SourceSplitBase sourceSplitBase, JdbcSourceConfig taskSourceConfig) {
-        Configuration jdbcConfig = taskSourceConfig.getDbzConnectorConfig().getJdbcConfig();
-        List<TableChanges.TableChange> tableChangeList = new ArrayList<>();
-        try (DamengConnection jdbcConnection = new DamengConnection(jdbcConfig)) {
-            // TODO: support save table schema
-            if (sourceSplitBase instanceof SnapshotSplit) {
-                SnapshotSplit snapshotSplit = (SnapshotSplit) sourceSplitBase;
-                tableChangeList.add(queryTableSchema(jdbcConnection, snapshotSplit.getTableId()));
-            } else {
-                IncrementalSplit incrementalSplit = (IncrementalSplit) sourceSplitBase;
-                for (TableId tableId : incrementalSplit.getTableIds()) {
-                    tableChangeList.add(queryTableSchema(jdbcConnection, tableId));
-                }
-            }
-        } catch (SQLException e) {
-            throw new SeaTunnelException(ExceptionUtils.getMessage(e));
-        }
 
-        return new DamengSourceFetchTaskContext(taskSourceConfig, this, tableChangeList);
+        return new DamengSourceFetchTaskContext(taskSourceConfig, this);
     }
 
     @Override
