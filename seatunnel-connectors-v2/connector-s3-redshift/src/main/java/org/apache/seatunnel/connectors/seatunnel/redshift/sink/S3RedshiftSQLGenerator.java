@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 import org.apache.seatunnel.shade.com.google.common.base.Strings;
 
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
@@ -77,13 +78,13 @@ public class S3RedshiftSQLGenerator implements Serializable {
     public String generateCreateTableSQL() {
         return String.format(
                 "CREATE TABLE IF NOT EXISTS %s (%s)",
-                conf.getRedshiftTable(), generateColumnDefinition());
+                conf.getRedshiftTable(), generateTableColumnDefinition());
     }
 
     public String generateCreateTemporaryTableSQL() {
         return String.format(
                 "CREATE TABLE IF NOT EXISTS %s (%s)",
-                conf.getTemporaryTableName(), generateColumnDefinition());
+                conf.getTemporaryTableName(), generateTableColumnDefinition());
     }
 
     public String generateCopyS3FileToTemporaryTableSql() {
@@ -176,6 +177,30 @@ public class S3RedshiftSQLGenerator implements Serializable {
                 matchedClause,
                 sinkFieldsClause,
                 selectSourceFieldsClause);
+    }
+
+    private String generateTableColumnDefinition() {
+        String tableColumnDefinition = generateColumnDefinition();
+        if (table != null) {
+            TableSchema tableSchema = table.getTableSchema();
+            PrimaryKey primaryKey = tableSchema.getPrimaryKey();
+            if (primaryKey != null && !primaryKey.getColumnNames().isEmpty()) {
+                String primaryKeyDefinition =
+                        String.format(
+                                "PRIMARY KEY (%s)",
+                                String.join(",", tableSchema.getPrimaryKey().getColumnNames()));
+                tableColumnDefinition =
+                        String.join(", ", tableColumnDefinition, primaryKeyDefinition);
+            }
+        } else if (conf.getRedshiftTablePrimaryKeys() != null
+                && !conf.getRedshiftTablePrimaryKeys().isEmpty()) {
+            String primaryKeyDefinition =
+                    String.format(
+                            "PRIMARY KEY (%s)",
+                            String.join(",", conf.getRedshiftTablePrimaryKeys()));
+            tableColumnDefinition = String.join(", ", tableColumnDefinition, primaryKeyDefinition);
+        }
+        return tableColumnDefinition;
     }
 
     private String generateColumnDefinition() {

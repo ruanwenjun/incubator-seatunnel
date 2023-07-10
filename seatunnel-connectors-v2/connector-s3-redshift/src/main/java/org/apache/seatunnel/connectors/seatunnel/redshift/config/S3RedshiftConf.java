@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.redshift.config;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftTemporaryTableMode;
@@ -76,6 +77,10 @@ public class S3RedshiftConf implements Serializable {
     public static S3RedshiftConf valueOf(ReadonlyConfig readonlyConfig) {
         S3RedshiftConfBuilder builder = S3RedshiftConf.builder();
 
+        checkPath(
+                readonlyConfig.get(BaseSinkConfig.FILE_PATH),
+                readonlyConfig.get(BaseSinkConfig.TMP_PATH));
+
         builder.jdbcUrl(readonlyConfig.get(S3RedshiftConfig.JDBC_URL));
         builder.jdbcUser(readonlyConfig.get(S3RedshiftConfig.JDBC_USER));
         builder.jdbcPassword(readonlyConfig.get(S3RedshiftConfig.JDBC_PASSWORD));
@@ -119,6 +124,17 @@ public class S3RedshiftConf implements Serializable {
         if (!FileFormat.ORC.equals(fileFormat)) {
             throw new IllegalArgumentException(
                     "Only orc file format is supported for changelog mode");
+        }
+    }
+
+    private static void checkPath(String... paths) throws IllegalArgumentException {
+        for (String path : paths) {
+            if (path == null || path.isEmpty()) {
+                throw new IllegalArgumentException("Path cannot be empty");
+            }
+            if (!path.startsWith("/")) {
+                throw new IllegalArgumentException("Path must start with /");
+            }
         }
     }
 }
