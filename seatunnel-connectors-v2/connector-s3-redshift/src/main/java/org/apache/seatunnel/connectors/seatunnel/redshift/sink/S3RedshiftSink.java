@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
+import org.apache.seatunnel.api.sink.*;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
@@ -145,13 +146,14 @@ public class S3RedshiftSink extends BaseHdfsFileSink
     }
 
     @Override
-    public DataSaveMode getDataSaveMode() {
-        return saveMode;
+    public Optional<SinkCommitter<FileCommitInfo>> createCommitter() throws IOException {
+        return Optional.empty();
     }
 
+
     @Override
-    public List<DataSaveMode> supportedDataSaveModeValues() {
-        return Collections.singletonList(saveMode);
+    public DataSaveMode getUserConfigSaveMode() {
+        return null;
     }
 
     @SneakyThrows

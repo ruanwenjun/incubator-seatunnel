@@ -276,7 +276,17 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         }
     }
 
+    public void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
+            throws TableNotExistException, CatalogException{
+        checkNotNull(tablePath, "Table path cannot be null");
+        if (!truncateTableInternal(tablePath)&& !ignoreIfNotExists) {
+            throw new TableNotExistException(catalogName, tablePath);
+        }
+    }
+
     protected abstract boolean dropTableInternal(TablePath tablePath) throws CatalogException;
+
+    protected abstract boolean truncateTableInternal(TablePath tablePath) throws CatalogException;
 
     @Override
     public void createDatabase(TablePath tablePath, boolean ignoreIfExists)
