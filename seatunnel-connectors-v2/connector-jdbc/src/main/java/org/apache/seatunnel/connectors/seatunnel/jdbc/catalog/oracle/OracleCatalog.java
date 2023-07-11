@@ -185,7 +185,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
         try {
             return databaseExists(tablePath.getDatabaseName())
                     && listTables(tablePath.getDatabaseName())
-                            .contains(tablePath.getSchemaAndTableName().toUpperCase());
+                            .contains(tablePath.getSchemaAndTableName());
         } catch (DatabaseNotExistException e) {
             return false;
         }
