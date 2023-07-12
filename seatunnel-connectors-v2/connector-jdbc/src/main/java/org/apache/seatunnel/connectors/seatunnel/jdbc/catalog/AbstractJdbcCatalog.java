@@ -37,11 +37,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -135,6 +131,19 @@ public abstract class AbstractJdbcCatalog implements Catalog {
                     String.format("Failed to close %s via JDBC.", defaultUrl), e);
         }
         LOG.info("Catalog {} closing", catalogName);
+    }
+
+    public void executeSql(String sql){
+        Connection connection = defaultConnection;
+        try (PreparedStatement ps =
+                     connection.prepareStatement(
+                             String.format(sql))){
+            // Will there exist concurrent drop for one table?
+            ps.execute();
+        } catch (SQLException e) {
+            throw new CatalogException(
+                    String.format("Failed executeSql error %s", sql), e);
+        }
     }
 
     protected Optional<PrimaryKey> getPrimaryKey(
