@@ -330,10 +330,9 @@ public class SqlServerCatalog extends AbstractJdbcCatalog {
     protected boolean truncateTableInternal(TablePath tablePath) throws CatalogException {
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
         try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd);
-             PreparedStatement ps =
-                     conn.prepareStatement(
-                             String.format(
-                                     "TRUNCATE TABLE  %s", tablePath.getFullName()))) {
+                PreparedStatement ps =
+                        conn.prepareStatement(
+                                String.format("TRUNCATE TABLE  %s", tablePath.getFullName()))) {
             // Will there exist concurrent drop for one table?
             return ps.execute();
         } catch (SQLException e) {

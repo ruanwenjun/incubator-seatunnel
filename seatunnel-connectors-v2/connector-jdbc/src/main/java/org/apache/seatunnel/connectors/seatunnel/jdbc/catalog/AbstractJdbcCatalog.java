@@ -37,7 +37,12 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -133,16 +138,13 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         LOG.info("Catalog {} closing", catalogName);
     }
 
-    public void executeSql(String sql){
+    public void executeSql(String sql) {
         Connection connection = defaultConnection;
-        try (PreparedStatement ps =
-                     connection.prepareStatement(
-                             String.format(sql))){
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
             // Will there exist concurrent drop for one table?
             ps.execute();
         } catch (SQLException e) {
-            throw new CatalogException(
-                    String.format("Failed executeSql error %s", sql), e);
+            throw new CatalogException(String.format("Failed executeSql error %s", sql), e);
         }
     }
 
@@ -286,9 +288,9 @@ public abstract class AbstractJdbcCatalog implements Catalog {
     }
 
     public void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
-            throws TableNotExistException, CatalogException{
+            throws TableNotExistException, CatalogException {
         checkNotNull(tablePath, "Table path cannot be null");
-        if (!truncateTableInternal(tablePath)&& !ignoreIfNotExists) {
+        if (!truncateTableInternal(tablePath) && !ignoreIfNotExists) {
             throw new TableNotExistException(catalogName, tablePath);
         }
     }

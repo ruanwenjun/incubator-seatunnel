@@ -34,7 +34,12 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalo
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -170,8 +175,8 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     protected boolean truncateTableInternal(TablePath tablePath) throws CatalogException {
         Connection connection = defaultConnection;
         try (PreparedStatement ps =
-                     connection.prepareStatement(
-                             String.format("TRUNCATE TABLE %s;", tablePath.getFullName()))) {
+                connection.prepareStatement(
+                        String.format("TRUNCATE TABLE %s;", tablePath.getFullName()))) {
             // Will there exist concurrent truncate for one table?
             return ps.execute();
         } catch (SQLException e) {
