@@ -48,6 +48,12 @@ public interface JdbcOptions {
     Option<String> QUERY =
             Options.key("query").stringType().noDefaultValue().withDescription("query");
 
+    Option<String> SAVE_MODE =
+            Options.key("save_mode").stringType().noDefaultValue().withDescription("save_mode");
+
+    Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
+
     Option<Boolean> AUTO_COMMIT =
             Options.key("auto_commit")
                     .booleanType()

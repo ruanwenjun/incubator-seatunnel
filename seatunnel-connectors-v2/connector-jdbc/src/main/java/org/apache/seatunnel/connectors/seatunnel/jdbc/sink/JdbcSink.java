@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.connectors.seatunnel.jdbc.sink;
 
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.CommonOptions;
@@ -59,8 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
+import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.*;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @AutoService(SeaTunnelSink.class)
@@ -244,14 +244,16 @@ public class JdbcSink
             case KEEP_SCHEMA_DROP_DATA:
                 if (catalog.tableExists(tablePath)) {
                     catalog.truncateTable(tablePath, true);
+                }else{
+                    throw new JdbcConnectorException(TABLE_NOT_EXISTED,"Table not existed");
                 }
                 break;
             case KEEP_SCHEMA_AND_DATA:
                 break;
             case CUSTOM_PROCESSING:
-                // todo param
-
-
+                String customSql = config.get(JdbcOptions.CUSTOM_SQL);
+                AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog)catalog;
+                jdbcCatalog.executeSql(customSql);
                 break;
             case ERROR_WHEN_EXISTS:
                 throw new JdbcConnectorException(SOURCE_ALREADY_HAS_DATA,"The target data source already has data");
