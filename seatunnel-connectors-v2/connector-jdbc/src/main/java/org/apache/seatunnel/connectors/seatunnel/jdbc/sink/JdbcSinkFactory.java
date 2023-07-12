@@ -134,17 +134,12 @@ public class JdbcSinkFactory implements TableSinkFactory {
         // get saveMode
         String saveModeStr = config.get(JdbcOptions.SAVE_MODE);
         DataSaveMode dataSaveMode = DataSaveMode.ERROR_WHEN_EXISTS;
-        if (StringUtils.isNotEmpty(saveModeStr)){
+        if (StringUtils.isNotEmpty(saveModeStr)) {
             dataSaveMode = DataSaveMode.valueOf(saveModeStr);
         }
         DataSaveMode finalDataSaveMode = dataSaveMode;
         return () ->
-                new JdbcSink(
-                        options,
-                        sinkConfig,
-                        dialect,
-                        finalDataSaveMode,
-                        finalCatalogTable);
+                new JdbcSink(options, sinkConfig, dialect, finalDataSaveMode, finalCatalogTable);
     }
 
     @Override

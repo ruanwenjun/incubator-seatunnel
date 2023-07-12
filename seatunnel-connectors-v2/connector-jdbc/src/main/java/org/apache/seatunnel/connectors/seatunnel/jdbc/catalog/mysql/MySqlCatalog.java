@@ -321,8 +321,8 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
         Connection connection = getConnection(dbUrl);
         try (PreparedStatement ps =
-                     connection.prepareStatement(
-                             String.format("TRUNCATE TABLE %s;", tablePath.getFullName()))) {
+                connection.prepareStatement(
+                        String.format("TRUNCATE TABLE %s;", tablePath.getFullName()))) {
             // Will there exist concurrent truncate for one table?
             return ps.execute();
         } catch (SQLException e) {
@@ -330,7 +330,6 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
                     String.format("Failed truncating table %s", tablePath.getFullName()), e);
         }
     }
-
 
     @Override
     protected boolean createDatabaseInternal(String databaseName) throws CatalogException {

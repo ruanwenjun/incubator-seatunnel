@@ -200,9 +200,7 @@ public interface Catalog extends AutoCloseable {
      * @throws CatalogException in case of any runtime exception
      */
     default void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
-            throws TableNotExistException, CatalogException{
-    }
-
+            throws TableNotExistException, CatalogException {}
 
     // todo: Support for update table metadata
 
