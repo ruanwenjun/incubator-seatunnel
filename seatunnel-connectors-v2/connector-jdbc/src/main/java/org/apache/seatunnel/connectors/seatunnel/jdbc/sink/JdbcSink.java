@@ -263,6 +263,9 @@ public class JdbcSink
                 jdbcCatalog.executeSql(customSql);
                 break;
             case ERROR_WHEN_EXISTS:
+                if (!catalog.tableExists(tablePath)) {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
                 if (jdbcCatalog.isExistsData(tablePath.getFullName())){
                     throw new JdbcConnectorException(
                             SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
