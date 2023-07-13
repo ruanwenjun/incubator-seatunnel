@@ -148,6 +148,23 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         }
     }
 
+    public boolean isExistsData(String tableFullName){
+        Connection connection = defaultConnection;
+        String sql = String.format("select count(*) from %s;",tableFullName);
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ResultSet resultSet = ps.executeQuery();
+            if (resultSet == null){
+                return false;
+            }
+            resultSet.next();
+            int count = 0;
+            count = resultSet.getInt(1);
+            return count > 0;
+        } catch (SQLException e) {
+            throw new CatalogException(String.format("Failed executeSql error %s", sql), e);
+        }
+    }
+
     protected Optional<PrimaryKey> getPrimaryKey(
             DatabaseMetaData metaData, String database, String table) throws SQLException {
         return getPrimaryKey(metaData, database, table, table);

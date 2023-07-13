@@ -223,6 +223,7 @@ public class JdbcSink
 
     private void doHandleSaveMode(DataSaveMode saveMode, Catalog catalog) {
         String fieldIde = config.get(JdbcOptions.FIELD_IDE);
+        AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog) catalog;
         TablePath tablePath =
                 TablePath.of(
                         jdbcSinkConfig.getDatabase()
@@ -246,19 +247,26 @@ public class JdbcSink
                 if (catalog.tableExists(tablePath)) {
                     catalog.truncateTable(tablePath, true);
                 } else {
-                    throw new JdbcConnectorException(TABLE_NOT_EXISTED, "Table not existed");
+                    catalog.createTable(tablePath, catalogTable, true);
                 }
                 break;
             case KEEP_SCHEMA_AND_DATA:
+                if (!catalog.tableExists(tablePath)) {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
                 break;
             case CUSTOM_PROCESSING:
+                if (!catalog.tableExists(tablePath)) {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
                 String customSql = config.get(JdbcOptions.CUSTOM_SQL);
-                AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog) catalog;
                 jdbcCatalog.executeSql(customSql);
                 break;
             case ERROR_WHEN_EXISTS:
-                throw new JdbcConnectorException(
-                        SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
+                if (jdbcCatalog.isExistsData(tablePath.getFullName())){
+                    throw new JdbcConnectorException(
+                            SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
+                }
         }
     }
 }
