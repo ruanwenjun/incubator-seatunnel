@@ -51,7 +51,17 @@ public interface JdbcOptions {
             Options.key("query").stringType().noDefaultValue().withDescription("query");
 
     Option<String> SAVE_MODE =
-            Options.key("save_mode").singleChoice(String.class, Arrays.asList(DataSaveMode.DROP_SCHEMA.toString(),  DataSaveMode.KEEP_SCHEMA_DROP_DATA.toString(),DataSaveMode.KEEP_SCHEMA_AND_DATA.toString(), DataSaveMode.CUSTOM_PROCESSING.toString(), DataSaveMode.ERROR_WHEN_EXISTS.toString())).noDefaultValue().withDescription("save_mode");
+            Options.key("save_mode")
+                    .singleChoice(
+                            String.class,
+                            Arrays.asList(
+                                    DataSaveMode.DROP_SCHEMA.toString(),
+                                    DataSaveMode.KEEP_SCHEMA_DROP_DATA.toString(),
+                                    DataSaveMode.KEEP_SCHEMA_AND_DATA.toString(),
+                                    DataSaveMode.CUSTOM_PROCESSING.toString(),
+                                    DataSaveMode.ERROR_WHEN_EXISTS.toString()))
+                    .noDefaultValue()
+                    .withDescription("save_mode");
 
     Option<String> CUSTOM_SQL =
             Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
@@ -135,9 +145,7 @@ public interface JdbcOptions {
                     .defaultValue(false)
                     .withDescription("support upsert by insert only");
 
-    /**
-     * source config
-     */
+    /** source config */
     Option<String> PARTITION_COLUMN =
             Options.key("partition_column")
                     .stringType()

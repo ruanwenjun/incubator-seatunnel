@@ -63,7 +63,6 @@ import java.util.Optional;
 
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.TABLE_NOT_EXISTED;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @AutoService(SeaTunnelSink.class)
@@ -277,7 +276,7 @@ public class JdbcSink
                 if (!catalog.tableExists(tablePath)) {
                     catalog.createTable(tablePath, catalogTable, true);
                 }
-                if (jdbcCatalog.isExistsData(tablePath.getFullName())){
+                if (jdbcCatalog.isExistsData(tablePath.getFullName())) {
                     throw new JdbcConnectorException(
                             SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
                 }

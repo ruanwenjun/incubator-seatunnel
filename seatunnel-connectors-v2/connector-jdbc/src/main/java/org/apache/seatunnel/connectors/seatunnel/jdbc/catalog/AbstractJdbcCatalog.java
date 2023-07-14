@@ -148,12 +148,12 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         }
     }
 
-    public boolean isExistsData(String tableFullName){
+    public boolean isExistsData(String tableFullName) {
         Connection connection = defaultConnection;
-        String sql = String.format("select count(*) from %s;",tableFullName);
+        String sql = String.format("select count(*) from %s;", tableFullName);
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ResultSet resultSet = ps.executeQuery();
-            if (resultSet == null){
+            if (resultSet == null) {
                 return false;
             }
             resultSet.next();
