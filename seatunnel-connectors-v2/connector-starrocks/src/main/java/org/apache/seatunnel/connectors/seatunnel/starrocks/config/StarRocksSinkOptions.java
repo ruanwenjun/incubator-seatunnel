@@ -138,6 +138,12 @@ public interface StarRocksSinkOptions {
                     .defaultValue(StreamLoadFormat.JSON)
                     .withDescription("");
 
+    Option<String> FIELD_IDE =
+            Options.key("field_ide")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Whether case conversion is required");
+
     SingleChoiceOption<DataSaveMode> SAVE_MODE =
             Options.key(SupportDataSaveMode.SAVE_MODE_KEY)
                     .singleChoice(
