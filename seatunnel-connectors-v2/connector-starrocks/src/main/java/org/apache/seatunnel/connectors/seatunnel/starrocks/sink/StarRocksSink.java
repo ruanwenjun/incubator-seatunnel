@@ -53,7 +53,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
+import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
+import static org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions.CUSTOM_SQL;
 
 @NoArgsConstructor
 @AutoService(SeaTunnelSink.class)
@@ -172,17 +174,40 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
                                 + "."
                                 + CatalogUtils.quoteTableIdentifier(
                                 sinkConfig.getTable(), fieldIde));
-        if (!catalog.databaseExists(sinkConfig.getDatabase())){
-            catalog.createDatabase(tablePath,true);
+        if (!catalog.databaseExists(sinkConfig.getDatabase())) {
+            catalog.createDatabase(tablePath, true);
         }
-        // todo
         switch (saveMode) {
             case DROP_SCHEMA:
-                if(catalog.tableExists(tablePath)){
-                    catalog.dropTable(tablePath,true);
+                if (catalog.tableExists(tablePath)) {
+                    catalog.dropTable(tablePath, true);
+                }
+                autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
+                break;
+            case KEEP_SCHEMA_DROP_DATA:
+                if (catalog.tableExists(tablePath)) {
+                    catalog.truncateTable(tablePath, true);
+                } else {
+                    autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
+                }
+                break;
+            case KEEP_SCHEMA_AND_DATA:
+                if (!catalog.tableExists(tablePath)) {
+                    autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
+                }
+                break;
+            case CUSTOM_PROCESSING:
+                String sql = readonlyConfig.get(CUSTOM_SQL);
+                ((StarRocksCatalog) catalog).executeSql(sql);
+                break;
+            case ERROR_WHEN_EXISTS:
+                if (catalog.tableExists(tablePath)){
+                    if (((StarRocksCatalog) catalog).isExistsData(tablePath.getTableName())) {
+                        throw new StarRocksConnectorException(
+                                SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
+                    }
                 }
                 break;
         }
-        autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
     }
 }
