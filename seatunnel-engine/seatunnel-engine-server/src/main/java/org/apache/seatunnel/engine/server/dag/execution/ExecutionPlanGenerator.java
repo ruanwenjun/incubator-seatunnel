@@ -17,11 +17,18 @@
 
 package org.apache.seatunnel.engine.server.dag.execution;
 
+import org.apache.seatunnel.api.annotation.Experimental;
+import org.apache.seatunnel.api.env.EnvCommonOptions;
+import org.apache.seatunnel.api.sink.SeaTunnelSink;
+import org.apache.seatunnel.api.sink.SupportMultiTableSink;
+import org.apache.seatunnel.api.table.connector.TableSink;
+import org.apache.seatunnel.api.table.factory.MultiTableFactoryContext;
 import org.apache.seatunnel.api.table.type.MultipleRowType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.api.transform.SeaTunnelTransform;
-import org.apache.seatunnel.engine.common.config.server.CheckpointConfig;
+import org.apache.seatunnel.engine.common.config.EngineConfig;
 import org.apache.seatunnel.engine.common.utils.IdGenerator;
 import org.apache.seatunnel.engine.core.dag.actions.Action;
 import org.apache.seatunnel.engine.core.dag.actions.ShuffleAction;
@@ -38,12 +45,17 @@ import org.apache.seatunnel.engine.core.dag.logical.LogicalDag;
 import org.apache.seatunnel.engine.core.dag.logical.LogicalEdge;
 import org.apache.seatunnel.engine.core.dag.logical.LogicalVertex;
 import org.apache.seatunnel.engine.core.job.JobImmutableInformation;
+import org.apache.seatunnel.engine.server.dag.physical.internal.task.multitable.MultiTableAggregatedCommitInfo;
+import org.apache.seatunnel.engine.server.dag.physical.internal.task.multitable.MultiTableCommitInfo;
+import org.apache.seatunnel.engine.server.dag.physical.internal.task.multitable.MultiTableSinkFactory;
+import org.apache.seatunnel.engine.server.dag.physical.internal.task.multitable.MultiTableState;
 
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,6 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -60,18 +73,18 @@ import static com.google.common.base.Preconditions.checkArgument;
 public class ExecutionPlanGenerator {
     private final LogicalDag logicalPlan;
     private final JobImmutableInformation jobImmutableInformation;
-    private final CheckpointConfig checkpointConfig;
+    private final EngineConfig engineConfig;
     private final IdGenerator idGenerator = new IdGenerator();
 
     public ExecutionPlanGenerator(
             @NonNull LogicalDag logicalPlan,
             @NonNull JobImmutableInformation jobImmutableInformation,
-            @NonNull CheckpointConfig checkpointConfig) {
+            @NonNull EngineConfig engineConfig) {
         checkArgument(
                 logicalPlan.getEdges().size() > 0, "ExecutionPlan Builder must have LogicalPlan.");
         this.logicalPlan = logicalPlan;
         this.jobImmutableInformation = jobImmutableInformation;
-        this.checkpointConfig = checkpointConfig;
+        this.engineConfig = engineConfig;
     }
 
     public ExecutionPlan generate() {
@@ -80,8 +93,24 @@ public class ExecutionPlanGenerator {
         Set<ExecutionEdge> executionEdges = generateExecutionEdges(logicalPlan.getEdges());
         log.debug("Phase 1: generate execution edge list {}", executionEdges);
 
-        executionEdges = generateShuffleEdges(executionEdges);
-        log.debug("Phase 2: generate shuffle edge list {}", executionEdges);
+        // TODO move to SeaTunnel optimizer
+        if (Boolean.parseBoolean(
+                jobImmutableInformation
+                        .getJobConfig()
+                        .getEnvOptions()
+                        .getOrDefault(EnvCommonOptions.MULTI_TABLE_SINK.key(), "true")
+                        .toString())) {
+            try {
+                executionEdges = generateMultiTableSink(executionEdges);
+                log.debug("Phase 2: generate multi table sink list {}", executionEdges);
+            } catch (UnsupportedOperationException e) {
+                log.info("Unsupported multi table sink, use shuffle instead");
+                executionEdges = generateShuffleEdges(executionEdges);
+            }
+        } else {
+            executionEdges = generateShuffleEdges(executionEdges);
+            log.debug("Phase 2: generate shuffle edge list {}", executionEdges);
+        }
 
         executionEdges = generateTransformChainEdges(executionEdges);
         log.debug("Phase 3: generate transform chain edge list {}", executionEdges);
@@ -196,6 +225,95 @@ public class ExecutionPlanGenerator {
         return executionEdges;
     }
 
+    @Experimental
+    private Set<ExecutionEdge> generateMultiTableSink(Set<ExecutionEdge> executionEdges) {
+        Collection<List<ExecutionEdge>> sinkEdges =
+                executionEdges.stream()
+                        .filter(e -> e.getRightVertex().getAction() instanceof SinkAction)
+                        .collect(
+                                Collectors.groupingBy(
+                                        ExecutionEdge::getLeftVertex, Collectors.toList()))
+                        .values();
+
+        if (sinkEdges.stream().noneMatch(edges -> edges.size() > 1)) {
+            return executionEdges;
+        }
+        sinkEdges.forEach(
+                edges -> {
+                    edges.forEach(executionEdges::remove);
+                    List<SinkAction> actions =
+                            edges.stream()
+                                    .map(ExecutionEdge::getRightVertex)
+                                    .map(ExecutionVertex::getAction)
+                                    .map(a -> (SinkAction) a)
+                                    .collect(Collectors.toList());
+                    ExecutionVertex left = edges.get(0).getLeftVertex();
+
+                    actions.forEach(
+                            action -> {
+                                if (!(action.getSink() instanceof SupportMultiTableSink)) {
+                                    throw new UnsupportedOperationException(
+                                            action.getSink().getPluginName()
+                                                    + " don't support MultiTableSink");
+                                }
+                            });
+                    Set<URL> jars =
+                            actions.stream()
+                                    .flatMap(a -> a.getJarUrls().stream())
+                                    .collect(Collectors.toSet());
+
+                    Map<String, SeaTunnelSink> sinks = new HashMap<>();
+                    actions.forEach(
+                            action -> {
+                                SeaTunnelSink sink = action.getSink();
+                                String tableId = action.getConfig().getMultipleRowTableId();
+                                sinks.put(tableId, sink);
+                            });
+
+                    int replicaNum =
+                            Integer.parseInt(
+                                    jobImmutableInformation
+                                            .getJobConfig()
+                                            .getEnvOptions()
+                                            .getOrDefault(
+                                                    EnvCommonOptions.MULTI_TABLE_SINK_REPLICA.key(),
+                                                    "1")
+                                            .toString());
+
+                    MultiTableFactoryContext multiTableFactoryContext =
+                            new MultiTableFactoryContext(
+                                    null,
+                                    null,
+                                    Thread.currentThread().getContextClassLoader(),
+                                    sinks,
+                                    replicaNum);
+                    TableSink tableSink =
+                            new MultiTableSinkFactory().createSink(multiTableFactoryContext);
+                    SeaTunnelSink multiSink = tableSink.createSink();
+                    SinkAction<
+                                    SeaTunnelRow,
+                                    MultiTableState,
+                                    MultiTableCommitInfo,
+                                    MultiTableAggregatedCommitInfo>
+                            multiTableAction =
+                                    new SinkAction<>(
+                                            edges.get(0).getRightVertexId(),
+                                            "MultiTableSink",
+                                            Collections.singletonList(left.getAction()),
+                                            multiSink,
+                                            jars);
+                    multiTableAction.setParallelism(left.getParallelism());
+                    executionEdges.add(
+                            new ExecutionEdge(
+                                    left,
+                                    new ExecutionVertex(
+                                            edges.get(0).getRightVertexId(),
+                                            multiTableAction,
+                                            left.getParallelism())));
+                });
+        return executionEdges;
+    }
+
     @SuppressWarnings("MagicNumber")
     private Set<ExecutionEdge> generateShuffleEdges(Set<ExecutionEdge> executionEdges) {
         Map<Long, List<ExecutionVertex>> targetVerticesMap = new LinkedHashMap<>();
@@ -235,7 +353,10 @@ public class ExecutionPlanGenerator {
                         .jobId(jobImmutableInformation.getJobId())
                         .inputPartitions(sourceAction.getParallelism())
                         .inputRowType(MultipleRowType.class.cast(sourceProducedType))
-                        .queueEmptyQueueTtl((int) (checkpointConfig.getCheckpointInterval() * 3))
+                        .queueEmptyQueueTtl(
+                                (int)
+                                        (engineConfig.getCheckpointConfig().getCheckpointInterval()
+                                                * 3))
                         .build();
         ShuffleConfig shuffleConfig =
                 ShuffleConfig.builder().shuffleStrategy(shuffleStrategy).build();

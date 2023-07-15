@@ -28,11 +28,8 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.executor.JdbcBatc
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -251,11 +248,6 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                 reconnect
                         ? connectionProvider.reestablishConnection()
                         : connectionProvider.getConnection());
-    }
-
-    @VisibleForTesting
-    public Connection getConnection() {
-        return connectionProvider.getConnection();
     }
 
     /**

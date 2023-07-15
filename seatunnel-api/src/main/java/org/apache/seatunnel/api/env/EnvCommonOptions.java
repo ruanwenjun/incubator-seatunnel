@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.api.env;
 
+import org.apache.seatunnel.api.annotation.Experimental;
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.common.constants.JobMode;
@@ -56,6 +57,20 @@ public interface EnvCommonOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("third-party packages can be loaded via `jars`");
+
+    @Experimental
+    Option<Integer> MULTI_TABLE_SINK_REPLICA =
+            Options.key("multi.table.sink.replica")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription("The replica number of multi table sink");
+
+    @Experimental
+    Option<Boolean> MULTI_TABLE_SINK =
+            Options.key("multi.table.sink")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription("Use multi table sink optimizer to adjust sink behavior.");
 
     Option<Map<String, String>> CUSTOM_PARAMETERS =
             Options.key("custom_parameters")

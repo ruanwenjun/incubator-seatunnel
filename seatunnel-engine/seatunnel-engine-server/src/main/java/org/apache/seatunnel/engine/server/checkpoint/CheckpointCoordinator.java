@@ -637,7 +637,7 @@ public class CheckpointCoordinator {
             scheduler.shutdownNow();
             scheduler =
                     Executors.newScheduledThreadPool(
-                            1,
+                            2,
                             runnable -> {
                                 Thread thread = new Thread(runnable);
                                 thread.setDaemon(true);
