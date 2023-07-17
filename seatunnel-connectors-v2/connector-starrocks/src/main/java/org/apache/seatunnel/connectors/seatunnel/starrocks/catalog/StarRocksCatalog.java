@@ -208,7 +208,7 @@ public class StarRocksCatalog implements Catalog {
         try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
             if (ignoreIfNotExists) {
                 conn.createStatement()
-                        .execute("DROP TABLE IF EXISTS `" + tablePath.getDatabaseName() + "." + tablePath.getTableName() + "`");
+                        .execute("DROP TABLE `" + tablePath.getTableName() + "`");
             } else {
                 conn.createStatement()
                         .execute(String.format("DROP TABLE `%s`", tablePath.getDatabaseName()));
