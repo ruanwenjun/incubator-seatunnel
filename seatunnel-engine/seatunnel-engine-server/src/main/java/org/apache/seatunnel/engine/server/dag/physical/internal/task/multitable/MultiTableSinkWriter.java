@@ -35,6 +35,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -133,9 +134,16 @@ public class MultiTableSinkWriter
                 if (object != null) {
                     index = object.hashCode() % blockingQueues.size();
                 }
-                blockingQueues.get(index).put(element);
+                BlockingQueue<SeaTunnelRow> queue = blockingQueues.get(index);
+                while (!queue.offer(element, 500, TimeUnit.MILLISECONDS)) {
+                    subSinkErrorCheck();
+                }
             } else {
-                blockingQueues.get(random.nextInt(blockingQueues.size())).put(element);
+                int index = random.nextInt(blockingQueues.size());
+                BlockingQueue<SeaTunnelRow> queue = blockingQueues.get(index);
+                while (!queue.offer(element, 500, TimeUnit.MILLISECONDS)) {
+                    subSinkErrorCheck();
+                }
             }
         } catch (InterruptedException e) {
             throw new IOException(e);
