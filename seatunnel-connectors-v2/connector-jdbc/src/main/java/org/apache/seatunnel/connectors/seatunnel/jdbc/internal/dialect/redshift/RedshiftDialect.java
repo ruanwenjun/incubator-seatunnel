@@ -20,10 +20,24 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.redshift
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialectTypeMapper;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dialectenum.FieldIdeEnum;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Optional;
 
 public class RedshiftDialect implements JdbcDialect {
+    public static final int DEFAULT_POSTGRES_FETCH_SIZE = 128;
+    public String fieldIde = FieldIdeEnum.ORIGINAL.getValue();
+
+    public RedshiftDialect() {}
+
+    public RedshiftDialect(String fieldIde) {
+        this.fieldIde = fieldIde;
+    }
+
     @Override
     public String dialectName() {
         return "Redshift";
@@ -43,5 +57,48 @@ public class RedshiftDialect implements JdbcDialect {
     public Optional<String> getUpsertStatement(
             String database, String tableName, String[] fieldNames, String[] uniqueKeyFields) {
         return Optional.empty();
+    }
+
+    @Override
+    public PreparedStatement creatPreparedStatement(
+            Connection connection, String queryTemplate, int fetchSize) throws SQLException {
+        // use cursor mode, reference:
+        connection.setAutoCommit(false);
+        PreparedStatement statement =
+                connection.prepareStatement(
+                        queryTemplate, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+        if (fetchSize > 0) {
+            statement.setFetchSize(fetchSize);
+        } else {
+            statement.setFetchSize(DEFAULT_POSTGRES_FETCH_SIZE);
+        }
+        return statement;
+    }
+
+    @Override
+    public String tableIdentifier(String database, String tableName) {
+        return quoteDatabaseIdentifier(database) + "." + quoteIdentifier(tableName);
+    }
+
+    @Override
+    public String quoteIdentifier(String identifier) {
+        if (identifier.contains(".")) {
+            String[] parts = identifier.split("\\.");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < parts.length - 1; i++) {
+                sb.append("\"").append(parts[i]).append("\"").append(".");
+            }
+            return sb.append("\"")
+                    .append(getFieldIde(parts[parts.length - 1], fieldIde))
+                    .append("\"")
+                    .toString();
+        }
+
+        return "\"" + getFieldIde(identifier, fieldIde) + "\"";
+    }
+
+    @Override
+    public String quoteDatabaseIdentifier(String identifier) {
+        return "\"" + identifier + "\"";
     }
 }

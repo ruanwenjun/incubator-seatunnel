@@ -55,7 +55,7 @@ public class RedshiftDataTypeConvertor implements DataTypeConvertor<String> {
     private static final String REDSHIFT_BIGINT = "bigint";
     private static final String REDSHIFT_INT8 = "int8";
 
-    private static final String REDSHIFT_DECIMAL = "decimal";
+    public static final String REDSHIFT_DECIMAL = "decimal";
     private static final String REDSHIFT_NUMERIC = "numeric";
     private static final String REDSHIFT_REAL = "real";
     private static final String REDSHIFT_FLOAT4 = "float4";
