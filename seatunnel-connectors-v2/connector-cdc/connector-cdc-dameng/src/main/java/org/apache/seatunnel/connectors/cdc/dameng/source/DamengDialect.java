@@ -112,7 +112,7 @@ public class DamengDialect implements JdbcDataSourceDialect {
         if (damengSchema == null) {
             synchronized (this) {
                 if (damengSchema == null) {
-                    damengSchema = new DamengSchema();
+                    damengSchema = new DamengSchema(sourceConfig.getDbzConnectorConfig());
                 }
             }
         }

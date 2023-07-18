@@ -19,7 +19,6 @@ package org.apache.seatunnel.connectors.seatunnel.cdc.postgres.source;
 
 import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
-import org.apache.seatunnel.connectors.cdc.base.config.SourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.dialect.JdbcDataSourceDialect;
 import org.apache.seatunnel.connectors.cdc.base.relational.connection.JdbcConnectionPoolFactory;
 import org.apache.seatunnel.connectors.cdc.base.source.enumerator.splitter.ChunkSplitter;
@@ -52,7 +51,7 @@ import java.util.List;
 public class PostgresDialect implements JdbcDataSourceDialect {
 
     private static final long serialVersionUID = 1L;
-    private final SourceConfig sourceConfig;
+    private final PostgresSourceConfig sourceConfig;
 
     private transient PostgresSchema postgresSchema;
 
@@ -114,7 +113,7 @@ public class PostgresDialect implements JdbcDataSourceDialect {
     @Override
     public TableChanges.TableChange queryTableSchema(JdbcConnection jdbc, TableId tableId) {
         if (postgresSchema == null) {
-            postgresSchema = new PostgresSchema();
+            postgresSchema = new PostgresSchema(sourceConfig.getDbzConnectorConfig());
         }
         return postgresSchema.getTableSchema(jdbc, tableId);
     }

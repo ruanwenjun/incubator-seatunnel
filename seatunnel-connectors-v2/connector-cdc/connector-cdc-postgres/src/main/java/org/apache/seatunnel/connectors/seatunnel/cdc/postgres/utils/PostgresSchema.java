@@ -19,6 +19,7 @@ package org.apache.seatunnel.connectors.seatunnel.cdc.postgres.utils;
 
 import org.apache.seatunnel.common.utils.SeaTunnelException;
 
+import io.debezium.connector.postgresql.PostgresConnectorConfig;
 import io.debezium.connector.postgresql.connection.PostgresConnection;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Table;
@@ -28,17 +29,17 @@ import io.debezium.relational.history.TableChanges;
 
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PostgresSchema {
 
+    private final PostgresConnectorConfig connectorConfig;
     private final Map<TableId, TableChanges.TableChange> schemasByTableId;
 
-    public PostgresSchema() {
+    public PostgresSchema(final PostgresConnectorConfig connectorConfig) {
         this.schemasByTableId = new ConcurrentHashMap<>();
+        this.connectorConfig = connectorConfig;
     }
 
     public TableChanges.TableChange getTableSchema(JdbcConnection jdbc, TableId tableId) {
@@ -57,16 +58,16 @@ public class PostgresSchema {
         tableId = new TableId(null, tableId.schema(), tableId.table());
 
         PostgresConnection postgresConnection = (PostgresConnection) jdbc;
-        Set<TableId> tableIdSet = new HashSet<>();
-        tableIdSet.add(tableId);
-
         final Map<TableId, TableChanges.TableChange> tableChangeMap = new HashMap<>();
         Tables tables = new Tables();
-        tables.overwriteTable(tables.editOrCreateTable(tableId).create());
-
         try {
             postgresConnection.readSchema(
-                    tables, tableId.catalog(), tableId.schema(), null, null, false);
+                    tables,
+                    tableId.catalog(),
+                    tableId.schema(),
+                    connectorConfig.getTableFilters().dataCollectionFilter(),
+                    null,
+                    false);
             Table table = tables.forTable(tableId);
             TableChanges.TableChange tableChange =
                     new TableChanges.TableChange(TableChanges.TableChangeType.CREATE, table);
