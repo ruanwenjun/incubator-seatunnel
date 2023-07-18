@@ -30,7 +30,6 @@ import org.apache.seatunnel.connectors.cdc.dameng.utils.DamengTypeConverter;
 
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Column;
-import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,8 +58,7 @@ public class DamengChunkSplitter implements JdbcSourceChunkSplitter {
             log.info("Start splitting table {} into chunks...", tableId);
             long start = System.currentTimeMillis();
 
-            Table table = dialect.queryTableSchema(jdbc, tableId).getTable();
-            Column splitColumn = getSplitColumn(table);
+            Column splitColumn = getSplitColumn(jdbc, dialect, tableId);
             final List<ChunkRange> chunks;
             try {
                 chunks = splitTableIntoChunks(jdbc, tableId, splitColumn);
@@ -148,23 +146,6 @@ public class DamengChunkSplitter implements JdbcSourceChunkSplitter {
     @Override
     public SeaTunnelDataType<?> fromDbzColumn(Column splitColumn) {
         return DamengTypeConverter.convert(splitColumn);
-    }
-
-    private static Column getSplitColumn(Table table) {
-        List<Column> primaryKeys = table.primaryKeyColumns();
-        if (primaryKeys.isEmpty()) {
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "Incremental snapshot for tables requires primary key,"
-                                    + " but table %s doesn't have primary key.",
-                            table.id()));
-        }
-
-        Column splitColumn = primaryKeys.get(0);
-        if (primaryKeys.size() > 1) {
-            log.warn("Using first field[{}] in primary key as the split key", splitColumn);
-        }
-        return splitColumn;
     }
 
     @SuppressWarnings("MagicNumber")

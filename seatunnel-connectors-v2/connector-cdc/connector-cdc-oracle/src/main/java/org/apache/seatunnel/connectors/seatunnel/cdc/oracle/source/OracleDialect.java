@@ -102,7 +102,7 @@ public class OracleDialect implements JdbcDataSourceDialect {
     @Override
     public TableChange queryTableSchema(JdbcConnection jdbc, TableId tableId) {
         if (oracleSchema == null) {
-            oracleSchema = new OracleSchema();
+            oracleSchema = new OracleSchema(sourceConfig.getDbzConnectorConfig());
         }
         return oracleSchema.getTableSchema(jdbc, tableId);
     }

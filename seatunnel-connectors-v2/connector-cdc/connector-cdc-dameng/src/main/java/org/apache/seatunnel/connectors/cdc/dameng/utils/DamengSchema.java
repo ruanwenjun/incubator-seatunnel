@@ -17,43 +17,68 @@
 
 package org.apache.seatunnel.connectors.cdc.dameng.utils;
 
-import org.apache.seatunnel.common.exception.CommonErrorCode;
-import org.apache.seatunnel.common.exception.SeaTunnelRuntimeException;
+import org.apache.seatunnel.common.utils.SeaTunnelException;
 
+import io.debezium.connector.dameng.DamengConnection;
+import io.debezium.connector.dameng.DamengConnectorConfig;
 import io.debezium.jdbc.JdbcConnection;
-import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.relational.Tables;
 import io.debezium.relational.history.TableChanges;
 
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class DamengSchema {
-    private final Map<TableId, TableChanges.TableChange> schemasByTableId = new HashMap<>();
+    private final DamengConnectorConfig connectorConfig;
+    private final Map<TableId, TableChanges.TableChange> schemasByTableId;
+
+    public DamengSchema(DamengConnectorConfig connectorConfig) {
+        this.connectorConfig = connectorConfig;
+        this.schemasByTableId = new HashMap<>();
+    }
 
     public TableChanges.TableChange getTableSchema(JdbcConnection jdbc, TableId tableId) {
         // read schema from cache first
         TableChanges.TableChange schema = schemasByTableId.get(tableId);
         if (schema == null) {
-            try {
-                List<Column> columns = DamengConncetionUtils.queryColumns(jdbc, tableId);
-                List<String> primaryKeyNames =
-                        DamengConncetionUtils.queryPrimaryKeyNames(jdbc, tableId);
-                Table table =
-                        Table.editor()
-                                .tableId(tableId)
-                                .setColumns(columns)
-                                .setPrimaryKeyNames(primaryKeyNames)
-                                .create();
-                schema = new TableChanges.TableChange(TableChanges.TableChangeType.CREATE, table);
-                schemasByTableId.put(tableId, schema);
-            } catch (SQLException e) {
-                throw new SeaTunnelRuntimeException(CommonErrorCode.SQL_OPERATION_FAILED, e);
-            }
+            schema = readTableSchema(jdbc, tableId);
+            schemasByTableId.put(tableId, schema);
         }
         return schema;
+    }
+
+    private TableChanges.TableChange readTableSchema(JdbcConnection jdbc, TableId tableId) {
+        DamengConnection damengConnection = (DamengConnection) jdbc;
+        // read schema from cache first
+        final Map<TableId, TableChanges.TableChange> tableChangeMap = new HashMap<>();
+        Tables tables = new Tables();
+
+        try {
+            damengConnection.readSchema(
+                    tables,
+                    tableId.catalog(),
+                    tableId.schema(),
+                    connectorConfig.getTableFilters().dataCollectionFilter(),
+                    null,
+                    false);
+
+            Table table = tables.forTable(tableId);
+            TableChanges.TableChange tableChange =
+                    new TableChanges.TableChange(TableChanges.TableChangeType.CREATE, table);
+            tableChangeMap.put(tableId, tableChange);
+        } catch (SQLException e) {
+            throw new SeaTunnelException(
+                    String.format("Failed to read schema for table %s ", tableId), e);
+        }
+
+        if (!tableChangeMap.containsKey(tableId)) {
+            throw new SeaTunnelException(
+                    String.format("Can't obtain schema for table %s ", tableId));
+        }
+
+        return tableChangeMap.get(tableId);
     }
 }
