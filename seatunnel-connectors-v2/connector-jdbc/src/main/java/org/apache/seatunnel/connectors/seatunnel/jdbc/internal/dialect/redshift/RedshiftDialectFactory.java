@@ -33,4 +33,9 @@ public class RedshiftDialectFactory implements JdbcDialectFactory {
     public JdbcDialect create() {
         return new RedshiftDialect();
     }
+
+    @Override
+    public JdbcDialect create(String fieldIde){
+        return new RedshiftDialect(fieldIde);
+    }
 }
