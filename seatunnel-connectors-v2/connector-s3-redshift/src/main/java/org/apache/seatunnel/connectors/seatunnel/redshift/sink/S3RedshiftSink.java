@@ -142,13 +142,8 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
     }
 
     @Override
-    public DataSaveMode getDataSaveMode() {
-        return saveMode;
-    }
-
-    @Override
-    public List<DataSaveMode> supportedDataSaveModeValues() {
-        return Collections.singletonList(saveMode);
+    public DataSaveMode getUserConfigSaveMode() {
+        return null;
     }
 
     @SneakyThrows
