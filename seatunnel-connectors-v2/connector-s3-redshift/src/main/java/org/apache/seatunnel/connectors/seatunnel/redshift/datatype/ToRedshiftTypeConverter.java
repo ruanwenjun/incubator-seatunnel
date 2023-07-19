@@ -23,6 +23,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 
 import java.io.Serializable;
 
+
 public class ToRedshiftTypeConverter implements Serializable {
     public static final ToRedshiftTypeConverter INSTANCE = new ToRedshiftTypeConverter();
 
