@@ -558,7 +558,9 @@ public class MultipleTableJobConfigParser {
                             configIndex);
             sinkActions.add(sinkAction);
         }
-
+        if (sinkActions.size() <= 1) {
+            return sinkActions;
+        }
         Optional<SinkAction<?, ?, ?, ?>> multiTableSink =
                 tryGenerateMultiTableSink(sinkActions, readonlyConfig, classLoader);
         return multiTableSink
