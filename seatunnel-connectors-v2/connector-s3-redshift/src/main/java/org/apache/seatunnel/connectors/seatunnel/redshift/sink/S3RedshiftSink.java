@@ -185,6 +185,7 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
             case KEEP_SCHEMA_DROP_DATA:
                 try {
                     client.execute(sqlGenerator.getDropTemporaryTableSql());
+                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
                     if (client.existDataForSql(sqlGenerator.generateIsExistTableSql())){
                         client.execute(sqlGenerator.generateCleanTableSql());
                     }
