@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.engine.server.dag.physical.internal.task.multitable;
+package org.apache.seatunnel.connectors.seatunnel.common.multitablesink;
 
 import org.apache.seatunnel.api.sink.MultiTableResourceManager;
 import org.apache.seatunnel.api.sink.SinkWriter;
@@ -86,6 +86,7 @@ public class MultiTableSinkWriter
             MultiTableWriterRunnable r = new MultiTableWriterRunnable(tableIdWriterMap, queue);
             runnable.add(r);
         }
+        log.info("init multi table sink writer, queue size: {}", queueSize);
         initResourceManager(queueSize);
     }
 

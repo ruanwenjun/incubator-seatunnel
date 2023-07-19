@@ -30,16 +30,13 @@ import java.util.Map;
 public class MultiTableFactoryContext extends TableFactoryContext {
 
     private final Map<String, SeaTunnelSink> sinks;
-    private final int replicaNum;
 
     public MultiTableFactoryContext(
             List<CatalogTable> catalogTables,
             ReadonlyConfig options,
             ClassLoader classLoader,
-            Map<String, SeaTunnelSink> sinks,
-            int replicaNum) {
+            Map<String, SeaTunnelSink> sinks) {
         super(catalogTables, options, classLoader);
         this.sinks = sinks;
-        this.replicaNum = replicaNum;
     }
 }

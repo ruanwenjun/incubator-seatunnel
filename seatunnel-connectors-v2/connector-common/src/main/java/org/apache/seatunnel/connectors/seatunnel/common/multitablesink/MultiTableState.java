@@ -15,27 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.engine.server.dag.physical.internal.task.multitable;
+package org.apache.seatunnel.connectors.seatunnel.common.multitablesink;
 
-import lombok.EqualsAndHashCode;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
 
 @Getter
-@EqualsAndHashCode
-public class SinkIdentifier implements Serializable {
+@AllArgsConstructor
+public class MultiTableState implements Serializable {
 
-    private final String tableIdentifier;
-
-    private final int index;
-
-    private SinkIdentifier(String tableIdentifier, int index) {
-        this.tableIdentifier = tableIdentifier;
-        this.index = index;
-    }
-
-    public static SinkIdentifier of(String tableIdentifier, int index) {
-        return new SinkIdentifier(tableIdentifier, index);
-    }
+    private Map<SinkIdentifier, List<?>> states;
 }

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.engine.server.dag.physical.internal.task.multitable;
+package org.apache.seatunnel.connectors.seatunnel.common.multitablesink;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
@@ -27,13 +27,13 @@ import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkCommitter;
+import org.apache.seatunnel.api.sink.SinkCommonOptions;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.table.factory.MultiTableFactoryContext;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
-import org.apache.seatunnel.engine.server.task.context.SinkWriterContext;
 
 import com.google.auto.service.AutoService;
 import lombok.NoArgsConstructor;
@@ -67,7 +67,7 @@ public class MultiTableSink
 
     public MultiTableSink(MultiTableFactoryContext context) {
         this.sinks = context.getSinks();
-        this.replicaNum = context.getReplicaNum();
+        this.replicaNum = context.getOptions().get(SinkCommonOptions.MULTI_TABLE_SINK_REPLICA);
     }
 
     @Override
@@ -101,8 +101,7 @@ public class MultiTableSink
                 int index = context.getIndexOfSubtask() * replicaNum + i;
                 writers.put(
                         SinkIdentifier.of(tableIdentifier, index),
-                        sink.createWriter(
-                                new SinkWriterContext(index, context.getMetricsContext())));
+                        sink.createWriter(new SinkContextProxy(index, context)));
             }
         }
         return new MultiTableSinkWriter(writers, replicaNum);
@@ -127,8 +126,7 @@ public class MultiTableSink
                                 .collect(Collectors.toList());
                 writers.put(
                         sinkIdentifier,
-                        sink.restoreWriter(
-                                new SinkWriterContext(index, context.getMetricsContext()), state));
+                        sink.restoreWriter(new SinkContextProxy(index, context), state));
             }
         }
         return new MultiTableSinkWriter(writers, replicaNum);
