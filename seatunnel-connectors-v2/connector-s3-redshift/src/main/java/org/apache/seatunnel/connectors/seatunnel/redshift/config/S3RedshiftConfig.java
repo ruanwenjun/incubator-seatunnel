@@ -19,12 +19,14 @@ package org.apache.seatunnel.connectors.seatunnel.redshift.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftTemporaryTableMode;
 
 import lombok.Builder;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Builder
@@ -52,6 +54,12 @@ public class S3RedshiftConfig extends S3Config {
             Options.key("database")
                     .stringType()
                     .noDefaultValue()
+                    .withDescription("Redshift database name");
+
+    public static final Option<String> DATABASE =
+            Options.key("database")
+                    .stringType()
+                    .noDefaultValue()
                     .withDescription("Redshift JDBC database");
 
     public static final Option<String> SCHEMA_NAME =
@@ -65,6 +73,22 @@ public class S3RedshiftConfig extends S3Config {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Redshift execute sql");
+
+    public static final Option<String> SAVE_MODE =
+            Options.key("save_mode")
+                    .singleChoice(
+                            String.class,
+                            Arrays.asList(
+                                    DataSaveMode.DROP_SCHEMA.toString(),
+                                    DataSaveMode.KEEP_SCHEMA_DROP_DATA.toString(),
+                                    DataSaveMode.KEEP_SCHEMA_AND_DATA.toString(),
+                                    DataSaveMode.CUSTOM_PROCESSING.toString(),
+                                    DataSaveMode.ERROR_WHEN_EXISTS.toString()))
+                    .noDefaultValue()
+                    .withDescription("save_mode");
+
+    public static final Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
 
     public static final Option<S3RedshiftChangelogMode> CHANGELOG_MODE =
             Options.key("changelog_mode")

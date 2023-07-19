@@ -40,8 +40,8 @@ public class S3RedshiftConf implements Serializable {
     private final String jdbcUrl;
     private final String jdbcUser;
     private final String jdbcPassword;
-    private final String executeSql;
     private final String database;
+    private final String executeSql;
     private final String schema;
 
     private final String s3Bucket;
@@ -112,6 +112,7 @@ public class S3RedshiftConf implements Serializable {
         builder.redshiftExternalSchema(
                 readonlyConfig.get(S3RedshiftConfig.REDSHIFT_EXTERNAL_SCHEMA));
         builder.redshiftS3IamRole(readonlyConfig.get(S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE));
+
 
         if (!S3RedshiftChangelogMode.APPEND_ONLY.equals(builder.changelogMode)) {
             checkFormat(builder.fileFormat);
