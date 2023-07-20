@@ -1,9 +1,11 @@
 package org.apache.seatunnel.connectors.seatunnel.redshift;
 
+import org.apache.seatunnel.common.exception.CommonErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -42,14 +44,13 @@ public class RedshiftJdbcClient implements AutoCloseable {
 
     public Integer executeQueryCount(String sql) throws SQLException {
         try (Connection connection = getConnection()) {
-            try (Statement statement = connection.createStatement()) {
-                ResultSet resultSet = statement.executeQuery(sql);
-                if (!resultSet.next()) {
-                    return 0;
-                }
-                resultSet.next();
-                return resultSet.getInt(1);
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+            if (!resultSet.next()) {
+                return 0;
             }
+            resultSet.next();
+            return resultSet.getInt(1);
         }
     }
 
@@ -60,9 +61,11 @@ public class RedshiftJdbcClient implements AutoCloseable {
     @Override
     public void close() {
         dataSource.close();
+    }
+
     public Integer executeQueryForNum(String sql) throws Exception {
-        try (Statement statement = connection.createStatement()) {
-            ResultSet resultSet = statement.executeQuery(sql);
+        try (Connection connection = getConnection()) {
+            ResultSet resultSet = connection.createStatement().executeQuery(sql);
             if (resultSet == null) {
                 return 0;
             }
@@ -73,18 +76,6 @@ public class RedshiftJdbcClient implements AutoCloseable {
                     CommonErrorCode.SQL_OPERATION_FAILED,
                     String.format("Execute sql failed, sql is %s ", sql),
                     e);
-        }
-    }
-
-    public boolean existDataForSql(String sql) throws Exception{
-        return executeQueryForNum(sql) > 0;
-    }
-
-
-    public void close() throws SQLException {
-        synchronized (RedshiftJdbcClient.class) {
-            connection.close();
-            INSTANCE = null;
         }
     }
 

@@ -174,7 +174,6 @@ public class S3RedshiftSink extends BaseHdfsFileSink
         } else {
             sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, seaTunnelRowType);
         }
-        RedshiftJdbcClient client = RedshiftJdbcClient.getInstance(s3RedshiftConf);
         switch (saveMode) {
             case DROP_SCHEMA:
                 try {
