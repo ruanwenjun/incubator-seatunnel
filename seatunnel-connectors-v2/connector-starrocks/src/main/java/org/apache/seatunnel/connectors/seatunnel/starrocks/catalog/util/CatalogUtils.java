@@ -1,6 +1,5 @@
 package org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.util;
 
-
 import org.apache.seatunnel.connectors.seatunnel.starrocks.dialectenum.FieldIdeEnum;
 
 public class CatalogUtils {

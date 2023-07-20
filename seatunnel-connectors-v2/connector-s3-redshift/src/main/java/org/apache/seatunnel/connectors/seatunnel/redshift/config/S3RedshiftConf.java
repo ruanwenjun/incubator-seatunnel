@@ -111,7 +111,6 @@ public class S3RedshiftConf implements Serializable {
                 readonlyConfig.get(S3RedshiftConfig.REDSHIFT_EXTERNAL_SCHEMA));
         builder.redshiftS3IamRole(readonlyConfig.get(S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE));
 
-
         if (!S3RedshiftChangelogMode.APPEND_ONLY.equals(builder.changelogMode)) {
             checkFormat(builder.fileFormat);
         }

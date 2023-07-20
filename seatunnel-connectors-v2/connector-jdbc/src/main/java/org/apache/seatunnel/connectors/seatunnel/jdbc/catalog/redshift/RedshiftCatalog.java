@@ -18,10 +18,6 @@
 
 package org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.redshift;
 
-import com.mysql.cj.MysqlType;
-import com.mysql.cj.jdbc.result.ResultSetImpl;
-import com.mysql.cj.util.StringUtils;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.ConstraintKey;
 import org.apache.seatunnel.api.table.catalog.PhysicalColumn;
@@ -35,9 +31,13 @@ import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MysqlCreateTableSqlBuilder;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MysqlDataTypeConvertor;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+
+import com.mysql.cj.MysqlType;
+import com.mysql.cj.jdbc.result.ResultSetImpl;
+import com.mysql.cj.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -82,7 +82,11 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
     protected final Map<String, Connection> connectionMap;
 
     public RedshiftCatalog(
-            String catalogName, String username, String pwd, JdbcUrlUtil.UrlInfo urlInfo, String schema) {
+            String catalogName,
+            String username,
+            String pwd,
+            JdbcUrlUtil.UrlInfo urlInfo,
+            String schema) {
         super(catalogName, username, pwd, urlInfo, schema);
         this.connectionMap = new ConcurrentHashMap<>();
     }
@@ -115,7 +119,8 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
 
     @Override
     public List<String> listDatabases() throws CatalogException {
-        try (PreparedStatement ps = defaultConnection.prepareStatement("select datname from pg_database;")) {
+        try (PreparedStatement ps =
+                defaultConnection.prepareStatement("select datname from pg_database;")) {
 
             List<String> databases = new ArrayList<>();
             ResultSet rs = ps.executeQuery();
@@ -143,7 +148,9 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
 
         String dbUrl = getUrlFromDatabaseName(databaseName);
         Connection connection = getConnection(dbUrl);
-        try (PreparedStatement ps = connection.prepareStatement("SELECT table_schema, table_name FROM information_schema.tables;")) {
+        try (PreparedStatement ps =
+                connection.prepareStatement(
+                        "SELECT table_schema, table_name FROM information_schema.tables;")) {
 
             ResultSet rs = ps.executeQuery();
 
@@ -151,10 +158,13 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
 
             while (rs.next()) {
                 StringBuilder stringBuilder = new StringBuilder();
-                tables.add(stringBuilder
-                        .append(rs.getString(1))
-                        .append(".")
-                        .append(rs.getString(2)).toString().toLowerCase());
+                tables.add(
+                        stringBuilder
+                                .append(rs.getString(1))
+                                .append(".")
+                                .append(rs.getString(2))
+                                .toString()
+                                .toLowerCase());
             }
 
             return tables;
@@ -167,13 +177,13 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
     @Override
     public boolean tableExists(TablePath tablePath) throws CatalogException {
         try {
-            return databaseExists(tablePath.getDatabaseName()) &&
-                    listTables(tablePath.getDatabaseName()).contains(tablePath.getSchemaAndTableName().toLowerCase());
+            return databaseExists(tablePath.getDatabaseName())
+                    && listTables(tablePath.getDatabaseName())
+                            .contains(tablePath.getSchemaAndTableName().toLowerCase());
         } catch (DatabaseNotExistException e) {
             return false;
         }
     }
-
 
     @Override
     public CatalogTable getTable(TablePath tablePath)
@@ -196,7 +206,7 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
                     String.format(
                             SELECT_COLUMNS, tablePath.getSchemaName(), tablePath.getTableName());
             try (PreparedStatement ps = conn.prepareStatement(sql);
-                 ResultSet resultSet = ps.executeQuery();) {
+                    ResultSet resultSet = ps.executeQuery(); ) {
 
                 TableSchema.Builder builder = TableSchema.builder();
                 while (resultSet.next()) {
@@ -312,7 +322,8 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
 
         String createTableSql =
-                new RedshiftCreateTableSqlBuilder(table).build(tablePath, table.getOptions().get("fieldIde"));
+                new RedshiftCreateTableSqlBuilder(table)
+                        .build(tablePath, table.getOptions().get("fieldIde"));
         createTableSql =
                 CatalogUtils.getFieldIde(createTableSql, table.getOptions().get("fieldIde"));
         Connection connection = getConnection(dbUrl);
@@ -330,10 +341,10 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
         Connection connection = getConnection(dbUrl);
         try (PreparedStatement ps =
-                     connection.prepareStatement(
-                             String.format(
-                                     "DROP TABLE %s;",
-                                     tablePath.getSchemaName() + "." + tablePath.getTableName()))) {
+                connection.prepareStatement(
+                        String.format(
+                                "DROP TABLE %s;",
+                                tablePath.getSchemaName() + "." + tablePath.getTableName()))) {
             return ps.execute();
         } catch (SQLException e) {
             throw new CatalogException(
@@ -346,10 +357,10 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
         Connection connection = getConnection(dbUrl);
         try (PreparedStatement ps =
-                     connection.prepareStatement(
-                             String.format(
-                                     "TRUNCATE TABLE %s;",
-                                     tablePath.getSchemaName() + "." + tablePath.getTableName()))) {
+                connection.prepareStatement(
+                        String.format(
+                                "TRUNCATE TABLE %s;",
+                                tablePath.getSchemaName() + "." + tablePath.getTableName()))) {
             return ps.execute();
         } catch (SQLException e) {
             throw new CatalogException(
@@ -360,8 +371,8 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
     @Override
     protected boolean createDatabaseInternal(String databaseName) throws CatalogException {
         try (PreparedStatement ps =
-                     defaultConnection.prepareStatement(
-                             String.format("CREATE DATABASE `%s`;", databaseName))) {
+                defaultConnection.prepareStatement(
+                        String.format("CREATE DATABASE `%s`;", databaseName))) {
             return ps.execute();
         } catch (Exception e) {
             throw new CatalogException(
@@ -375,8 +386,8 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
     @Override
     protected boolean dropDatabaseInternal(String databaseName) throws CatalogException {
         try (PreparedStatement ps =
-                     defaultConnection.prepareStatement(
-                             String.format("DROP DATABASE `%s`;", databaseName))) {
+                defaultConnection.prepareStatement(
+                        String.format("DROP DATABASE `%s`;", databaseName))) {
             return ps.execute();
         } catch (Exception e) {
             throw new CatalogException(

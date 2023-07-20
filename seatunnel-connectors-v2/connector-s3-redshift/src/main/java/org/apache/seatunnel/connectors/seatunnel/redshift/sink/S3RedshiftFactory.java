@@ -17,8 +17,8 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
-import com.google.auto.service.AutoService;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
+
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
@@ -33,10 +33,12 @@ import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
-import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
+
+import org.apache.commons.lang3.StringUtils;
+
+import com.google.auto.service.AutoService;
 
 import static org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig.SAVE_MODE;
-
 
 @AutoService(Factory.class)
 public class S3RedshiftFactory implements TableSinkFactory {
@@ -81,7 +83,7 @@ public class S3RedshiftFactory implements TableSinkFactory {
                 .conditional(
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE,
-                        //S3RedshiftConfig.REDSHIFT_TABLE,
+                        // S3RedshiftConfig.REDSHIFT_TABLE,
                         S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
@@ -89,7 +91,7 @@ public class S3RedshiftFactory implements TableSinkFactory {
                 .conditional(
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE,
-                        //S3RedshiftConfig.REDSHIFT_TABLE,
+                        // S3RedshiftConfig.REDSHIFT_TABLE,
                         S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,

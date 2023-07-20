@@ -199,16 +199,14 @@ public class StarRocksCatalog implements Catalog {
 
     @Override
     public void createTable(TablePath tablePath, CatalogTable table, boolean ignoreIfExists)
-            throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
-    }
+            throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {}
 
     @Override
     public void dropTable(TablePath tablePath, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException {
         try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
             if (ignoreIfNotExists) {
-                conn.createStatement()
-                        .execute("DROP TABLE `" + tablePath.getTableName() + "`");
+                conn.createStatement().execute("DROP TABLE `" + tablePath.getTableName() + "`");
             } else {
                 conn.createStatement()
                         .execute(String.format("DROP TABLE `%s`", tablePath.getDatabaseName()));
@@ -217,7 +215,6 @@ public class StarRocksCatalog implements Catalog {
             throw new CatalogException(
                     String.format("Failed DROP TABLE in catalog %s", tablePath.getFullName()), e);
         }
-
     }
 
     public void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
@@ -229,23 +226,22 @@ public class StarRocksCatalog implements Catalog {
             }
         } catch (Exception e) {
             throw new CatalogException(
-                    String.format("Failed TRUNCATE TABLE in catalog %s", tablePath.getFullName()), e);
+                    String.format("Failed TRUNCATE TABLE in catalog %s", tablePath.getFullName()),
+                    e);
         }
     }
 
     public void executeSql(String sql) {
-        try (Connection connection = DriverManager.getConnection(defaultUrl, username, pwd)){
+        try (Connection connection = DriverManager.getConnection(defaultUrl, username, pwd)) {
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 // Will there exist concurrent drop for one table?
                 ps.execute();
             } catch (SQLException e) {
                 throw new CatalogException(String.format("Failed executeSql error %s", sql), e);
             }
-        }catch (Exception e) {
-            throw new CatalogException(
-                    String.format("Failed EXECUTE SQL in catalog %s", sql), e);
+        } catch (Exception e) {
+            throw new CatalogException(String.format("Failed EXECUTE SQL in catalog %s", sql), e);
         }
-
     }
 
     public boolean isExistsData(String tableName) {
@@ -253,7 +249,8 @@ public class StarRocksCatalog implements Catalog {
         try {
             connection = DriverManager.getConnection(defaultUrl, username, pwd);
         } catch (SQLException e) {
-            throw new CatalogException(String.format("Failed Connection JDBC error %s", tableName), e);
+            throw new CatalogException(
+                    String.format("Failed Connection JDBC error %s", tableName), e);
         }
         String sql = String.format("select count(*) from %s;", tableName);
         try (PreparedStatement ps = connection.prepareStatement(sql)) {

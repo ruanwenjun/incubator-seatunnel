@@ -17,9 +17,8 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
-import com.google.auto.service.AutoService;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.seatunnel.shade.com.typesafe.config.Config;
+
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
@@ -45,7 +44,10 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.commit.S3RedshiftSinkA
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
+
+import com.google.auto.service.AutoService;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -109,7 +111,7 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
 
     @Override
     public Optional<SinkAggregatedCommitter<FileCommitInfo, FileAggregatedCommitInfo>>
-    createAggregatedCommitter() {
+            createAggregatedCommitter() {
         return Optional.of(
                 new S3RedshiftSinkAggregatedCommitter(
                         fileSystemUtils, s3RedshiftConf, seaTunnelRowType));
@@ -186,7 +188,7 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
                 try {
                     client.execute(sqlGenerator.getDropTemporaryTableSql());
                     client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    if (client.existDataForSql(sqlGenerator.generateIsExistTableSql())){
+                    if (client.existDataForSql(sqlGenerator.generateIsExistTableSql())) {
                         client.execute(sqlGenerator.generateCleanTableSql());
                     }
                 } finally {
@@ -200,7 +202,9 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
                     if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
                         client.execute(sqlGenerator.getDropTemporaryTableSql());
                         client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                        log.info("Create temporary table sql: {}", sqlGenerator.getCreateTemporaryTableSQL());
+                        log.info(
+                                "Create temporary table sql: {}",
+                                sqlGenerator.getCreateTemporaryTableSQL());
                     }
                 } finally {
                     client.close();
@@ -221,9 +225,11 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
                 try {
                     client.execute(sqlGenerator.getDropTemporaryTableSql());
                     client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    if (client.existDataForSql(sqlGenerator.getIsExistTableSql())){
-                        if (client.existDataForSql(sqlGenerator.getIsExistDataSql())){
-                            throw new S3RedshiftJdbcConnectorException(SOURCE_ALREADY_HAS_DATA,"The target data source already has data");
+                    if (client.existDataForSql(sqlGenerator.getIsExistTableSql())) {
+                        if (client.existDataForSql(sqlGenerator.getIsExistDataSql())) {
+                            throw new S3RedshiftJdbcConnectorException(
+                                    SOURCE_ALREADY_HAS_DATA,
+                                    "The target data source already has data");
                         }
                     }
                     client.execute(sqlGenerator.getCreateTableSQL());
@@ -231,10 +237,6 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
                     client.close();
                 }
                 break;
-
         }
-
-
     }
-
 }

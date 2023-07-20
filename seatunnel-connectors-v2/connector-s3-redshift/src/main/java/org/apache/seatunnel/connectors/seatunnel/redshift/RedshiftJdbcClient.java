@@ -108,10 +108,9 @@ public class RedshiftJdbcClient {
         }
     }
 
-    public boolean existDataForSql(String sql) throws Exception{
+    public boolean existDataForSql(String sql) throws Exception {
         return executeQueryForNum(sql) > 0;
     }
-
 
     public void close() throws SQLException {
         synchronized (RedshiftJdbcClient.class) {
