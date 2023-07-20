@@ -55,17 +55,20 @@ public class JdbcSinkWriter
     private final SeaTunnelRowType rowType;
     private JdbcConnectionProvider connectionProvider;
     private transient boolean isOpen;
+    private final Integer primaryKeyIndex;
     private final JdbcSinkConfig jdbcSinkConfig;
 
     public JdbcSinkWriter(
             SinkWriter.Context context,
             JdbcDialect dialect,
             JdbcSinkConfig jdbcSinkConfig,
-            SeaTunnelRowType rowType) {
+            SeaTunnelRowType rowType,
+            Integer primaryKeyIndex) {
         this.context = context;
         this.jdbcSinkConfig = jdbcSinkConfig;
         this.dialect = dialect;
         this.rowType = rowType;
+        this.primaryKeyIndex = primaryKeyIndex;
         this.connectionProvider =
                 new SimpleJdbcConnectionProvider(jdbcSinkConfig.getJdbcConnectionConfig());
         this.outputFormat =
@@ -103,7 +106,7 @@ public class JdbcSinkWriter
 
     @Override
     public Optional<Integer> primaryKey() {
-        return SupportMultiTableSinkWriter.super.primaryKey();
+        return primaryKeyIndex != null ? Optional.of(primaryKeyIndex) : Optional.empty();
     }
 
     private void tryOpen() throws IOException {

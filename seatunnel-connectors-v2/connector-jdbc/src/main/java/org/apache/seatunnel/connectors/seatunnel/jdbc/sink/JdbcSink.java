@@ -114,8 +114,8 @@ public class JdbcSink
     }
 
     @Override
-    public SinkWriter<SeaTunnelRow, XidInfo, JdbcSinkState> createWriter(SinkWriter.Context context)
-            throws IOException {
+    public SinkWriter<SeaTunnelRow, XidInfo, JdbcSinkState> createWriter(
+            SinkWriter.Context context) {
         SinkWriter<SeaTunnelRow, XidInfo, JdbcSinkState> sinkWriter;
         if (jdbcSinkConfig.isExactlyOnce()) {
             sinkWriter =
@@ -127,9 +127,18 @@ public class JdbcSink
                             seaTunnelRowType,
                             new ArrayList<>());
         } else {
-            sinkWriter = new JdbcSinkWriter(context, dialect, jdbcSinkConfig, seaTunnelRowType);
+            if (catalogTable != null && catalogTable.getTableSchema().getPrimaryKey() != null) {
+                String keyName =
+                        catalogTable.getTableSchema().getPrimaryKey().getColumnNames().get(0);
+                int index = seaTunnelRowType.indexOf(keyName);
+                if (index > -1) {
+                    return new JdbcSinkWriter(
+                            context, dialect, jdbcSinkConfig, seaTunnelRowType, index);
+                }
+            }
+            sinkWriter =
+                    new JdbcSinkWriter(context, dialect, jdbcSinkConfig, seaTunnelRowType, null);
         }
-
         return sinkWriter;
     }
 
