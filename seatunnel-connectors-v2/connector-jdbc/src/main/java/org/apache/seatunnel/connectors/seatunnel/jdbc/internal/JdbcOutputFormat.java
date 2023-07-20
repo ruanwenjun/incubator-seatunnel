@@ -216,28 +216,22 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                 this.scheduler.shutdown();
             }
 
-            if (batchCount > 0) {
-                try {
-                    flush();
-                } catch (Exception e) {
-                    LOG.warn("Writing records to JDBC failed.", e);
-                    throw new JdbcConnectorException(
-                            CommonErrorCode.FLUSH_DATA_FAILED,
-                            "Writing records to JDBC failed.",
-                            e);
-                }
-            }
-
             try {
+                if (batchCount > 0) {
+                    flush();
+                }
                 if (jdbcStatementExecutor != null) {
                     jdbcStatementExecutor.closeStatements();
                 }
-            } catch (SQLException e) {
+            } catch (Exception e) {
                 LOG.warn("Close JDBC writer failed.", e);
+                throw new JdbcConnectorException(
+                        CommonErrorCode.FLUSH_DATA_FAILED, "Close JDBC writer failed.", e);
+            } finally {
+                connectionProvider.closeConnection();
             }
+            checkFlushException();
         }
-        connectionProvider.closeConnection();
-        checkFlushException();
     }
 
     public void updateExecutor(boolean reconnect) throws SQLException, ClassNotFoundException {

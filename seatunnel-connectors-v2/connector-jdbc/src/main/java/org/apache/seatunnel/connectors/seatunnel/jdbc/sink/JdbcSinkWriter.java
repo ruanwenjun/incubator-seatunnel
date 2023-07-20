@@ -37,6 +37,7 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.state.JdbcSinkState;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.state.XidInfo;
 
 import com.zaxxer.hikari.HikariDataSource;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -44,6 +45,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 public class JdbcSinkWriter
         implements SinkWriter<SeaTunnelRow, XidInfo, JdbcSinkState>,
                 SupportMultiTableSinkWriter<ConnectionPoolManager> {
@@ -146,15 +148,17 @@ public class JdbcSinkWriter
     @Override
     public void close() throws IOException {
         tryOpen();
-        outputFormat.flush();
         try {
+            outputFormat.flush();
             if (!connectionProvider.getConnection().getAutoCommit()) {
                 connectionProvider.getConnection().commit();
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
+            log.error("Close jdbc sink writer failed.", e);
             throw new JdbcConnectorException(
                     CommonErrorCode.WRITER_OPERATION_FAILED, "unable to close JDBC sink write", e);
+        } finally {
+            outputFormat.close();
         }
-        outputFormat.close();
     }
 }
