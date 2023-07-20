@@ -38,6 +38,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.auto.service.AutoService;
 
+import static org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig.SAVE_MODE;
+
 @AutoService(Factory.class)
 public class S3RedshiftFactory implements TableSinkFactory {
 
@@ -81,7 +83,7 @@ public class S3RedshiftFactory implements TableSinkFactory {
                 .conditional(
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE,
-                        S3RedshiftConfig.REDSHIFT_TABLE,
+                        // S3RedshiftConfig.REDSHIFT_TABLE,
                         S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
@@ -89,7 +91,7 @@ public class S3RedshiftFactory implements TableSinkFactory {
                 .conditional(
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE,
-                        S3RedshiftConfig.REDSHIFT_TABLE,
+                        // S3RedshiftConfig.REDSHIFT_TABLE,
                         S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
@@ -101,6 +103,7 @@ public class S3RedshiftFactory implements TableSinkFactory {
     public TableSink createSink(TableFactoryContext context) {
         CatalogTable catalogTable = context.getCatalogTable();
         ReadonlyConfig config = context.getOptions();
+
         S3RedshiftConf s3RedshiftConf = S3RedshiftConf.valueOf(config);
         if (StringUtils.isBlank(s3RedshiftConf.getRedshiftTable())) {
             s3RedshiftConf.setRedshiftTable(catalogTable.getTableId().getTableName());
@@ -109,11 +112,18 @@ public class S3RedshiftFactory implements TableSinkFactory {
             s3RedshiftConf.setRedshiftTablePrimaryKeys(
                     tableSchema.getPrimaryKey().getColumnNames());
         }
+        String saveModeStr = config.get(SAVE_MODE);
+        DataSaveMode dataSaveMode = DataSaveMode.ERROR_WHEN_EXISTS;
+        if (StringUtils.isNotEmpty(saveModeStr)) {
+            dataSaveMode = DataSaveMode.valueOf(saveModeStr);
+        }
+        DataSaveMode finalDataSaveMode = dataSaveMode;
         return () ->
                 new S3RedshiftSink(
-                        DataSaveMode.KEEP_SCHEMA_AND_DATA,
+                        finalDataSaveMode,
                         catalogTable,
                         s3RedshiftConf,
-                        ConfigFactory.parseMap(config.toMap()));
+                        ConfigFactory.parseMap(config.toMap()),
+                        config);
     }
 }

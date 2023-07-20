@@ -138,10 +138,28 @@ public interface StarRocksSinkOptions {
                     .defaultValue(StreamLoadFormat.JSON)
                     .withDescription("");
 
+    Option<String> FIELD_IDE =
+            Options.key("field_ide")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Whether case conversion is required");
+
+    Option<String> CUSTOM_SQL =
+            Options.key("custom_sql")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Customer custom sql");
+
     SingleChoiceOption<DataSaveMode> SAVE_MODE =
             Options.key(SupportDataSaveMode.SAVE_MODE_KEY)
                     .singleChoice(
-                            DataSaveMode.class, Arrays.asList(DataSaveMode.KEEP_SCHEMA_AND_DATA))
+                            DataSaveMode.class,
+                            Arrays.asList(
+                                    DataSaveMode.DROP_SCHEMA,
+                                    DataSaveMode.KEEP_SCHEMA_DROP_DATA,
+                                    DataSaveMode.KEEP_SCHEMA_AND_DATA,
+                                    DataSaveMode.CUSTOM_PROCESSING,
+                                    DataSaveMode.ERROR_WHEN_EXISTS))
                     .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
                     .withDescription(
                             "Table structure and data processing methods that already exist on the target end");

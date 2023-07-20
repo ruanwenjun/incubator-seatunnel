@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -135,6 +136,33 @@ public abstract class AbstractJdbcCatalog implements Catalog {
                     String.format("Failed to close %s via JDBC.", defaultUrl), e);
         }
         LOG.info("Catalog {} closing", catalogName);
+    }
+
+    public void executeSql(String sql) {
+        Connection connection = defaultConnection;
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            // Will there exist concurrent drop for one table?
+            ps.execute();
+        } catch (SQLException e) {
+            throw new CatalogException(String.format("Failed executeSql error %s", sql), e);
+        }
+    }
+
+    public boolean isExistsData(String tableFullName) {
+        Connection connection = defaultConnection;
+        String sql = String.format("select count(*) from %s;", tableFullName);
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ResultSet resultSet = ps.executeQuery();
+            if (resultSet == null) {
+                return false;
+            }
+            resultSet.next();
+            int count = 0;
+            count = resultSet.getInt(1);
+            return count > 0;
+        } catch (SQLException e) {
+            throw new CatalogException(String.format("Failed executeSql error %s", sql), e);
+        }
     }
 
     protected Optional<PrimaryKey> getPrimaryKey(
@@ -278,7 +306,17 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         }
     }
 
+    public void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
+            throws TableNotExistException, CatalogException {
+        checkNotNull(tablePath, "Table path cannot be null");
+        if (!truncateTableInternal(tablePath) && !ignoreIfNotExists) {
+            throw new TableNotExistException(catalogName, tablePath);
+        }
+    }
+
     protected abstract boolean dropTableInternal(TablePath tablePath) throws CatalogException;
+
+    protected abstract boolean truncateTableInternal(TablePath tablePath) throws CatalogException;
 
     @Override
     public void createDatabase(TablePath tablePath, boolean ignoreIfExists)

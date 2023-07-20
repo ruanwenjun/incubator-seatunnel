@@ -19,7 +19,7 @@ package org.apache.seatunnel.api.sink;
 
 /** The Sink Connectors which support data SaveMode should implement this interface */
 public interface SupportDataSaveMode {
-    String SAVE_MODE_KEY = "savemode";
+    String SAVE_MODE_KEY = "save_mode";
     /**
      * Return the value of DataSaveMode configured by user in the job config file.
      *

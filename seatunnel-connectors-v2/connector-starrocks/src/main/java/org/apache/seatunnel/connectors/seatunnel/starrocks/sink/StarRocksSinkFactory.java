@@ -67,6 +67,6 @@ public class StarRocksSinkFactory implements TableSinkFactory {
         if (StringUtils.isBlank(sinkConfig.getTable())) {
             sinkConfig.setTable(catalogTable.getTableId().getTableName());
         }
-        return () -> new StarRocksSink(sinkConfig, catalogTable);
+        return () -> new StarRocksSink(sinkConfig, catalogTable, context.getOptions());
     }
 }

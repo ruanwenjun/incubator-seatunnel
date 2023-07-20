@@ -21,9 +21,11 @@ import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
+import org.apache.seatunnel.api.sink.SinkCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -52,6 +54,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
+import static org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig.CUSTOM_SQL;
+
 @Slf4j
 @AutoService(SeaTunnelSink.class)
 public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveMode {
@@ -59,12 +64,15 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
     private DataSaveMode saveMode;
     private S3RedshiftConf s3RedshiftConf;
     private CatalogTable catalogTable;
+    private ReadonlyConfig readonlyConfig;
 
     public S3RedshiftSink(
             DataSaveMode saveMode,
             CatalogTable catalogTable,
             S3RedshiftConf s3RedshiftConf,
-            Config pluginConfig) {
+            Config pluginConfig,
+            ReadonlyConfig readonlyConfig) {
+        this.readonlyConfig = readonlyConfig;
         this.pluginConfig = pluginConfig;
         this.catalogTable = catalogTable;
         this.hadoopConf = S3Conf.buildWithConfig(pluginConfig);
@@ -142,36 +150,93 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
     }
 
     @Override
+    public Optional<SinkCommitter<FileCommitInfo>> createCommitter() throws IOException {
+        return Optional.empty();
+    }
+
+    @Override
     public DataSaveMode getUserConfigSaveMode() {
-        return null;
+        return saveMode;
     }
 
     @SneakyThrows
     @Override
     public void handleSaveMode(DataSaveMode saveMode) {
-        if (DataSaveMode.KEEP_SCHEMA_AND_DATA.equals(saveMode)) {
-            S3RedshiftSQLGenerator sqlGenerator;
-            if (catalogTable != null) {
-                sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, catalogTable);
-            } else {
-                sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, seaTunnelRowType);
-            }
-            try {
-                RedshiftJdbcClient.getInstance(s3RedshiftConf)
-                        .execute(sqlGenerator.getCreateTableSQL());
-                log.info("Create table sql: {}", sqlGenerator.getCreateTableSQL());
-                if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
-                    RedshiftJdbcClient.getInstance(s3RedshiftConf)
-                            .execute(sqlGenerator.getDropTemporaryTableSql());
-                    RedshiftJdbcClient.getInstance(s3RedshiftConf)
-                            .execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    log.info(
-                            "Create temporary table sql: {}",
-                            sqlGenerator.getCreateTemporaryTableSQL());
+        S3RedshiftSQLGenerator sqlGenerator;
+        if (catalogTable != null) {
+            sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, catalogTable);
+        } else {
+            sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, seaTunnelRowType);
+        }
+        RedshiftJdbcClient client = RedshiftJdbcClient.getInstance(s3RedshiftConf);
+        switch (saveMode) {
+            case DROP_SCHEMA:
+                try {
+                    // drop
+                    log.info("Drop table sql: {}", sqlGenerator.getCreateTableSQL());
+                    client.execute(sqlGenerator.getDropTableSql());
+                    log.info("Drop table sql: {}", sqlGenerator.getDropTemporaryTableSql());
+                    client.execute(sqlGenerator.getDropTemporaryTableSql());
+                    // create
+                    client.execute(sqlGenerator.getCreateTableSQL());
+                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
+                } finally {
+                    client.close();
                 }
-            } finally {
-                RedshiftJdbcClient.getInstance(s3RedshiftConf).close();
-            }
+                break;
+            case KEEP_SCHEMA_DROP_DATA:
+                try {
+                    client.execute(sqlGenerator.getDropTemporaryTableSql());
+                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
+                    if (client.existDataForSql(sqlGenerator.generateIsExistTableSql())) {
+                        client.execute(sqlGenerator.generateCleanTableSql());
+                    }
+                } finally {
+                    client.close();
+                }
+                break;
+            case KEEP_SCHEMA_AND_DATA:
+                try {
+                    client.execute(sqlGenerator.getCreateTableSQL());
+                    log.info("Create table sql: {}", sqlGenerator.getCreateTableSQL());
+                    if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
+                        client.execute(sqlGenerator.getDropTemporaryTableSql());
+                        client.execute(sqlGenerator.getCreateTemporaryTableSQL());
+                        log.info(
+                                "Create temporary table sql: {}",
+                                sqlGenerator.getCreateTemporaryTableSQL());
+                    }
+                } finally {
+                    client.close();
+                }
+                break;
+            case CUSTOM_PROCESSING:
+                try {
+                    client.execute(sqlGenerator.getDropTemporaryTableSql());
+                    client.execute(sqlGenerator.getCreateTableSQL());
+                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
+                    String sql = readonlyConfig.get(CUSTOM_SQL);
+                    client.execute(sql);
+                } finally {
+                    client.close();
+                }
+                break;
+            case ERROR_WHEN_EXISTS:
+                try {
+                    client.execute(sqlGenerator.getDropTemporaryTableSql());
+                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
+                    if (client.existDataForSql(sqlGenerator.getIsExistTableSql())) {
+                        if (client.existDataForSql(sqlGenerator.getIsExistDataSql())) {
+                            throw new S3RedshiftJdbcConnectorException(
+                                    SOURCE_ALREADY_HAS_DATA,
+                                    "The target data source already has data");
+                        }
+                    }
+                    client.execute(sqlGenerator.getCreateTableSQL());
+                } finally {
+                    client.close();
+                }
+                break;
         }
     }
 }
