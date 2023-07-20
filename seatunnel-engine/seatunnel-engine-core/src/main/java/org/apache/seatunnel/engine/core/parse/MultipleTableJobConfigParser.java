@@ -150,8 +150,12 @@ public class MultipleTableJobConfigParser {
         LinkedHashMap<String, List<Tuple2<CatalogTable, Action>>> tableWithActionMap =
                 new LinkedHashMap<>();
 
+        boolean isMultipleTableJob = false;
         log.info("start generating all sources.");
         for (Config sourceConfig : sourceConfigs) {
+            ReadonlyConfig readonlyConfig = ReadonlyConfig.fromConfig(sourceConfig);
+            isMultipleTableJob |=
+                    readonlyConfig.get(SourceOptions.DAG_PARSING_MODE) != ParsingMode.SINGLENESS;
             Tuple2<String, List<Tuple2<CatalogTable, Action>>> tuple2 =
                     parseSource(sourceConfig, classLoader);
             tableWithActionMap.put(tuple2._1(), tuple2._2());
@@ -164,7 +168,13 @@ public class MultipleTableJobConfigParser {
         List<Action> sinkActions = new ArrayList<>();
         for (int configIndex = 0; configIndex < sinkConfigs.size(); configIndex++) {
             Config sinkConfig = sinkConfigs.get(configIndex);
-            sinkActions.addAll(parseSink(configIndex, sinkConfig, classLoader, tableWithActionMap));
+            sinkActions.addAll(
+                    parseSink(
+                            configIndex,
+                            sinkConfig,
+                            classLoader,
+                            tableWithActionMap,
+                            isMultipleTableJob));
         }
         Set<URL> factoryUrls = getUsedFactoryUrls(sinkActions);
         factoryUrls.addAll(commonPluginJars);
@@ -473,7 +483,8 @@ public class MultipleTableJobConfigParser {
             int configIndex,
             Config sinkConfig,
             ClassLoader classLoader,
-            LinkedHashMap<String, List<Tuple2<CatalogTable, Action>>> tableWithActionMap) {
+            LinkedHashMap<String, List<Tuple2<CatalogTable, Action>>> tableWithActionMap,
+            boolean isMultipleTableJob) {
 
         ReadonlyConfig readonlyConfig = ReadonlyConfig.fromConfig(sinkConfig);
         String factoryId = getFactoryId(readonlyConfig);
@@ -558,7 +569,7 @@ public class MultipleTableJobConfigParser {
                             configIndex);
             sinkActions.add(sinkAction);
         }
-        if (sinkActions.size() <= 1) {
+        if (!isMultipleTableJob) {
             return sinkActions;
         }
         Optional<SinkAction<?, ?, ?, ?>> multiTableSink =
