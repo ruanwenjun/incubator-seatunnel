@@ -28,6 +28,8 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.executor.JdbcBatc
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Throwables;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.sql.SQLException;
@@ -166,7 +168,10 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                 attemptFlush();
                 batchCount = 0;
                 break;
-            } catch (SQLException e) {
+            } catch (Exception e) {
+                if (!(Throwables.getRootCause(e) instanceof SQLException)) {
+                    throw new JdbcConnectorException(CommonErrorCode.FLUSH_DATA_FAILED, e);
+                }
                 LOG.error("JDBC executeBatch error, retry times = {}", i, e);
                 if (i >= jdbcConnectionConfig.getMaxRetries()) {
                     throw new JdbcConnectorException(CommonErrorCode.FLUSH_DATA_FAILED, e);
@@ -238,7 +243,7 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
     public void updateExecutor(boolean reconnect) throws SQLException, ClassNotFoundException {
         try {
             jdbcStatementExecutor.closeStatements();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             if (!reconnect) {
                 throw e;
             }
