@@ -78,6 +78,10 @@ public class OracleSourceConfigFactory extends JdbcSourceConfigFactory {
         props.setProperty("log.mining.batch.size.max", String.valueOf(2147483646));
         props.setProperty("log.mining.batch.size.min", String.valueOf(2000));
 
+        // Optimize logminer latency
+        props.setProperty("log.mining.strategy", "online_catalog");
+        props.setProperty("log.mining.continuous.mine", String.valueOf(true));
+
         if (tableList != null) {
             // Oracle identifier is of the form schemaName.tableName
             props.setProperty(
