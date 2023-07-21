@@ -78,7 +78,8 @@ public class MultiTableSinkAggregatedCommitter
                                                                         m.getKey()
                                                                                 .getTableIdentifier()
                                                                                 .equals(
-                                                                                        sinkIdentifier)))
+                                                                                        sinkIdentifier))
+                                                        .map(Map.Entry::getValue))
                                 .collect(Collectors.toList());
                 commitInfo.put(sinkIdentifier, sinkCommitter.combine(commits));
             }
