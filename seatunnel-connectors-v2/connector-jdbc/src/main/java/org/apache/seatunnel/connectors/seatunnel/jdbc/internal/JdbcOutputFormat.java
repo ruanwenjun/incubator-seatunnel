@@ -154,6 +154,20 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
         jdbcStatementExecutor.addToBatch(record);
     }
 
+    private void testOnBorrow() {
+        try {
+            if (!connectionProvider.isConnectionValid()) {
+                LOG.debug("Connection is invalid, try to reconnect.");
+                updateExecutor(true);
+            }
+        } catch (Exception e) {
+            throw new JdbcConnectorException(
+                    JdbcConnectorErrorCode.CONNECT_DATABASE_FAILED,
+                    "Reestablish JDBC connection failed",
+                    e);
+        }
+    }
+
     public synchronized void flush() throws IOException {
         if (flushException != null) {
             LOG.warn(
@@ -162,6 +176,9 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                             ExceptionUtils.getMessage(flushException)));
             return;
         }
+
+        testOnBorrow();
+
         final int sleepMs = 1000;
         for (int i = 0; i <= jdbcConnectionConfig.getMaxRetries(); i++) {
             try {

@@ -49,7 +49,6 @@ public class MultiTableSinkWriter
     private final Random random = new Random();
     private final List<BlockingQueue<SeaTunnelRow>> blockingQueues = new ArrayList<>();
     private final ExecutorService executorService;
-
     private Optional<? extends MultiTableResourceManager<?>> resourceManager = Optional.empty();
     private volatile boolean submitted = false;
 
