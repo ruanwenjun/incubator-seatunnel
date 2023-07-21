@@ -43,9 +43,13 @@ public class DebeziumJsonDeserializeSchema
             Map<String, String> debeziumConfig, Map<TableId, Struct> tableIdTableChangeMap) {
         super(tableIdTableChangeMap);
         boolean keySchemaEnable =
-                Boolean.valueOf(debeziumConfig.getOrDefault(KEY_SCHEMA_ENABLE, "true"));
+                debeziumConfig == null
+                        || Boolean.parseBoolean(
+                                debeziumConfig.getOrDefault(KEY_SCHEMA_ENABLE, "true"));
         boolean valueSchemaEnable =
-                Boolean.valueOf(debeziumConfig.getOrDefault(VALUE_SCHEMA_ENABLE, "true"));
+                debeziumConfig == null
+                        || Boolean.parseBoolean(
+                                debeziumConfig.getOrDefault(VALUE_SCHEMA_ENABLE, "true"));
         this.deserializationSchema =
                 new CompatibleDebeziumJsonDeserializationSchema(keySchemaEnable, valueSchemaEnable);
     }
