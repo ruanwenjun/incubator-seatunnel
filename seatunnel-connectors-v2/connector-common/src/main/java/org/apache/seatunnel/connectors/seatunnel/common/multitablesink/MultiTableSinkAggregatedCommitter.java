@@ -17,7 +17,9 @@
 
 package org.apache.seatunnel.connectors.seatunnel.common.multitablesink;
 
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkAggregatedCommitter;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,9 +38,33 @@ public class MultiTableSinkAggregatedCommitter
 
     private final Map<String, SinkAggregatedCommitter<?, ?>> aggCommitters;
 
+    private MultiTableResourceManager resourceManager = null;
+
     public MultiTableSinkAggregatedCommitter(
             Map<String, SinkAggregatedCommitter<?, ?>> aggCommitters) {
         this.aggCommitters = aggCommitters;
+        initResourceManager();
+    }
+
+    private void initResourceManager() {
+        for (String tableIdentifier : aggCommitters.keySet()) {
+            SinkAggregatedCommitter<?, ?> aggCommitter = aggCommitters.get(tableIdentifier);
+            if (!(aggCommitter instanceof SupportMultiTableSinkAggregatedCommitter)) {
+                return;
+            }
+            resourceManager =
+                    ((SupportMultiTableSinkAggregatedCommitter<?>) aggCommitter)
+                            .initMultiTableResourceManager(aggCommitters.size(), 1)
+                            .orElse(null);
+            break;
+        }
+        if (resourceManager != null) {
+            for (String tableIdentifier : aggCommitters.keySet()) {
+                SinkAggregatedCommitter<?, ?> aggCommitter = aggCommitters.get(tableIdentifier);
+                ((SupportMultiTableSinkAggregatedCommitter<?>) aggCommitter)
+                        .setMultiTableResourceManager(Optional.of(resourceManager), 1);
+            }
+        }
     }
 
     @Override
