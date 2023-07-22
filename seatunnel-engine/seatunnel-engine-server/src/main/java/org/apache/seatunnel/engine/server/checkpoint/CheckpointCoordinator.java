@@ -265,7 +265,8 @@ public class CheckpointCoordinator {
         checkpointCoordinatorFuture.complete(
                 new CheckpointCoordinatorState(
                         CheckpointCoordinatorStatus.FAILED, errorByPhysicalVertex.get()));
-        checkpointManager.handleCheckpointError(pipelineId);
+        checkpointManager.handleCheckpointError(
+                pipelineId, reason.equals(CheckpointCloseReason.CHECKPOINT_NOTIFY_COMPLETE_FAILED));
     }
 
     private void restoreTaskState(TaskLocation taskLocation) {
@@ -309,7 +310,29 @@ public class CheckpointCoordinator {
         isAllTaskReady = true;
         InvocationFuture<?>[] futures = notifyTaskStart();
         CompletableFuture.allOf(futures).join();
+        notifyCompleted(latestCompletedCheckpoint);
         scheduleTriggerPendingCheckpoint(coordinatorConfig.getCheckpointInterval());
+    }
+
+    private void notifyCompleted(CompletedCheckpoint completedCheckpoint) {
+        if (completedCheckpoint != null) {
+            try {
+                LOG.info("start notify checkpoint completed, checkpoint:{}", completedCheckpoint);
+                InvocationFuture<?>[] invocationFutures =
+                        notifyCheckpointCompleted(completedCheckpoint);
+                CompletableFuture.allOf(invocationFutures).join();
+                // Execution to this point means that all notifyCheckpointCompleted have been
+                // completed
+                InvocationFuture<?>[] invocationFuturesForEnd =
+                        notifyCheckpointEnd(completedCheckpoint);
+                CompletableFuture.allOf(invocationFuturesForEnd).join();
+            } catch (Throwable e) {
+                handleCoordinatorError(
+                        "notify checkpoint completed failed",
+                        e,
+                        CheckpointCloseReason.CHECKPOINT_NOTIFY_COMPLETE_FAILED);
+            }
+        }
     }
 
     public InvocationFuture<?>[] notifyTaskStart() {
@@ -353,6 +376,7 @@ public class CheckpointCoordinator {
         shutdown = false;
         if (alreadyStarted) {
             isAllTaskReady = true;
+            notifyCompleted(latestCompletedCheckpoint);
             tryTriggerPendingCheckpoint(CHECKPOINT_TYPE);
         } else {
             isAllTaskReady = false;
@@ -726,13 +750,8 @@ public class CheckpointCoordinator {
                 completedCheckpoint.getCheckpointId(),
                 completedCheckpoint.getPipelineId(),
                 completedCheckpoint.getJobId());
-        InvocationFuture<?>[] invocationFutures = notifyCheckpointCompleted(completedCheckpoint);
-        CompletableFuture.allOf(invocationFutures).join();
-        // Execution to this point means that all notifyCheckpointCompleted have been completed
-        InvocationFuture<?>[] invocationFuturesForEnd = notifyCheckpointEnd(completedCheckpoint);
-        CompletableFuture.allOf(invocationFuturesForEnd).join();
-        // TODO: notifyCheckpointCompleted fail
         latestCompletedCheckpoint = completedCheckpoint;
+        notifyCompleted(completedCheckpoint);
         if (isCompleted()) {
             cleanPendingCheckpoint(CheckpointCloseReason.CHECKPOINT_COORDINATOR_COMPLETED);
             if (latestCompletedCheckpoint.getCheckpointType().isSavepoint()) {
