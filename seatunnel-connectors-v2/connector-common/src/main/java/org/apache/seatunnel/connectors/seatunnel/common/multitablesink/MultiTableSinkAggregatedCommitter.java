@@ -157,13 +157,6 @@ public class MultiTableSinkAggregatedCommitter
     @Override
     public void close() throws IOException {
         Throwable firstE = null;
-        try {
-            if (resourceManager != null) {
-                resourceManager.close();
-            }
-        } catch (Throwable e) {
-            log.error("close resourceManager error", e);
-        }
         for (String sinkIdentifier : aggCommitters.keySet()) {
             SinkAggregatedCommitter<?, ?> sinkCommitter = aggCommitters.get(sinkIdentifier);
             if (sinkCommitter != null) {
@@ -179,6 +172,13 @@ public class MultiTableSinkAggregatedCommitter
         }
         if (firstE != null) {
             throw new RuntimeException(firstE);
+        }
+        try {
+            if (resourceManager != null) {
+                resourceManager.close();
+            }
+        } catch (Throwable e) {
+            log.error("close resourceManager error", e);
         }
     }
 }

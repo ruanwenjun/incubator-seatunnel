@@ -214,11 +214,6 @@ public class MultiTableSinkWriter
     @Override
     public void close() throws IOException {
         executorService.shutdownNow();
-        try {
-            resourceManager.ifPresent(MultiTableResourceManager::close);
-        } catch (Throwable e) {
-            log.error("close resourceManager error", e);
-        }
         Throwable firstE = null;
         for (int i = 0; i < sinkWritersWithIndex.size(); i++) {
             synchronized (runnable.get(i)) {
@@ -237,6 +232,11 @@ public class MultiTableSinkWriter
         }
         if (firstE != null) {
             throw new RuntimeException(firstE);
+        }
+        try {
+            resourceManager.ifPresent(MultiTableResourceManager::close);
+        } catch (Throwable e) {
+            log.error("close resourceManager error", e);
         }
     }
 }
