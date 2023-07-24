@@ -230,13 +230,13 @@ public class MultiTableSinkWriter
                 }
             }
         }
-        if (firstE != null) {
-            throw new RuntimeException(firstE);
-        }
         try {
             resourceManager.ifPresent(MultiTableResourceManager::close);
         } catch (Throwable e) {
             log.error("close resourceManager error", e);
+        }
+        if (firstE != null) {
+            throw new RuntimeException(firstE);
         }
     }
 }
