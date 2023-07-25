@@ -149,7 +149,9 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     @Override
     protected boolean createTableInternal(TablePath tablePath, CatalogTable table)
             throws CatalogException {
-        String createTableSql = new OracleCreateTableSqlBuilder(table).build(tablePath);
+        String createTableSql =
+                new OracleCreateTableSqlBuilder(table)
+                        .build(tablePath, table.getOptions().get("fieldIde"));
         String[] createTableSqls = createTableSql.split(";");
         for (String sql : createTableSqls) {
             log.info("create table sql: {}", sql);
@@ -183,7 +185,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
         try {
             return databaseExists(tablePath.getDatabaseName())
                     && listTables(tablePath.getDatabaseName())
-                            .contains(tablePath.getSchemaAndTableName().toUpperCase());
+                            .contains(tablePath.getSchemaAndTableName());
         } catch (DatabaseNotExistException e) {
             return false;
         }

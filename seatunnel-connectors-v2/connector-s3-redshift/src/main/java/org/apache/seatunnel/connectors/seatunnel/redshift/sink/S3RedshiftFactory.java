@@ -17,14 +17,24 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
+import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
+
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.TableSchema;
+import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
+import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
 import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSinkConfig;
-import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSourceConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
+import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.google.auto.service.AutoService;
 
@@ -44,8 +54,8 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3RedshiftConfig.JDBC_URL,
                         S3RedshiftConfig.JDBC_USER,
                         S3RedshiftConfig.JDBC_PASSWORD,
-                        S3RedshiftConfig.EXECUTE_SQL,
-                        BaseSourceConfig.FILE_PATH,
+                        BaseSinkConfig.FILE_PATH,
+                        BaseSinkConfig.TMP_PATH,
                         S3Config.S3A_AWS_CREDENTIALS_PROVIDER)
                 .conditional(
                         S3Config.S3A_AWS_CREDENTIALS_PROVIDER,
@@ -63,12 +73,47 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         BaseSinkConfig.FILE_FORMAT_TYPE,
                         FileFormat.CSV,
                         BaseSinkConfig.ROW_DELIMITER)
-                .optional(BaseSinkConfig.PARTITION_BY)
-                .optional(BaseSinkConfig.PARTITION_DIR_EXPRESSION)
-                .optional(BaseSinkConfig.IS_PARTITION_FIELD_WRITE_IN_FILE)
-                .optional(BaseSinkConfig.SINK_COLUMNS)
-                .optional(BaseSinkConfig.IS_ENABLE_TRANSACTION)
-                .optional(BaseSinkConfig.FILE_NAME_EXPRESSION)
+                .optional(S3RedshiftConfig.CHANGELOG_MODE, S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE)
+                .conditional(
+                        S3RedshiftConfig.CHANGELOG_MODE,
+                        S3RedshiftChangelogMode.APPEND_ONLY,
+                        S3RedshiftConfig.EXECUTE_SQL)
+                .conditional(
+                        S3RedshiftConfig.CHANGELOG_MODE,
+                        S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE,
+                        S3RedshiftConfig.REDSHIFT_TABLE,
+                        S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
+                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
+                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
+                        S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME)
+                .conditional(
+                        S3RedshiftConfig.CHANGELOG_MODE,
+                        S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE,
+                        S3RedshiftConfig.REDSHIFT_TABLE,
+                        S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
+                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
+                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
+                        S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME)
                 .build();
+    }
+
+    @Override
+    public TableSink createSink(TableFactoryContext context) {
+        CatalogTable catalogTable = context.getCatalogTable();
+        ReadonlyConfig config = context.getOptions();
+        S3RedshiftConf s3RedshiftConf = S3RedshiftConf.valueOf(config);
+        if (StringUtils.isBlank(s3RedshiftConf.getRedshiftTable())) {
+            s3RedshiftConf.setRedshiftTable(catalogTable.getTableId().getTableName());
+
+            TableSchema tableSchema = catalogTable.getTableSchema();
+            s3RedshiftConf.setRedshiftTablePrimaryKeys(
+                    tableSchema.getPrimaryKey().getColumnNames());
+        }
+        return () ->
+                new S3RedshiftSink(
+                        DataSaveMode.KEEP_SCHEMA_AND_DATA,
+                        catalogTable,
+                        s3RedshiftConf,
+                        ConfigFactory.parseMap(config.toMap()));
     }
 }

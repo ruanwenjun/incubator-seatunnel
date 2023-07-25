@@ -20,6 +20,8 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorException;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,10 @@ public final class JdbcDialectLoader {
 
     private JdbcDialectLoader() {}
 
+    public static JdbcDialect load(String url) {
+        return load(url, "");
+    }
+
     /**
      * Loads the unique JDBC Dialect that can handle the given database url.
      *
@@ -44,7 +50,7 @@ public final class JdbcDialectLoader {
      *     unambiguously process the given database URL.
      * @return The loaded dialect.
      */
-    public static JdbcDialect load(String url) {
+    public static JdbcDialect load(String url, String fieldIde) {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         List<JdbcDialectFactory> foundFactories = discoverFactories(cl);
 
@@ -88,7 +94,9 @@ public final class JdbcDialectLoader {
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
         }
-
+        if (StringUtils.isNotEmpty(fieldIde)) {
+            return matchingFactories.get(0).create(fieldIde);
+        }
         return matchingFactories.get(0).create();
     }
 

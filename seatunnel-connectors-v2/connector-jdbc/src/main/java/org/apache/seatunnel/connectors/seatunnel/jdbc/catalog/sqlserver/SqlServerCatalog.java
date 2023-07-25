@@ -297,6 +297,8 @@ public class SqlServerCatalog extends AbstractJdbcCatalog {
 
         String createTableSql =
                 SqlServerCreateTableSqlBuilder.builder(tablePath, table).build(tablePath, table);
+        //        createTableSql = CatalogUtils.getFieldIde(createTableSql,
+        // table.getOptions().get("fieldIde"));
         log.info("create table sql: {}", createTableSql);
         try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd);
                 PreparedStatement ps = conn.prepareStatement(createTableSql)) {

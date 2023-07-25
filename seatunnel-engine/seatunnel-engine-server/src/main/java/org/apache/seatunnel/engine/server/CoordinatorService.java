@@ -39,11 +39,9 @@ import org.apache.seatunnel.engine.server.dag.physical.SubPlan;
 import org.apache.seatunnel.engine.server.execution.ExecutionState;
 import org.apache.seatunnel.engine.server.execution.TaskExecutionState;
 import org.apache.seatunnel.engine.server.execution.TaskGroupLocation;
-import org.apache.seatunnel.engine.server.execution.TaskLocation;
 import org.apache.seatunnel.engine.server.master.JobHistoryService;
 import org.apache.seatunnel.engine.server.master.JobMaster;
 import org.apache.seatunnel.engine.server.metrics.JobMetricsUtil;
-import org.apache.seatunnel.engine.server.metrics.SeaTunnelMetricsContext;
 import org.apache.seatunnel.engine.server.resourcemanager.ResourceManager;
 import org.apache.seatunnel.engine.server.resourcemanager.ResourceManagerFactory;
 import org.apache.seatunnel.engine.server.resourcemanager.resource.SlotProfile;
@@ -61,7 +59,6 @@ import com.hazelcast.spi.impl.NodeEngineImpl;
 import lombok.NonNull;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -139,8 +136,6 @@ public class CoordinatorService {
      * active
      */
     private IMap<PipelineLocation, Map<TaskGroupLocation, SlotProfile>> ownedSlotProfilesIMap;
-
-    private IMap<Long, HashMap<TaskLocation, SeaTunnelMetricsContext>> metricsImap;
 
     /** If this node is a master node */
     private volatile boolean isActive = false;
@@ -492,8 +487,14 @@ public class CoordinatorService {
     public PassiveCompletableFuture<JobResult> waitForJobComplete(long jobId) {
         JobMaster runningJobMaster = runningJobMasterMap.get(jobId);
         if (runningJobMaster == null) {
-            JobStatus jobStatus = jobHistoryService.getJobDetailState(jobId).getJobStatus();
             CompletableFuture<JobResult> future = new CompletableFuture<>();
+            JobHistoryService.JobState jobDetailState = jobHistoryService.getJobDetailState(jobId);
+            if (jobDetailState == null) {
+                future.complete(new JobResult(JobStatus.FAILED, null));
+                return new PassiveCompletableFuture<>(future);
+            }
+            JobStatus jobStatus = jobDetailState.getJobStatus();
+
             // TODO support history service record job execute error
             future.complete(new JobResult(jobStatus, null));
             return new PassiveCompletableFuture<>(future);

@@ -17,10 +17,8 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift;
 
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
-
 import org.apache.seatunnel.common.exception.CommonErrorCode;
-import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
+import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
 
 import java.sql.Connection;
@@ -36,7 +34,7 @@ public class RedshiftJdbcClient {
 
     private final Connection connection;
 
-    public static RedshiftJdbcClient getInstance(Config config)
+    public static RedshiftJdbcClient getInstance(S3RedshiftConf config)
             throws S3RedshiftJdbcConnectorException {
         if (INSTANCE == null) {
             synchronized (RedshiftJdbcClient.class) {
@@ -45,9 +43,9 @@ public class RedshiftJdbcClient {
                     try {
                         INSTANCE =
                                 new RedshiftJdbcClient(
-                                        config.getString(S3RedshiftConfig.JDBC_URL.key()),
-                                        config.getString(S3RedshiftConfig.JDBC_USER.key()),
-                                        config.getString(S3RedshiftConfig.JDBC_PASSWORD.key()));
+                                        config.getJdbcUrl(),
+                                        config.getJdbcUser(),
+                                        config.getJdbcPassword());
                     } catch (SQLException | ClassNotFoundException e) {
                         throw new S3RedshiftJdbcConnectorException(
                                 CommonErrorCode.SQL_OPERATION_FAILED,
@@ -86,10 +84,18 @@ public class RedshiftJdbcClient {
     public boolean execute(String sql) throws Exception {
         try (Statement statement = connection.createStatement()) {
             return statement.execute(sql);
+        } catch (SQLException e) {
+            throw new S3RedshiftJdbcConnectorException(
+                    CommonErrorCode.SQL_OPERATION_FAILED,
+                    String.format("Execute sql failed, sql is %s ", sql),
+                    e);
         }
     }
 
-    public synchronized void close() throws SQLException {
-        connection.close();
+    public void close() throws SQLException {
+        synchronized (RedshiftJdbcClient.class) {
+            connection.close();
+            INSTANCE = null;
+        }
     }
 }

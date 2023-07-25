@@ -31,8 +31,6 @@ public final class TablePath implements Serializable {
     private final String databaseName;
     private final String schemaName;
     private final String tableName;
-    private final String tablePrefix;
-    private final String tableSuffix;
 
     public static TablePath of(String fullName) {
         String[] paths = fullName.split("\\.");
@@ -55,21 +53,12 @@ public final class TablePath implements Serializable {
         return new TablePath(databaseName, schemaName, tableName);
     }
 
-    public TablePath(String databaseName, String schemaName, String tableName) {
-        this(databaseName, schemaName, tableName, "", "");
-    }
-
-    public static TablePath of(
-            String databaseName,
-            String schemaName,
-            String tableName,
-            String tablePrefix,
-            String tableSuffix) {
-        return new TablePath(databaseName, schemaName, tableName, tablePrefix, tableSuffix);
-    }
-
     public String getSchemaAndTableName() {
         return String.format("%s.%s", schemaName, tableName);
+    }
+
+    public String getSchemaAndTableName(String quote) {
+        return String.format("%s%s%s.%s%s%s", quote, schemaName, quote, quote, tableName, quote);
     }
 
     public String getFullName() {
@@ -91,6 +80,25 @@ public final class TablePath implements Serializable {
         return String.format(
                 "%s%s%s.%s%s%s.%s%s%s",
                 quote, databaseName, quote, quote, schemaName, quote, quote, tableName, quote);
+    }
+
+    public String getFullNameWithQuoted(String quoteLeft, String quoteRight) {
+        if (schemaName == null) {
+            return String.format(
+                    "%s%s%s.%s%s%s",
+                    quoteLeft, databaseName, quoteRight, quoteLeft, tableName, quoteRight);
+        }
+        return String.format(
+                "%s%s%s.%s%s%s.%s%s%s",
+                quoteLeft,
+                databaseName,
+                quoteRight,
+                quoteLeft,
+                schemaName,
+                quoteRight,
+                quoteLeft,
+                tableName,
+                quoteRight);
     }
 
     @Override

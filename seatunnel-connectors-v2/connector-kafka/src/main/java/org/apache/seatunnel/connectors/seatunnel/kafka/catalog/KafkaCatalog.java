@@ -57,11 +57,7 @@ public class KafkaCatalog implements Catalog {
     private AdminClient adminClient;
 
     public KafkaCatalog(String catalogName, ReadonlyConfig options, String bootstrapServers) {
-        this.catalogName =
-                checkNotNull(
-                        catalogName,
-                        "catalogName cannot be null, please use schema to "
-                                + "configure the data structure");
+        this.catalogName = catalogName;
         this.bootstrapServers = checkNotNull(bootstrapServers, "bootstrapServers cannot be null");
         this.options = checkNotNull(options, "options cannot be null");
     }

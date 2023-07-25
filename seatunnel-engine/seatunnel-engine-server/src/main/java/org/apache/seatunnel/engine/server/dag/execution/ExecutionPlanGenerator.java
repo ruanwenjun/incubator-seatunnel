@@ -21,7 +21,7 @@ import org.apache.seatunnel.api.table.type.MultipleRowType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.api.transform.SeaTunnelTransform;
-import org.apache.seatunnel.engine.common.config.server.CheckpointConfig;
+import org.apache.seatunnel.engine.common.config.EngineConfig;
 import org.apache.seatunnel.engine.common.utils.IdGenerator;
 import org.apache.seatunnel.engine.core.dag.actions.Action;
 import org.apache.seatunnel.engine.core.dag.actions.ShuffleAction;
@@ -60,18 +60,18 @@ import static com.google.common.base.Preconditions.checkArgument;
 public class ExecutionPlanGenerator {
     private final LogicalDag logicalPlan;
     private final JobImmutableInformation jobImmutableInformation;
-    private final CheckpointConfig checkpointConfig;
+    private final EngineConfig engineConfig;
     private final IdGenerator idGenerator = new IdGenerator();
 
     public ExecutionPlanGenerator(
             @NonNull LogicalDag logicalPlan,
             @NonNull JobImmutableInformation jobImmutableInformation,
-            @NonNull CheckpointConfig checkpointConfig) {
+            @NonNull EngineConfig engineConfig) {
         checkArgument(
                 logicalPlan.getEdges().size() > 0, "ExecutionPlan Builder must have LogicalPlan.");
         this.logicalPlan = logicalPlan;
         this.jobImmutableInformation = jobImmutableInformation;
-        this.checkpointConfig = checkpointConfig;
+        this.engineConfig = engineConfig;
     }
 
     public ExecutionPlan generate() {
@@ -217,7 +217,8 @@ public class ExecutionPlanGenerator {
         ExecutionVertex sourceExecutionVertex = sourceExecutionVertices.stream().findFirst().get();
         SourceAction sourceAction = (SourceAction) sourceExecutionVertex.getAction();
         SeaTunnelDataType sourceProducedType = sourceAction.getSource().getProducedType();
-        if (!SqlType.MULTIPLE_ROW.equals(sourceProducedType.getSqlType())) {
+        if (!SqlType.MULTIPLE_ROW.equals(sourceProducedType.getSqlType())
+                || targetVerticesMap.get(sourceExecutionVertex.getVertexId()).size() <= 1) {
             return executionEdges;
         }
 
@@ -235,7 +236,10 @@ public class ExecutionPlanGenerator {
                         .jobId(jobImmutableInformation.getJobId())
                         .inputPartitions(sourceAction.getParallelism())
                         .inputRowType(MultipleRowType.class.cast(sourceProducedType))
-                        .queueEmptyQueueTtl((int) (checkpointConfig.getCheckpointInterval() * 3))
+                        .queueEmptyQueueTtl(
+                                (int)
+                                        (engineConfig.getCheckpointConfig().getCheckpointInterval()
+                                                * 3))
                         .build();
         ShuffleConfig shuffleConfig =
                 ShuffleConfig.builder().shuffleStrategy(shuffleStrategy).build();
