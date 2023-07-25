@@ -43,6 +43,7 @@ import lombok.NoArgsConstructor;
 
 import javax.annotation.Nonnull;
 
+import java.util.HashMap;
 import java.util.Optional;
 
 @NoArgsConstructor
@@ -112,11 +113,12 @@ public class MongodbIncrementalSource<T> extends IncrementalSource<T, MongodbSou
         if (dataType == null) {
             return (DebeziumDeserializationSchema<T>)
                     new DebeziumJsonDeserializeSchema(
-                            config.get(MongodbSourceOptions.DEBEZIUM_PROPERTIES));
+                            config.get(MongodbSourceOptions.DEBEZIUM_PROPERTIES), new HashMap<>());
         } else {
             physicalRowType = dataType;
             return (DebeziumDeserializationSchema<T>)
-                    new MongoDBConnectorDeserializationSchema(physicalRowType, physicalRowType);
+                    new MongoDBConnectorDeserializationSchema(
+                            physicalRowType, physicalRowType, new HashMap<>());
         }
     }
 
