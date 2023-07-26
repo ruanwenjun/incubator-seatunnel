@@ -103,19 +103,19 @@ public class MultiFieldSplitTransform extends MultipleFieldOutputTransform {
             if (splitFieldValue == null) {
                 allSplitFieldValues.addAll(
                         Arrays.asList(new String[splitOP.getOutputFields().length]));
-            }
+            } else {
+                String[] splitFieldValues =
+                        splitFieldValue
+                                .toString()
+                                .split(splitOP.getSeparator(), splitOP.getOutputFields().length);
+                if (splitFieldValues.length < splitOP.getOutputFields().length) {
+                    String[] tmp = splitFieldValues;
+                    splitFieldValues = new String[splitOP.getOutputFields().length];
+                    System.arraycopy(tmp, 0, splitFieldValues, 0, tmp.length);
+                }
 
-            String[] splitFieldValues =
-                    splitFieldValue
-                            .toString()
-                            .split(splitOP.getSeparator(), splitOP.getOutputFields().length);
-            if (splitFieldValues.length < splitOP.getOutputFields().length) {
-                String[] tmp = splitFieldValues;
-                splitFieldValues = new String[splitOP.getOutputFields().length];
-                System.arraycopy(tmp, 0, splitFieldValues, 0, tmp.length);
+                allSplitFieldValues.addAll(Arrays.asList(splitFieldValues));
             }
-
-            allSplitFieldValues.addAll(Arrays.asList(splitFieldValues));
         }
 
         return allSplitFieldValues.toArray();
