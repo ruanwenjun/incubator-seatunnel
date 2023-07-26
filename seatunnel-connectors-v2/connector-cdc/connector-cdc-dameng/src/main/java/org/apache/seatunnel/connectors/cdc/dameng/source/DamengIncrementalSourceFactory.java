@@ -46,7 +46,10 @@ public class DamengIncrementalSourceFactory implements TableSourceFactory {
                         JdbcSourceOptions.PASSWORD,
                         JdbcSourceOptions.DATABASE_NAMES,
                         CatalogOptions.TABLE_NAMES,
-                        JdbcCatalogOptions.BASE_URL)
+                        JdbcCatalogOptions.BASE_URL,
+                        JdbcSourceOptions.CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND,
+                        JdbcSourceOptions.CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND,
+                        JdbcSourceOptions.SAMPLE_SHARDING_THRESHOLD)
                 .optional(
                         JdbcSourceOptions.PORT,
                         JdbcSourceOptions.SERVER_TIME_ZONE,
