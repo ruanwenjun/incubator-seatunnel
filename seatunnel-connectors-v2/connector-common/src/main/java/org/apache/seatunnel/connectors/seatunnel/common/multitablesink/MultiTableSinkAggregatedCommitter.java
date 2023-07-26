@@ -39,11 +39,15 @@ public class MultiTableSinkAggregatedCommitter
     private final Map<String, SinkAggregatedCommitter<?, ?>> aggCommitters;
 
     private transient MultiTableResourceManager resourceManager = null;
-    private volatile boolean committed = false;
 
     public MultiTableSinkAggregatedCommitter(
             Map<String, SinkAggregatedCommitter<?, ?>> aggCommitters) {
         this.aggCommitters = aggCommitters;
+    }
+
+    @Override
+    public void init() {
+        initResourceManager();
     }
 
     private void initResourceManager() {
@@ -71,7 +75,6 @@ public class MultiTableSinkAggregatedCommitter
     @Override
     public List<MultiTableAggregatedCommitInfo> commit(
             List<MultiTableAggregatedCommitInfo> aggregatedCommitInfo) throws IOException {
-        tryInitResourceManager();
         for (String sinkIdentifier : aggCommitters.keySet()) {
             SinkAggregatedCommitter<?, ?> sinkCommitter = aggCommitters.get(sinkIdentifier);
             if (sinkCommitter != null) {
@@ -90,16 +93,8 @@ public class MultiTableSinkAggregatedCommitter
         return new ArrayList<>();
     }
 
-    private void tryInitResourceManager() {
-        if (!committed) {
-            committed = true;
-            initResourceManager();
-        }
-    }
-
     @Override
     public MultiTableAggregatedCommitInfo combine(List<MultiTableCommitInfo> commitInfos) {
-        tryInitResourceManager();
         Map<String, Object> commitInfo = new HashMap<>();
         for (String sinkIdentifier : aggCommitters.keySet()) {
             SinkAggregatedCommitter<?, ?> sinkCommitter = aggCommitters.get(sinkIdentifier);
@@ -126,7 +121,6 @@ public class MultiTableSinkAggregatedCommitter
 
     @Override
     public void abort(List<MultiTableAggregatedCommitInfo> aggregatedCommitInfo) throws Exception {
-        tryInitResourceManager();
         Throwable firstE = null;
         for (String sinkIdentifier : aggCommitters.keySet()) {
             SinkAggregatedCommitter<?, ?> sinkCommitter = aggCommitters.get(sinkIdentifier);
