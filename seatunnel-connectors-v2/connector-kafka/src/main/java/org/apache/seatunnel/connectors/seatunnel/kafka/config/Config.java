@@ -94,6 +94,12 @@ public class Config {
                             "Data format. The default format is text. Optional json format. The default field separator is \", \". "
                                     + "If you customize the delimiter, add the \"field_delimiter\" option.");
 
+    public static final Option<Boolean> DEBEZIUM_RECORD_INCLUDE_SCHEMA =
+            Options.key("debezium_record_include_schema")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription("Does the debezium record carry a schema.");
+
     public static final Option<String> FIELD_DELIMITER =
             Options.key("field_delimiter")
                     .stringType()
