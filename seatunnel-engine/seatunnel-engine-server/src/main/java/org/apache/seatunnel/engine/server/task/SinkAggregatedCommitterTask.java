@@ -109,6 +109,7 @@ public class SinkAggregatedCommitterTask<CommandInfoT, AggregatedCommitInfoT>
         this.completableFuture = new CompletableFuture<>();
         this.aggregatedCommitInfoSerializer =
                 sink.getSink().getAggregatedCommitInfoSerializer().get();
+        aggregatedCommitter.init();
         log.debug(
                 "starting seatunnel sink aggregated committer task, sink name[{}] ",
                 sink.getName());

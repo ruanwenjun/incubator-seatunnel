@@ -61,6 +61,7 @@ public class MultiTableSinkAggregatedCommitter
         if (resourceManager != null) {
             for (String tableIdentifier : aggCommitters.keySet()) {
                 SinkAggregatedCommitter<?, ?> aggCommitter = aggCommitters.get(tableIdentifier);
+                aggCommitter.init();
                 ((SupportMultiTableSinkAggregatedCommitter<?>) aggCommitter)
                         .setMultiTableResourceManager(Optional.of(resourceManager), 1);
             }
