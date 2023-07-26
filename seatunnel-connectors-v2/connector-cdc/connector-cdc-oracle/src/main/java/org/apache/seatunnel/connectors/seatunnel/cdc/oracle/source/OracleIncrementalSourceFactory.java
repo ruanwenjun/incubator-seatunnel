@@ -65,7 +65,10 @@ public class OracleIncrementalSourceFactory implements TableSourceFactory, Suppo
                         JdbcSourceOptions.SERVER_TIME_ZONE,
                         JdbcSourceOptions.CONNECT_TIMEOUT_MS,
                         JdbcSourceOptions.CONNECT_MAX_RETRIES,
-                        JdbcSourceOptions.CONNECTION_POOL_SIZE)
+                        JdbcSourceOptions.CONNECTION_POOL_SIZE,
+                        JdbcSourceOptions.CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_LOWER_BOUND,
+                        JdbcSourceOptions.CHUNK_KEY_EVEN_DISTRIBUTION_FACTOR_UPPER_BOUND,
+                        JdbcSourceOptions.SAMPLE_SHARDING_THRESHOLD)
                 .optional(OracleSourceOptions.STARTUP_MODE, OracleSourceOptions.STOP_MODE)
                 .conditional(
                         OracleSourceOptions.STARTUP_MODE,
