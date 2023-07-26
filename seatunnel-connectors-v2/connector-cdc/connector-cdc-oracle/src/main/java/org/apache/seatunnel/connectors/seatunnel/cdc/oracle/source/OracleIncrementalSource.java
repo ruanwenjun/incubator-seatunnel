@@ -137,6 +137,7 @@ public class OracleIncrementalSource<T> extends IncrementalSource<T, JdbcSourceC
                 SeaTunnelRowDebeziumDeserializeSchema.builder()
                         .setPhysicalRowType(physicalRowType)
                         .setResultTypeInfo(physicalRowType)
+                        .setTableIdTableChangeMap(tableIdStructMap)
                         .setServerTimeZone(ZoneId.of(zoneId))
                         .build();
     }
