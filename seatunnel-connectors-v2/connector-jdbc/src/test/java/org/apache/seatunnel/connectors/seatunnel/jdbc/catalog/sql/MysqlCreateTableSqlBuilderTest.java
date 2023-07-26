@@ -91,7 +91,8 @@ public class MysqlCreateTableSqlBuilderTest {
                         "User table");
 
         String createTableSql =
-                MysqlCreateTableSqlBuilder.builder(tablePath, catalogTable).build("");
+                MysqlCreateTableSqlBuilder.builder(tablePath, catalogTable)
+                        .build("", catalogTable.getOptions().get("fieldIde"));
         String expect =
                 "CREATE TABLE IF NOT EXISTS test_table (\n"
                         + "\tid BIGINT (22) NOT NULL COMMENT 'id', \n"

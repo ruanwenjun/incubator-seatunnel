@@ -27,6 +27,7 @@ import org.apache.seatunnel.api.env.ParsingMode;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
+import org.apache.seatunnel.api.sink.SupportMultiTableSink;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SourceOptions;
 import org.apache.seatunnel.api.source.SourceSplit;
@@ -62,8 +63,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
-import com.hazelcast.logging.ILogger;
-import com.hazelcast.logging.Logger;
 import lombok.extern.slf4j.Slf4j;
 import scala.Tuple2;
 
@@ -73,6 +72,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -93,9 +93,6 @@ import static org.apache.seatunnel.engine.core.parse.ConfigParserUtil.getInputId
 
 @Slf4j
 public class MultipleTableJobConfigParser {
-
-    private static final ILogger LOGGER = Logger.getLogger(MultipleTableJobConfigParser.class);
-
     static final String DEFAULT_ID = "default-identifier";
 
     private final IdGenerator idGenerator;
@@ -153,8 +150,12 @@ public class MultipleTableJobConfigParser {
         LinkedHashMap<String, List<Tuple2<CatalogTable, Action>>> tableWithActionMap =
                 new LinkedHashMap<>();
 
+        boolean isMultipleTableJob = false;
         log.info("start generating all sources.");
         for (Config sourceConfig : sourceConfigs) {
+            ReadonlyConfig readonlyConfig = ReadonlyConfig.fromConfig(sourceConfig);
+            isMultipleTableJob |=
+                    readonlyConfig.get(SourceOptions.DAG_PARSING_MODE) != ParsingMode.SINGLENESS;
             Tuple2<String, List<Tuple2<CatalogTable, Action>>> tuple2 =
                     parseSource(sourceConfig, classLoader);
             tableWithActionMap.put(tuple2._1(), tuple2._2());
@@ -167,7 +168,13 @@ public class MultipleTableJobConfigParser {
         List<Action> sinkActions = new ArrayList<>();
         for (int configIndex = 0; configIndex < sinkConfigs.size(); configIndex++) {
             Config sinkConfig = sinkConfigs.get(configIndex);
-            sinkActions.addAll(parseSink(configIndex, sinkConfig, classLoader, tableWithActionMap));
+            sinkActions.addAll(
+                    parseSink(
+                            configIndex,
+                            sinkConfig,
+                            classLoader,
+                            tableWithActionMap,
+                            isMultipleTableJob));
         }
         Set<URL> factoryUrls = getUsedFactoryUrls(sinkActions);
         factoryUrls.addAll(commonPluginJars);
@@ -230,13 +237,7 @@ public class MultipleTableJobConfigParser {
                 || jobConfig.getName().equals(Constants.LOGO)) {
             jobConfig.setName(envOptions.get(EnvCommonOptions.JOB_NAME));
         }
-        envOptions
-                .getOptional(EnvCommonOptions.CHECKPOINT_INTERVAL)
-                .ifPresent(
-                        interval ->
-                                jobConfig
-                                        .getEnvOptions()
-                                        .put(EnvCommonOptions.CHECKPOINT_INTERVAL.key(), interval));
+        envOptions.toMap().forEach((k, v) -> jobConfig.getEnvOptions().put(k, v));
     }
 
     private static <T extends Factory> boolean isFallback(
@@ -482,7 +483,8 @@ public class MultipleTableJobConfigParser {
             int configIndex,
             Config sinkConfig,
             ClassLoader classLoader,
-            LinkedHashMap<String, List<Tuple2<CatalogTable, Action>>> tableWithActionMap) {
+            LinkedHashMap<String, List<Tuple2<CatalogTable, Action>>> tableWithActionMap,
+            boolean isMultipleTableJob) {
 
         ReadonlyConfig readonlyConfig = ReadonlyConfig.fromConfig(sinkConfig);
         String factoryId = getFactoryId(readonlyConfig);
@@ -551,6 +553,7 @@ public class MultipleTableJobConfigParser {
             return sinkActions;
         }
 
+        // TODO move it into tryGenerateMultiTableSink when we don't support sink template
         // sink template
         for (Tuple2<CatalogTable, Action> tuple : inputVertices.get(0)) {
             SinkAction<?, ?, ?, ?> sinkAction =
@@ -566,7 +569,47 @@ public class MultipleTableJobConfigParser {
                             configIndex);
             sinkActions.add(sinkAction);
         }
-        return sinkActions;
+        if (!isMultipleTableJob) {
+            return sinkActions;
+        }
+        Optional<SinkAction<?, ?, ?, ?>> multiTableSink =
+                tryGenerateMultiTableSink(sinkActions, readonlyConfig, classLoader);
+        return multiTableSink
+                .<List<SinkAction<?, ?, ?, ?>>>map(Collections::singletonList)
+                .orElse(sinkActions);
+    }
+
+    private Optional<SinkAction<?, ?, ?, ?>> tryGenerateMultiTableSink(
+            List<SinkAction<?, ?, ?, ?>> sinkActions,
+            ReadonlyConfig options,
+            ClassLoader classLoader) {
+        if (sinkActions.stream()
+                .anyMatch(action -> !(action.getSink() instanceof SupportMultiTableSink))) {
+            log.info("Unsupported multi table sink api, rollback to sink template");
+            return Optional.empty();
+        }
+        Map<String, SeaTunnelSink> sinks = new HashMap<>();
+        Set<URL> jars =
+                sinkActions.stream()
+                        .flatMap(a -> a.getJarUrls().stream())
+                        .collect(Collectors.toSet());
+        sinkActions.forEach(
+                action -> {
+                    SeaTunnelSink sink = action.getSink();
+                    String tableId = action.getConfig().getMultipleRowTableId();
+                    sinks.put(tableId, sink);
+                });
+        SeaTunnelSink<?, ?, ?, ?> sink =
+                FactoryUtil.createMultiTableSink(sinks, options, classLoader);
+        SinkAction<?, ?, ?, ?> multiTableAction =
+                new SinkAction<>(
+                        idGenerator.getNextId(),
+                        "MultiTableSink",
+                        sinkActions.get(0).getUpstream(),
+                        sink,
+                        jars);
+        multiTableAction.setParallelism(sinkActions.get(0).getParallelism());
+        return Optional.of(multiTableAction);
     }
 
     private SinkAction<?, ?, ?, ?> createSinkAction(

@@ -33,4 +33,9 @@ public class PostgresDialectFactory implements JdbcDialectFactory {
     public JdbcDialect create() {
         return new PostgresDialect();
     }
+
+    @Override
+    public JdbcDialect create(String fieldIde) {
+        return new PostgresDialect(fieldIde);
+    }
 }

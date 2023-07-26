@@ -37,4 +37,8 @@ public interface JdbcDialectFactory {
 
     /** @return Creates a new instance of the {@link JdbcDialect}. */
     JdbcDialect create();
+
+    default JdbcDialect create(String fieldIde) {
+        return null;
+    }
 }

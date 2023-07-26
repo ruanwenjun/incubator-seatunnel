@@ -27,7 +27,6 @@ import org.apache.seatunnel.connectors.cdc.base.source.split.SourceSplitBase;
 import org.apache.seatunnel.connectors.cdc.dameng.config.DamengSourceConfig;
 import org.apache.seatunnel.connectors.cdc.dameng.source.offset.LogMinerOffset;
 import org.apache.seatunnel.connectors.cdc.dameng.utils.DamengUtils;
-import org.apache.seatunnel.connectors.cdc.debezium.EmbeddedDatabaseHistory;
 
 import org.apache.kafka.connect.source.SourceRecord;
 
@@ -48,18 +47,15 @@ import io.debezium.pipeline.metrics.SnapshotChangeEventSourceMetrics;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
-import io.debezium.relational.history.TableChanges;
 import io.debezium.schema.TopicSelector;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.SQLException;
-import java.util.Collection;
 
 @Slf4j
 public class DamengSourceFetchTaskContext extends JdbcSourceFetchTaskContext {
     @Getter private final DamengConnection connection;
-    private final Collection<TableChanges.TableChange> engineHistory;
     private final DamengEventMetadataProvider metadataProvider;
     private TopicSelector<TableId> topicSelector;
     private DamengDatabaseSchema databaseSchema;
@@ -71,23 +67,16 @@ public class DamengSourceFetchTaskContext extends JdbcSourceFetchTaskContext {
     private DamengErrorHandler errorHandler;
 
     public DamengSourceFetchTaskContext(
-            JdbcSourceConfig sourceConfig,
-            JdbcDataSourceDialect dataSourceDialect,
-            Collection<TableChanges.TableChange> engineHistory) {
+            JdbcSourceConfig sourceConfig, JdbcDataSourceDialect dataSourceDialect) {
         super(sourceConfig, dataSourceDialect);
         this.connection =
                 new DamengConnection(sourceConfig.getDbzConnectorConfig().getJdbcConfig());
-        this.engineHistory = engineHistory;
         this.metadataProvider = new DamengEventMetadataProvider();
     }
 
     @Override
     public void configure(SourceSplitBase sourceSplitBase) {
-        EmbeddedDatabaseHistory.registerHistory(
-                sourceConfig
-                        .getDbzConfiguration()
-                        .getString(EmbeddedDatabaseHistory.DATABASE_HISTORY_INSTANCE_NAME),
-                engineHistory);
+        super.registerDatabaseHistory(sourceSplitBase, connection);
         DamengConnectorConfig connectorConfig = getDbzConnectorConfig();
 
         this.topicSelector = DamengTopicSelector.defaultSelector(connectorConfig);

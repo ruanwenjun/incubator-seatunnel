@@ -19,10 +19,14 @@ package org.apache.seatunnel.connectors.cdc.debezium;
 
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.connectors.cdc.base.schema.SchemaChangeResolver;
 
 import org.apache.kafka.connect.source.SourceRecord;
 
+import io.debezium.relational.TableId;
+
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * The deserialization schema describes how to turn the Debezium SourceRecord into data types
@@ -36,4 +40,12 @@ public interface DebeziumDeserializationSchema<T> extends Serializable {
     void deserialize(SourceRecord record, Collector<T> out) throws Exception;
 
     SeaTunnelDataType<T> getProducedType();
+
+    default void restoreCheckpointProducedType(SeaTunnelDataType<T> checkpointDataType) {}
+
+    default SchemaChangeResolver getSchemaChangeResolver() {
+        return null;
+    }
+
+    Map<TableId, byte[]> getHistoryTableChanges();
 }

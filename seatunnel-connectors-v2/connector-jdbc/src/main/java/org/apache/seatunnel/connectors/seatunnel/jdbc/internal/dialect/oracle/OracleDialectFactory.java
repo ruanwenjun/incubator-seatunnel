@@ -34,4 +34,9 @@ public class OracleDialectFactory implements JdbcDialectFactory {
     public JdbcDialect create() {
         return new OracleDialect();
     }
+
+    @Override
+    public JdbcDialect create(String fieldIde) {
+        return new OracleDialect(fieldIde);
+    }
 }

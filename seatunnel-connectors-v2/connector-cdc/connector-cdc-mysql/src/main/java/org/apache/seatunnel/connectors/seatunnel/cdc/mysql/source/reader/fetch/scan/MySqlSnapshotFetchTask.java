@@ -148,6 +148,7 @@ public class MySqlSnapshotFetchTask implements FetchTask<SourceSplitBase> {
                 context.getSourceConfig()
                         .getDbzConfiguration()
                         .edit()
+                        .with("include.schema.changes", "false")
                         .with("table.include.list", split.getTableId().toString())
                         // Disable heartbeat event in snapshot split fetcher
                         .with(Heartbeat.HEARTBEAT_INTERVAL, 0)

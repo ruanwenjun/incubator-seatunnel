@@ -34,4 +34,9 @@ public class MySqlDialectFactory implements JdbcDialectFactory {
     public JdbcDialect create() {
         return new MysqlDialect();
     }
+
+    @Override
+    public JdbcDialect create(String fieldIde) {
+        return new MysqlDialect(fieldIde);
+    }
 }
