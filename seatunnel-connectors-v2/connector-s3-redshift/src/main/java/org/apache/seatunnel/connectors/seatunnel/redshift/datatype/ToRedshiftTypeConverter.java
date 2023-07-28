@@ -47,7 +47,7 @@ public class ToRedshiftTypeConverter implements Serializable {
                 if (column.getLongColumnLength() != null && column.getLongColumnLength() >= 65535) {
                     return SUPER;
                 }
-                return VARCHAR;
+                return VARCHAR + "(65535)";
             default:
                 return convert(column.getDataType());
         }
@@ -74,7 +74,7 @@ public class ToRedshiftTypeConverter implements Serializable {
             case BOOLEAN:
                 return BOOLEAN;
             case STRING:
-                return VARCHAR;
+                return VARCHAR + "(65535)";
             case BYTES:
                 return VARBINARY;
             case DATE:
