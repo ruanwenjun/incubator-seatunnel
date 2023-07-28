@@ -132,7 +132,7 @@ public class MultiTableSinkWriter
                 Object object = element.getField(primaryKey.get());
                 int index = 0;
                 if (object != null) {
-                    index = object.hashCode() % blockingQueues.size();
+                    index = Math.abs(object.hashCode()) % blockingQueues.size();
                 }
                 BlockingQueue<SeaTunnelRow> queue = blockingQueues.get(index);
                 while (!queue.offer(element, 500, TimeUnit.MILLISECONDS)) {
