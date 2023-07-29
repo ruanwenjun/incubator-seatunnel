@@ -63,22 +63,19 @@ public class HiveDataTypeConvertor implements DataTypeConvertor<String> {
     public static final String HIVE_TIMESTAMP = "timestamp";
     public static final String HIVE_DATE = "date";
     public static final String HIVE_DECIMAL = "decimal";
-    // 字符类型
+
     public static final String HIVE_CHAR = "char";
     public static final String HIVE_VARCHAR = "varchar";
 
-    // 复杂数据类型
     public static final String HIVE_ARRAY = "array";
     public static final String HIVE_MAP = "map";
     public static final String HIVE_STRUCT = "struct";
-    public static final String HIVE_UNION = "union";
+    public static final String HIVE_UNION = "uniontype";
 
-    // 集合类型
     public static final String HIVE_ARRAY_INT = "array<int>";
     public static final String HIVE_MAP_STRING_INT = "map<string,int>";
     public static final String HIVE_STRUCT_NAME_AGE = "struct<name:string,age:int>";
 
-    // 自定义类型
     public static final String HIVE_CUSTOM_TYPE = "custom_type";
 
     @Override
@@ -108,6 +105,7 @@ public class HiveDataTypeConvertor implements DataTypeConvertor<String> {
             case HIVE_DOUBLE:
                 return BasicType.DOUBLE_TYPE;
             case HIVE_STRING:
+            case HIVE_CHAR:
             case HIVE_VARCHAR:
             case HIVE_STRUCT:
             case HIVE_ARRAY:
@@ -126,7 +124,6 @@ public class HiveDataTypeConvertor implements DataTypeConvertor<String> {
                 return LocalTimeType.LOCAL_DATE_TIME_TYPE;
             case HIVE_DECIMAL:
                 return new DecimalType(DEFAULT_PRECISION, DEFAULT_SCALE);
-                // 添加其他 Hive 数据类型的转换逻辑
             default:
                 throw new UnsupportedOperationException(
                         String.format("Doesn't support HIVE type '%s''  yet.", connectorDataType));
