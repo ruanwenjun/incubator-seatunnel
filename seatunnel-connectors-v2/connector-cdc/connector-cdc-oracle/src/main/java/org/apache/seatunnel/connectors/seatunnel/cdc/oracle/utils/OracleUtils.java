@@ -37,10 +37,13 @@ import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.schema.TopicSelector;
 import io.debezium.util.SchemaNameAdjuster;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -50,6 +53,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /** Utils to prepare Oracle SQL statement. */
+@Slf4j
 public class OracleUtils {
 
     private OracleUtils() {}
@@ -140,6 +144,56 @@ public class OracleUtils {
                     }
                     return results.toArray();
                 });
+    }
+
+    public static Object[] skipReadAndSortSampleData(
+            JdbcConnection jdbc, TableId tableId, String columnName, int inverseSamplingRate)
+            throws SQLException {
+        final String sampleQuery =
+                String.format("SELECT %s FROM %s", quote(columnName), quoteSchemaAndTable(tableId));
+
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        List<Object> results = new ArrayList<>();
+        try {
+            stmt =
+                    jdbc.connection()
+                            .createStatement(
+                                    ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+
+            stmt.setFetchSize(Integer.MIN_VALUE);
+            rs = stmt.executeQuery(sampleQuery);
+
+            int count = 0;
+            while (rs.next()) {
+                count++;
+                if (count % 100000 == 0) {
+                    log.info("Processing row index: {}", count);
+                }
+                if (count % inverseSamplingRate == 0) {
+                    results.add(rs.getObject(1));
+                }
+            }
+        } finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    log.error("Failed to close ResultSet", e);
+                }
+            }
+            if (stmt != null) {
+                try {
+                    stmt.close();
+                } catch (SQLException e) {
+                    log.error("Failed to close Statement", e);
+                }
+            }
+        }
+        Object[] resultsArray = results.toArray();
+        Arrays.sort(resultsArray);
+        return resultsArray;
     }
 
     public static Object queryNextChunkMax(
