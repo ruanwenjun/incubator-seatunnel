@@ -80,8 +80,8 @@ public class S3RedshiftSQLGenerator implements Serializable {
     public String generateCreateTableSQL() {
         String ddl =
                 String.format(
-                        "CREATE TABLE IF NOT EXISTS %s (%s)",
-                        conf.getRedshiftTable(), generateTableColumnDefinition());
+                        "CREATE TABLE IF NOT EXISTS %s.%s (%s)",
+                        conf.getSchema(), conf.getRedshiftTable(), generateTableColumnDefinition());
         List<String> sortKey = getTableSortKey();
         if (!sortKey.isEmpty()) {
             ddl = ddl + String.format(" SORTKEY(%s)", String.join(",", sortKey));
@@ -92,8 +92,10 @@ public class S3RedshiftSQLGenerator implements Serializable {
     public String generateCreateTemporaryTableSQL() {
         String ddl =
                 String.format(
-                        "CREATE TABLE IF NOT EXISTS %s (%s)",
-                        conf.getTemporaryTableName(), generateTableColumnDefinition());
+                        "CREATE TABLE IF NOT EXISTS %s.%s (%s)",
+                        conf.getSchema(),
+                        conf.getTemporaryTableName(),
+                        generateTableColumnDefinition());
         List<String> sortKey = getTableSortKey();
         if (!sortKey.isEmpty()) {
             ddl = ddl + String.format(" SORTKEY(%s)", String.join(",", sortKey));
@@ -110,7 +112,8 @@ public class S3RedshiftSQLGenerator implements Serializable {
         if (!Strings.isNullOrEmpty(conf.getAccessKey())
                 && !Strings.isNullOrEmpty(conf.getSecretKey())) {
             return String.format(
-                    "COPY %s(%s) FROM '%s/${path}' ACCESS_KEY_ID '%s' SECRET_ACCESS_KEY '%s' FORMAT ORC SERIALIZETOJSON",
+                    "COPY %s.%s(%s) FROM '%s/${path}' ACCESS_KEY_ID '%s' SECRET_ACCESS_KEY '%s' FORMAT ORC SERIALIZETOJSON",
+                    conf.getSchema(),
                     conf.getTemporaryTableName(),
                     columns,
                     bucket,
@@ -119,18 +122,24 @@ public class S3RedshiftSQLGenerator implements Serializable {
         }
         if (!Strings.isNullOrEmpty(conf.getRedshiftS3IamRole())) {
             return String.format(
-                    "COPY %s(%s) FROM '%s/${path}' IAM_ROLE '%s' FORMAT ORC SERIALIZETOJSON",
-                    conf.getTemporaryTableName(), columns, bucket, conf.getRedshiftS3IamRole());
+                    "COPY %s.%s(%s) FROM '%s/${path}' IAM_ROLE '%s' FORMAT ORC SERIALIZETOJSON",
+                    conf.getSchema(),
+                    conf.getTemporaryTableName(),
+                    columns,
+                    bucket,
+                    conf.getRedshiftS3IamRole());
         }
         throw new IllegalArgumentException("Either accessKey/secretKey or iamRole must be set");
     }
 
     public String generateCleanTemporaryTableSql() {
-        return String.format("TRUNCATE TABLE %s", conf.getTemporaryTableName());
+        return String.format(
+                "TRUNCATE TABLE %s.%s", conf.getSchema(), conf.getTemporaryTableName());
     }
 
     public String generateDropTemporaryTableSql() {
-        return String.format("DROP TABLE IF EXISTS %s", conf.getTemporaryTableName());
+        return String.format(
+                "DROP TABLE IF EXISTS %s.%s", conf.getSchema(), conf.getTemporaryTableName());
     }
 
     public String generateCreateExternalTableSql() {
@@ -180,11 +189,12 @@ public class S3RedshiftSQLGenerator implements Serializable {
                         ? conf.getTemporaryTableName()
                         : conf.getRedshiftExternalSchema() + "." + conf.getTemporaryTableName();
         return String.format(
-                "MERGE INTO %s "
+                "MERGE INTO %s.%s "
                         + "USING %s AS source "
                         + "ON %s "
                         + "WHEN MATCHED THEN %s "
                         + "WHEN NOT MATCHED THEN INSERT (%s) VALUES (%s)",
+                conf.getSchema(),
                 conf.getRedshiftTable(),
                 sourceTable,
                 conditionClause,

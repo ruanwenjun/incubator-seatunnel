@@ -41,6 +41,8 @@ public class S3RedshiftConf implements Serializable {
     private final String jdbcUser;
     private final String jdbcPassword;
     private final String executeSql;
+    private final String database;
+    private final String schema;
 
     private final String s3Bucket;
     private final String accessKey;
@@ -84,6 +86,8 @@ public class S3RedshiftConf implements Serializable {
         builder.jdbcUrl(readonlyConfig.get(S3RedshiftConfig.JDBC_URL));
         builder.jdbcUser(readonlyConfig.get(S3RedshiftConfig.JDBC_USER));
         builder.jdbcPassword(readonlyConfig.get(S3RedshiftConfig.JDBC_PASSWORD));
+        builder.database(readonlyConfig.get(S3RedshiftConfig.DATABASE));
+        builder.schema(readonlyConfig.get(S3RedshiftConfig.SCHEMA_NAME));
         builder.executeSql(readonlyConfig.get(S3RedshiftConfig.EXECUTE_SQL));
 
         builder.s3Bucket(readonlyConfig.get(S3RedshiftConfig.S3_BUCKET));

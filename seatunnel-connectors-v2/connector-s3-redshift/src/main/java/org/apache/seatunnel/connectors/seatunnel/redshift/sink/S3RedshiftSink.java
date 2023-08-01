@@ -26,6 +26,7 @@ import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
+import org.apache.seatunnel.api.sink.SupportMultiTableSink;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.common.config.CheckConfigUtil;
@@ -48,13 +49,15 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 @Slf4j
 @AutoService(SeaTunnelSink.class)
-public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveMode {
+public class S3RedshiftSink extends BaseHdfsFileSink
+        implements SupportDataSaveMode, SupportMultiTableSink {
 
     private DataSaveMode saveMode;
     private S3RedshiftConf s3RedshiftConf;
@@ -161,21 +164,22 @@ public class S3RedshiftSink extends BaseHdfsFileSink implements SupportDataSaveM
             } else {
                 sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, seaTunnelRowType);
             }
-            try {
-                RedshiftJdbcClient.getInstance(s3RedshiftConf)
-                        .execute(sqlGenerator.getCreateTableSQL());
+            try (Connection connection =
+                    new RedshiftJdbcClient(
+                                    s3RedshiftConf.getJdbcUrl(),
+                                    s3RedshiftConf.getJdbcUser(),
+                                    s3RedshiftConf.getJdbcPassword(),
+                                    1)
+                            .getConnection()) {
+                connection.createStatement().execute(sqlGenerator.getCreateTableSQL());
                 log.info("Create table sql: {}", sqlGenerator.getCreateTableSQL());
                 if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
-                    RedshiftJdbcClient.getInstance(s3RedshiftConf)
-                            .execute(sqlGenerator.getDropTemporaryTableSql());
-                    RedshiftJdbcClient.getInstance(s3RedshiftConf)
-                            .execute(sqlGenerator.getCreateTemporaryTableSQL());
+                    connection.createStatement().execute(sqlGenerator.getDropTemporaryTableSql());
+                    connection.createStatement().execute(sqlGenerator.getCreateTemporaryTableSQL());
                     log.info(
                             "Create temporary table sql: {}",
                             sqlGenerator.getCreateTemporaryTableSQL());
                 }
-            } finally {
-                RedshiftJdbcClient.getInstance(s3RedshiftConf).close();
             }
         }
     }

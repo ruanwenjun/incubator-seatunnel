@@ -48,6 +48,18 @@ public class S3RedshiftConfig extends S3Config {
                     .noDefaultValue()
                     .withDescription("Redshift JDBC password");
 
+    public static final Option<String> DATABASE =
+            Options.key("database")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Redshift JDBC database");
+
+    public static final Option<String> SCHEMA_NAME =
+            Options.key("schema_name")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Redshift JDBC schema");
+
     public static final Option<String> EXECUTE_SQL =
             Options.key("execute_sql")
                     .stringType()
