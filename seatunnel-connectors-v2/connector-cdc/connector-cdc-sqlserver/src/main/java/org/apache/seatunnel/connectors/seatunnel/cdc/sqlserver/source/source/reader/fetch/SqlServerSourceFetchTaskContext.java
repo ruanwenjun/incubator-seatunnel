@@ -23,10 +23,7 @@ import org.apache.seatunnel.connectors.cdc.base.dialect.JdbcDataSourceDialect;
 import org.apache.seatunnel.connectors.cdc.base.relational.JdbcSourceEventDispatcher;
 import org.apache.seatunnel.connectors.cdc.base.source.offset.Offset;
 import org.apache.seatunnel.connectors.cdc.base.source.reader.external.JdbcSourceFetchTaskContext;
-import org.apache.seatunnel.connectors.cdc.base.source.split.IncrementalSplit;
-import org.apache.seatunnel.connectors.cdc.base.source.split.SnapshotSplit;
 import org.apache.seatunnel.connectors.cdc.base.source.split.SourceSplitBase;
-import org.apache.seatunnel.connectors.cdc.debezium.EmbeddedDatabaseHistory;
 import org.apache.seatunnel.connectors.seatunnel.cdc.sqlserver.source.config.SqlServerSourceConfig;
 import org.apache.seatunnel.connectors.seatunnel.cdc.sqlserver.source.source.offset.LsnOffset;
 import org.apache.seatunnel.connectors.seatunnel.cdc.sqlserver.source.utils.SqlServerUtils;
@@ -54,7 +51,6 @@ import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
 import io.debezium.relational.Tables;
-import io.debezium.relational.history.TableChanges;
 import io.debezium.schema.DataCollectionId;
 import io.debezium.schema.TopicSelector;
 import io.debezium.util.Collect;
@@ -62,8 +58,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.seatunnel.connectors.seatunnel.cdc.sqlserver.source.utils.SqlServerConnectionUtils.createSqlServerConnection;
@@ -98,7 +92,7 @@ public class SqlServerSourceFetchTaskContext extends JdbcSourceFetchTaskContext 
 
     @Override
     public void configure(SourceSplitBase sourceSplitBase) {
-        registerDatabaseHistory(sourceSplitBase);
+        super.registerDatabaseHistory(sourceSplitBase, dataConnection);
 
         // initial stateful objects
         final SqlServerConnectorConfig connectorConfig = getDbzConnectorConfig();
@@ -250,27 +244,6 @@ public class SqlServerSourceFetchTaskContext extends JdbcSourceFetchTaskContext 
         SqlServerOffsetContext sqlServerOffsetContext = loader.load(offset.getOffset());
 
         return sqlServerOffsetContext;
-    }
-
-    private void registerDatabaseHistory(SourceSplitBase sourceSplitBase) {
-        List<TableChanges.TableChange> engineHistory = new ArrayList<>();
-        // TODO: support save table schema
-        if (sourceSplitBase instanceof SnapshotSplit) {
-            SnapshotSplit snapshotSplit = (SnapshotSplit) sourceSplitBase;
-            engineHistory.add(
-                    dataSourceDialect.queryTableSchema(dataConnection, snapshotSplit.getTableId()));
-        } else {
-            IncrementalSplit incrementalSplit = (IncrementalSplit) sourceSplitBase;
-            for (TableId tableId : incrementalSplit.getTableIds()) {
-                engineHistory.add(dataSourceDialect.queryTableSchema(dataConnection, tableId));
-            }
-        }
-
-        EmbeddedDatabaseHistory.registerHistory(
-                sourceConfig
-                        .getDbzConfiguration()
-                        .getString(EmbeddedDatabaseHistory.DATABASE_HISTORY_INSTANCE_NAME),
-                engineHistory);
     }
 
     public static class SqlServerEventMetadataProvider implements EventMetadataProvider {

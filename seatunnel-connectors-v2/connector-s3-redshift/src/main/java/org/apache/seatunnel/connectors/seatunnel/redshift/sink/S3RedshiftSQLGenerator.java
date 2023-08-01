@@ -30,6 +30,8 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -84,9 +86,15 @@ public class S3RedshiftSQLGenerator implements Serializable {
     }
 
     public String generateCreateTableSQL() {
-        return String.format(
-                "CREATE TABLE IF NOT EXISTS %s (%s)",
-                conf.getRedshiftTable(), generateTableColumnDefinition());
+        String ddl =
+                String.format(
+                        "CREATE TABLE IF NOT EXISTS %s (%s)",
+                        conf.getRedshiftTable(), generateTableColumnDefinition());
+        List<String> sortKey = getTableSortKey();
+        if (!sortKey.isEmpty()) {
+            ddl = ddl + String.format(" SORTKEY(%s)", String.join(",", sortKey));
+        }
+        return ddl;
     }
 
     public String generateDropTableSQL() {
@@ -94,9 +102,15 @@ public class S3RedshiftSQLGenerator implements Serializable {
     }
 
     public String generateCreateTemporaryTableSQL() {
-        return String.format(
-                "CREATE TABLE IF NOT EXISTS %s (%s)",
-                conf.getTemporaryTableName(), generateTableColumnDefinition());
+        String ddl =
+                String.format(
+                        "CREATE TABLE IF NOT EXISTS %s (%s)",
+                        conf.getTemporaryTableName(), generateTableColumnDefinition());
+        List<String> sortKey = getTableSortKey();
+        if (!sortKey.isEmpty()) {
+            ddl = ddl + String.format(" SORTKEY(%s)", String.join(",", sortKey));
+        }
+        return ddl;
     }
 
     public String generateCopyS3FileToTemporaryTableSql() {
@@ -203,6 +217,19 @@ public class S3RedshiftSQLGenerator implements Serializable {
                 matchedClause,
                 sinkFieldsClause,
                 selectSourceFieldsClause);
+    }
+
+    private List<String> getTableSortKey() {
+        if (table != null) {
+            TableSchema tableSchema = table.getTableSchema();
+            PrimaryKey primaryKey = tableSchema.getPrimaryKey();
+            if (primaryKey != null && !primaryKey.getColumnNames().isEmpty()) {
+                return primaryKey.getColumnNames();
+            }
+        } else if (conf.getRedshiftTablePrimaryKeys() != null) {
+            return conf.getRedshiftTablePrimaryKeys();
+        }
+        return Collections.emptyList();
     }
 
     private String generateTableColumnDefinition() {

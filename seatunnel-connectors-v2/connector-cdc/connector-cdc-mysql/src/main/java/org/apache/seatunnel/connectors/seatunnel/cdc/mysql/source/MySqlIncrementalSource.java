@@ -28,6 +28,7 @@ import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
+import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.config.SourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.dialect.DataSourceDialect;
@@ -48,11 +49,21 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.mysql.utils.MySqlConnection
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MySqlCatalogFactory;
 
+import org.apache.kafka.connect.data.Struct;
+
 import com.google.auto.service.AutoService;
 import io.debezium.connector.mysql.MySqlConnectorConfig;
+import io.debezium.jdbc.JdbcConnection;
+import io.debezium.relational.TableId;
+import io.debezium.relational.history.ConnectTableChangeSerializer;
+import io.debezium.relational.history.TableChanges;
 import lombok.NoArgsConstructor;
 
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor
 @AutoService(SeaTunnelSource.class)
@@ -99,11 +110,15 @@ public class MySqlIncrementalSource<T> extends IncrementalSource<T, JdbcSourceCo
     @Override
     public DebeziumDeserializationSchema<T> createDebeziumDeserializationSchema(
             ReadonlyConfig config) {
+
+        Map<TableId, Struct> tableIdTableChangeMap = tableChanges();
+
         if (DeserializeFormat.COMPATIBLE_DEBEZIUM_JSON.equals(
                 config.get(JdbcSourceOptions.FORMAT))) {
             return (DebeziumDeserializationSchema<T>)
                     new DebeziumJsonDeserializeSchema(
-                            config.get(JdbcSourceOptions.DEBEZIUM_PROPERTIES));
+                            config.get(JdbcSourceOptions.DEBEZIUM_PROPERTIES),
+                            tableIdTableChangeMap);
         }
 
         SeaTunnelDataType<SeaTunnelRow> physicalRowType;
@@ -125,6 +140,7 @@ public class MySqlIncrementalSource<T> extends IncrementalSource<T, JdbcSourceCo
                         .setPhysicalRowType(physicalRowType)
                         .setResultTypeInfo(physicalRowType)
                         .setServerTimeZone(ZoneId.of(zoneId))
+                        .setTableIdTableChangeMap(tableIdTableChangeMap)
                         .setSchemaChangeResolver(
                                 new MySqlSchemaChangeResolver(
                                         MySqlConnectionUtils.getValueConverters(
@@ -145,5 +161,31 @@ public class MySqlIncrementalSource<T> extends IncrementalSource<T, JdbcSourceCo
         return new BinlogOffsetFactory(
                 (MySqlSourceConfigFactory) configFactory,
                 (JdbcDataSourceDialect) dataSourceDialect);
+    }
+
+    private Map<TableId, Struct> tableChanges() {
+        JdbcSourceConfig jdbcSourceConfig = configFactory.create(0);
+        MySqlDialect mySqlDialect = new MySqlDialect((MySqlSourceConfigFactory) configFactory);
+        List<TableId> discoverTables = mySqlDialect.discoverDataCollections(jdbcSourceConfig);
+        ConnectTableChangeSerializer connectTableChangeSerializer =
+                new ConnectTableChangeSerializer();
+        try (JdbcConnection jdbcConnection = mySqlDialect.openJdbcConnection(jdbcSourceConfig)) {
+            return discoverTables.stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Function.identity(),
+                                    (tableId) -> {
+                                        TableChanges tableChanges = new TableChanges();
+                                        tableChanges.create(
+                                                mySqlDialect
+                                                        .queryTableSchema(jdbcConnection, tableId)
+                                                        .getTable());
+                                        return connectTableChangeSerializer
+                                                .serialize(tableChanges)
+                                                .get(0);
+                                    }));
+        } catch (Exception e) {
+            throw new SeaTunnelException(e);
+        }
     }
 }

@@ -25,6 +25,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @ToString(
@@ -50,23 +51,36 @@ public class IncrementalSplit extends SourceSplitBase {
 
     private final SeaTunnelDataType checkpointDataType;
 
+    private final Map<TableId, byte[]> historyTableChanges;
+
     public IncrementalSplit(
             String splitId,
             List<TableId> capturedTables,
             Offset startupOffset,
             Offset stopOffset,
             List<CompletedSnapshotSplitInfo> completedSnapshotSplitInfos) {
-        this(splitId, capturedTables, startupOffset, stopOffset, completedSnapshotSplitInfos, null);
+        this(
+                splitId,
+                capturedTables,
+                startupOffset,
+                stopOffset,
+                completedSnapshotSplitInfos,
+                null,
+                null);
     }
 
-    public IncrementalSplit(IncrementalSplit split, SeaTunnelDataType checkpointDataType) {
+    public IncrementalSplit(
+            IncrementalSplit split,
+            SeaTunnelDataType checkpointDataType,
+            Map<TableId, byte[]> historyTableChanges) {
         this(
                 split.splitId(),
                 split.getTableIds(),
                 split.getStartupOffset(),
                 split.getStopOffset(),
                 split.getCompletedSnapshotSplitInfos(),
-                checkpointDataType);
+                checkpointDataType,
+                historyTableChanges);
     }
 
     public IncrementalSplit(
@@ -75,12 +89,14 @@ public class IncrementalSplit extends SourceSplitBase {
             Offset startupOffset,
             Offset stopOffset,
             List<CompletedSnapshotSplitInfo> completedSnapshotSplitInfos,
-            SeaTunnelDataType checkpointDataType) {
+            SeaTunnelDataType checkpointDataType,
+            Map<TableId, byte[]> historyTableChanges) {
         super(splitId);
         this.tableIds = capturedTables;
         this.startupOffset = startupOffset;
         this.stopOffset = stopOffset;
         this.completedSnapshotSplitInfos = completedSnapshotSplitInfos;
         this.checkpointDataType = checkpointDataType;
+        this.historyTableChanges = historyTableChanges;
     }
 }
