@@ -73,6 +73,8 @@ public class IncrementalSplitAssigner<C extends SourceConfig> implements SplitAs
     private boolean startWithSnapshotMinimumOffset = true;
     private SeaTunnelDataType checkpointDataType;
 
+    private Map<TableId, byte[]> historyTableChanges;
+
     public IncrementalSplitAssigner(
             SplitAssigner.Context<C> context,
             int incrementalParallelism,
@@ -155,6 +157,7 @@ public class IncrementalSplitAssigner<C extends SourceConfig> implements SplitAs
                                 tableWatermarks.put(tableId, startupOffset);
                             }
                             checkpointDataType = incrementalSplit.getCheckpointDataType();
+                            historyTableChanges = incrementalSplit.getHistoryTableChanges();
                         });
         if (!tableWatermarks.isEmpty()) {
             this.startWithSnapshotMinimumOffset = false;
@@ -253,6 +256,7 @@ public class IncrementalSplitAssigner<C extends SourceConfig> implements SplitAs
                 incrementalSplitStartOffset,
                 sourceConfig.getStopConfig().getStopOffset(offsetFactory),
                 completedSnapshotSplitInfos,
-                checkpointDataType);
+                checkpointDataType,
+                historyTableChanges);
     }
 }

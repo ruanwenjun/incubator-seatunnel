@@ -216,7 +216,7 @@ public class JobMaster {
                         runningJobStateIMap,
                         runningJobStateTimestampsIMap,
                         engineConfig.getQueueType(),
-                        jobCheckpointConfig);
+                        engineConfig);
         this.physicalPlan = planTuple.f0();
         this.physicalPlan.setJobMaster(this);
         this.checkpointPlanMap = planTuple.f1();
@@ -273,7 +273,8 @@ public class JobMaster {
 
         if (jobEnv.containsKey(EnvCommonOptions.CHECKPOINT_INTERVAL.key())) {
             jobCheckpointConfig.setCheckpointInterval(
-                    (Long) jobEnv.get(EnvCommonOptions.CHECKPOINT_INTERVAL.key()));
+                    Long.parseLong(
+                            jobEnv.get(EnvCommonOptions.CHECKPOINT_INTERVAL.key()).toString()));
         }
         return jobCheckpointConfig;
     }
@@ -325,7 +326,10 @@ public class JobMaster {
         }
     }
 
-    public void handleCheckpointError(long pipelineId) {
+    public void handleCheckpointError(long pipelineId, boolean neverRestore) {
+        if (neverRestore) {
+            this.neverNeedRestore();
+        }
         this.physicalPlan
                 .getPipelineList()
                 .forEach(
@@ -373,10 +377,7 @@ public class JobMaster {
         if (jobDAGInfo == null) {
             jobDAGInfo =
                     DAGUtils.getJobDAGInfo(
-                            logicalDag,
-                            jobImmutableInformation,
-                            engineConfig.getCheckpointConfig(),
-                            isPhysicalDAGIInfo);
+                            logicalDag, jobImmutableInformation, engineConfig, isPhysicalDAGIInfo);
         }
         return jobDAGInfo;
     }

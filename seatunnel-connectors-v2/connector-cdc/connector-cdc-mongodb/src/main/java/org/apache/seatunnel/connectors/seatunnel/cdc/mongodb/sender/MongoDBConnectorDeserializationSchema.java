@@ -26,7 +26,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.api.table.type.SqlType;
-import org.apache.seatunnel.connectors.cdc.debezium.DebeziumDeserializationSchema;
+import org.apache.seatunnel.connectors.cdc.debezium.AbstractDebeziumDeserializationSchema;
 import org.apache.seatunnel.connectors.seatunnel.cdc.mongodb.exception.MongodbConnectorException;
 
 import org.apache.kafka.connect.data.Schema;
@@ -41,6 +41,7 @@ import org.bson.json.JsonWriterSettings;
 import org.bson.types.Decimal128;
 
 import com.mongodb.client.model.changestream.OperationType;
+import io.debezium.relational.TableId;
 
 import javax.annotation.Nonnull;
 
@@ -68,7 +69,7 @@ import static org.apache.seatunnel.connectors.seatunnel.cdc.mongodb.config.Mongo
 import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkNotNull;
 
 public class MongoDBConnectorDeserializationSchema
-        implements DebeziumDeserializationSchema<SeaTunnelRow> {
+        extends AbstractDebeziumDeserializationSchema<SeaTunnelRow> {
 
     private final SeaTunnelDataType<SeaTunnelRow> resultTypeInfo;
 
@@ -76,7 +77,9 @@ public class MongoDBConnectorDeserializationSchema
 
     public MongoDBConnectorDeserializationSchema(
             SeaTunnelDataType<SeaTunnelRow> physicalDataType,
-            SeaTunnelDataType<SeaTunnelRow> resultTypeInfo) {
+            SeaTunnelDataType<SeaTunnelRow> resultTypeInfo,
+            Map<TableId, Struct> tableIdTableChangeMap) {
+        super(tableIdTableChangeMap);
         this.physicalConverter = createConverter(physicalDataType);
         this.resultTypeInfo = resultTypeInfo;
     }

@@ -28,11 +28,10 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.executor.JdbcBatc
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -155,6 +154,20 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
         jdbcStatementExecutor.addToBatch(record);
     }
 
+    private void testOnBorrow() {
+        try {
+            if (!connectionProvider.isConnectionValid()) {
+                LOG.debug("Connection is invalid, try to reconnect.");
+                updateExecutor(true);
+            }
+        } catch (Exception e) {
+            throw new JdbcConnectorException(
+                    JdbcConnectorErrorCode.CONNECT_DATABASE_FAILED,
+                    "Reestablish JDBC connection failed",
+                    e);
+        }
+    }
+
     public synchronized void flush() throws IOException {
         if (flushException != null) {
             LOG.warn(
@@ -163,13 +176,19 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                             ExceptionUtils.getMessage(flushException)));
             return;
         }
+
+        testOnBorrow();
+
         final int sleepMs = 1000;
         for (int i = 0; i <= jdbcConnectionConfig.getMaxRetries(); i++) {
             try {
                 attemptFlush();
                 batchCount = 0;
                 break;
-            } catch (SQLException e) {
+            } catch (Exception e) {
+                if (!(Throwables.getRootCause(e) instanceof SQLException)) {
+                    throw new JdbcConnectorException(CommonErrorCode.FLUSH_DATA_FAILED, e);
+                }
                 LOG.error("JDBC executeBatch error, retry times = {}", i, e);
                 if (i >= jdbcConnectionConfig.getMaxRetries()) {
                     throw new JdbcConnectorException(CommonErrorCode.FLUSH_DATA_FAILED, e);
@@ -214,34 +233,28 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                 this.scheduler.shutdown();
             }
 
-            if (batchCount > 0) {
-                try {
-                    flush();
-                } catch (Exception e) {
-                    LOG.warn("Writing records to JDBC failed.", e);
-                    throw new JdbcConnectorException(
-                            CommonErrorCode.FLUSH_DATA_FAILED,
-                            "Writing records to JDBC failed.",
-                            e);
-                }
-            }
-
             try {
+                if (batchCount > 0) {
+                    flush();
+                }
                 if (jdbcStatementExecutor != null) {
                     jdbcStatementExecutor.closeStatements();
                 }
-            } catch (SQLException e) {
+            } catch (Exception e) {
                 LOG.warn("Close JDBC writer failed.", e);
+                throw new JdbcConnectorException(
+                        CommonErrorCode.FLUSH_DATA_FAILED, "Close JDBC writer failed.", e);
+            } finally {
+                connectionProvider.closeConnection();
             }
+            checkFlushException();
         }
-        connectionProvider.closeConnection();
-        checkFlushException();
     }
 
     public void updateExecutor(boolean reconnect) throws SQLException, ClassNotFoundException {
         try {
             jdbcStatementExecutor.closeStatements();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             if (!reconnect) {
                 throw e;
             }
@@ -251,11 +264,6 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                 reconnect
                         ? connectionProvider.reestablishConnection()
                         : connectionProvider.getConnection());
-    }
-
-    @VisibleForTesting
-    public Connection getConnection() {
-        return connectionProvider.getConnection();
     }
 
     /**

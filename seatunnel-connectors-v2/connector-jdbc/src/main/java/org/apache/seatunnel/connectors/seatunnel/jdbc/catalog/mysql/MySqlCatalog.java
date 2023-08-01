@@ -217,13 +217,13 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         int scale = resultSet.getInt("NUMERIC_SCALE");
         long columnLength = resultSet.getLong("CHARACTER_MAXIMUM_LENGTH");
         long octetLength = resultSet.getLong("CHARACTER_OCTET_LENGTH");
-        SeaTunnelDataType<?> type = fromJdbcType(typeName, precision, scale);
+        SeaTunnelDataType<?> type = fromJdbcType(sourceType, precision, scale);
         String comment = resultSet.getString("COLUMN_COMMENT");
         Object defaultValue = resultSet.getObject("COLUMN_DEFAULT");
         String isNullableStr = resultSet.getString("IS_NULLABLE");
         boolean isNullable = isNullableStr.equals("YES");
         long bitLen = 0;
-        MysqlType mysqlType = MysqlType.valueOf(typeName);
+        MysqlType mysqlType = MysqlType.getByName(sourceType);
         switch (mysqlType) {
             case BIT:
                 bitLen = precision;

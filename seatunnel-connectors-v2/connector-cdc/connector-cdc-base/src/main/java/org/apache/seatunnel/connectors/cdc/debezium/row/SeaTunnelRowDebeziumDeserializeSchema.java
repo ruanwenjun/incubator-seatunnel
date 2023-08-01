@@ -29,8 +29,8 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.cdc.base.schema.SchemaChangeResolver;
 import org.apache.seatunnel.connectors.cdc.base.utils.SourceRecordUtils;
+import org.apache.seatunnel.connectors.cdc.debezium.AbstractDebeziumDeserializationSchema;
 import org.apache.seatunnel.connectors.cdc.debezium.DebeziumDeserializationConverterFactory;
-import org.apache.seatunnel.connectors.cdc.debezium.DebeziumDeserializationSchema;
 import org.apache.seatunnel.connectors.cdc.debezium.MetadataConverter;
 
 import org.apache.kafka.connect.data.Schema;
@@ -38,6 +38,7 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 
 import io.debezium.data.Envelope;
+import io.debezium.relational.TableId;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -57,7 +58,7 @@ import static org.apache.seatunnel.connectors.cdc.base.utils.SourceRecordUtils.i
 /** Deserialization schema from Debezium object to {@link SeaTunnelRow}. */
 @Slf4j
 public final class SeaTunnelRowDebeziumDeserializeSchema
-        implements DebeziumDeserializationSchema<SeaTunnelRow> {
+        extends AbstractDebeziumDeserializationSchema<SeaTunnelRow> {
     private static final long serialVersionUID = 1L;
     private static final String DEFAULT_TABLE_NAME_KEY = null;
 
@@ -75,7 +76,9 @@ public final class SeaTunnelRowDebeziumDeserializeSchema
             SeaTunnelDataType<SeaTunnelRow> resultType,
             ZoneId serverTimeZone,
             DebeziumDeserializationConverterFactory userDefinedConverterFactory,
-            SchemaChangeResolver schemaChangeResolver) {
+            SchemaChangeResolver schemaChangeResolver,
+            Map<TableId, Struct> tableIdTableChangeMap) {
+        super(tableIdTableChangeMap);
         this.metadataConverters = metadataConverters;
         this.serverTimeZone = serverTimeZone;
         this.userDefinedConverterFactory = userDefinedConverterFactory;
@@ -93,6 +96,7 @@ public final class SeaTunnelRowDebeziumDeserializeSchema
     @Override
     public void deserialize(SourceRecord record, Collector<SeaTunnelRow> collector)
             throws Exception {
+        super.deserialize(record, collector);
         if (isSchemaChangeBeforeWatermarkEvent(record)) {
             collector.markSchemaChangeBeforeCheckpoint();
             return;
@@ -317,6 +321,7 @@ public final class SeaTunnelRowDebeziumDeserializeSchema
         private DebeziumDeserializationConverterFactory userDefinedConverterFactory =
                 DebeziumDeserializationConverterFactory.DEFAULT;
         private SchemaChangeResolver schemaChangeResolver;
+        private Map<TableId, Struct> tableIdTableChangeMap;
 
         public SeaTunnelRowDebeziumDeserializeSchema build() {
             return new SeaTunnelRowDebeziumDeserializeSchema(
@@ -325,7 +330,8 @@ public final class SeaTunnelRowDebeziumDeserializeSchema
                     resultTypeInfo,
                     serverTimeZone,
                     userDefinedConverterFactory,
-                    schemaChangeResolver);
+                    schemaChangeResolver,
+                    tableIdTableChangeMap);
         }
     }
 }

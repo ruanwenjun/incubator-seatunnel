@@ -22,7 +22,7 @@ import org.apache.seatunnel.api.table.event.SchemaChangeEvent;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.connectors.cdc.base.schema.SchemaChangeResolver;
 import org.apache.seatunnel.connectors.cdc.base.utils.SourceRecordUtils;
-import org.apache.seatunnel.connectors.seatunnel.cdc.mysql.schema.ddl.ConnectTableChangeSerializer;
+import org.apache.seatunnel.connectors.cdc.debezium.ConnectTableChangeSerializer;
 import org.apache.seatunnel.connectors.seatunnel.cdc.mysql.schema.ddl.MySqlAntlrDdlParser;
 
 import org.apache.kafka.connect.data.Struct;

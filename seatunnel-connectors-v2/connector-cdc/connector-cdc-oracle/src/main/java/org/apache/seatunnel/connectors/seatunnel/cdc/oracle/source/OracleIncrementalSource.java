@@ -42,14 +42,23 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle.config.OracleSourceO
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle.source.offset.RedoLogOffsetFactory;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
 
+import org.apache.kafka.connect.data.Struct;
+
 import com.google.auto.service.AutoService;
 import io.debezium.connector.oracle.OracleConnection;
+import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.relational.history.ConnectTableChangeSerializer;
+import io.debezium.relational.history.TableChanges;
 import lombok.NoArgsConstructor;
 
 import java.sql.SQLException;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.seatunnel.connectors.seatunnel.cdc.oracle.utils.OracleConnectionUtils.createOracleConnection;
 import static org.apache.seatunnel.connectors.seatunnel.cdc.oracle.utils.OracleTypeUtils.convertFromTable;
@@ -95,11 +104,12 @@ public class OracleIncrementalSource<T> extends IncrementalSource<T, JdbcSourceC
     @Override
     public DebeziumDeserializationSchema<T> createDebeziumDeserializationSchema(
             ReadonlyConfig config) {
+        Map<TableId, Struct> tableIdStructMap = tableChanges();
         if (DeserializeFormat.COMPATIBLE_DEBEZIUM_JSON.equals(
                 config.get(JdbcSourceOptions.FORMAT))) {
             return (DebeziumDeserializationSchema<T>)
                     new DebeziumJsonDeserializeSchema(
-                            config.get(JdbcSourceOptions.DEBEZIUM_PROPERTIES));
+                            config.get(JdbcSourceOptions.DEBEZIUM_PROPERTIES), tableIdStructMap);
         }
 
         SeaTunnelDataType<SeaTunnelRow> physicalRowType;
@@ -127,6 +137,7 @@ public class OracleIncrementalSource<T> extends IncrementalSource<T, JdbcSourceC
                 SeaTunnelRowDebeziumDeserializeSchema.builder()
                         .setPhysicalRowType(physicalRowType)
                         .setResultTypeInfo(physicalRowType)
+                        .setTableIdTableChangeMap(tableIdStructMap)
                         .setServerTimeZone(ZoneId.of(zoneId))
                         .build();
     }
@@ -140,5 +151,30 @@ public class OracleIncrementalSource<T> extends IncrementalSource<T, JdbcSourceC
     public OffsetFactory createOffsetFactory(ReadonlyConfig config) {
         return new RedoLogOffsetFactory(
                 (OracleSourceConfigFactory) configFactory, (OracleDialect) dataSourceDialect);
+    }
+
+    private Map<TableId, Struct> tableChanges() {
+        JdbcSourceConfig jdbcSourceConfig = configFactory.create(0);
+        OracleDialect dialect = new OracleDialect((OracleSourceConfigFactory) configFactory);
+        List<TableId> discoverTables = dialect.discoverDataCollections(jdbcSourceConfig);
+        ConnectTableChangeSerializer connectTableChangeSerializer =
+                new ConnectTableChangeSerializer();
+        try (JdbcConnection jdbcConnection = dialect.openJdbcConnection(jdbcSourceConfig)) {
+            return discoverTables.stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Function.identity(),
+                                    (tableId) -> {
+                                        TableChanges tableChanges = new TableChanges();
+                                        tableChanges.create(
+                                                dialect.queryTableSchema(jdbcConnection, tableId)
+                                                        .getTable());
+                                        return connectTableChangeSerializer
+                                                .serialize(tableChanges)
+                                                .get(0);
+                                    }));
+        } catch (Exception e) {
+            throw new SeaTunnelException(e);
+        }
     }
 }

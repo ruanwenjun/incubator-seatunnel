@@ -150,10 +150,10 @@ public class SourceFlowLifeCycle<T, SplitT extends SourceSplit> extends ActionFl
             }
 
             reader.pollNext(collector);
-            if (collector.getRowCountThisPollNext() == 0) {
+            if (collector.isEmptyThisPollNext()) {
                 Thread.sleep(100);
             } else {
-                collector.resetRowCountThisPollNext();
+                collector.resetEmptyThisPollNext();
             }
 
             if (collector.captureSchemaChangeBeforeCheckpointSignal()) {
@@ -175,6 +175,8 @@ public class SourceFlowLifeCycle<T, SplitT extends SourceSplit> extends ActionFl
                 schemaChangePhase.set(SchemaChangePhase.createAfterPhase());
                 log.info("triggered schema-change-after checkpoint, stopping collect data");
             }
+        } else {
+            Thread.sleep(100);
         }
     }
 

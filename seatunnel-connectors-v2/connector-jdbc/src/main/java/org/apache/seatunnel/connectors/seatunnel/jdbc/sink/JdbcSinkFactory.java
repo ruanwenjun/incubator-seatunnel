@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_REPLICA;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.AUTO_COMMIT;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.BATCH_INTERVAL_MS;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.BATCH_SIZE;
@@ -176,6 +177,8 @@ public class JdbcSinkFactory implements TableSinkFactory {
                         ENABLE_UPSERT,
                         PRIMARY_KEYS,
                         SUPPORT_UPSERT_BY_INSERT_ONLY,
+                        IS_PRIMARY_KEY_UPDATED,
+                        MULTI_TABLE_SINK_REPLICA,
                         IS_PRIMARY_KEY_UPDATED,
                         SAVE_MODE)
                 .conditional(

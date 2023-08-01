@@ -49,7 +49,7 @@ public class SeaTunnelSourceCollector<T> implements Collector<T> {
 
     private final Meter sourceReceivedQPS;
 
-    private volatile long rowCountThisPollNext;
+    private volatile boolean emptyThisPollNext;
 
     public SeaTunnelSourceCollector(
             Object checkpointLock,
@@ -65,7 +65,7 @@ public class SeaTunnelSourceCollector<T> implements Collector<T> {
     public void collect(T row) {
         try {
             sendRecordToNext(new Record<>(row));
-            rowCountThisPollNext++;
+            emptyThisPollNext = false;
             sourceReceivedCount.inc();
             sourceReceivedQPS.markEvent();
         } catch (IOException e) {
@@ -125,12 +125,12 @@ public class SeaTunnelSourceCollector<T> implements Collector<T> {
         return checkpointLock;
     }
 
-    public long getRowCountThisPollNext() {
-        return this.rowCountThisPollNext;
+    public boolean isEmptyThisPollNext() {
+        return emptyThisPollNext;
     }
 
-    public void resetRowCountThisPollNext() {
-        this.rowCountThisPollNext = 0;
+    public void resetEmptyThisPollNext() {
+        this.emptyThisPollNext = true;
     }
 
     public void sendRecordToNext(Record<?> record) throws IOException {
