@@ -17,8 +17,6 @@
 
 package org.apache.seatunnel.api.table.catalog;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.table.catalog.exception.CatalogException;
 import org.apache.seatunnel.api.table.catalog.exception.DatabaseAlreadyExistException;
@@ -26,6 +24,9 @@ import org.apache.seatunnel.api.table.catalog.exception.DatabaseNotExistExceptio
 import org.apache.seatunnel.api.table.catalog.exception.TableAlreadyExistException;
 import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
 import org.apache.seatunnel.api.table.factory.Factory;
+
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -126,14 +127,15 @@ public interface Catalog extends AutoCloseable {
         List<String> tableNames = config.get(CatalogOptions.TABLE_NAMES);
         List<CatalogTable> catalogTables = Collections.synchronizedList(new ArrayList<>());
         if (CollectionUtils.isNotEmpty(tableNames)) {
-            tableNames.parallelStream()
-                .forEach(
-                    tableName -> {
-                        TablePath tablePath = TablePath.of(tableName);
-                        if (this.tableExists(tablePath)) {
-                            catalogTables.add(this.getTable(tablePath));
-                        }
-                    });
+            tableNames
+                    .parallelStream()
+                    .forEach(
+                            tableName -> {
+                                TablePath tablePath = TablePath.of(tableName);
+                                if (this.tableExists(tablePath)) {
+                                    catalogTables.add(this.getTable(tablePath));
+                                }
+                            });
             return catalogTables;
         }
 
