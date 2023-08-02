@@ -490,7 +490,9 @@ public class CoordinatorService {
             CompletableFuture<JobResult> future = new CompletableFuture<>();
             JobHistoryService.JobState jobDetailState = jobHistoryService.getJobDetailState(jobId);
             if (jobDetailState == null) {
-                future.complete(new JobResult(JobStatus.FAILED, null));
+                // If the Job doesn't exist, return a CANCELED JobResult
+                // Since the CancelJob cannot be recovered
+                future.complete(new JobResult(JobStatus.CANCELED, null));
                 return new PassiveCompletableFuture<>(future);
             }
             JobStatus jobStatus = jobDetailState.getJobStatus();
