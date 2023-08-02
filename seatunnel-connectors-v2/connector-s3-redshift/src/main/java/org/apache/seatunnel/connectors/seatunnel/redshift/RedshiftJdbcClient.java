@@ -85,25 +85,26 @@ public class RedshiftJdbcClient implements AutoCloseable {
     }
 
     public Map<String, ImmutablePair<Object, Object>> querySortValues(String sql, String[] sortKeys)
-        throws Exception {
+            throws Exception {
         Map<String, ImmutablePair<Object, Object>> result = new HashMap<>();
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection = getConnection();
+                Statement statement = connection.createStatement()) {
             ResultSet resultSet = statement.executeQuery(sql);
             while (resultSet.next()) {
                 for (int i = 1; i < sortKeys.length + 1; i++) {
                     int j = i * 2;
                     result.put(
-                        sortKeys[i - 1],
-                        new ImmutablePair<>(
-                            resultSet.getObject(j - 1), resultSet.getObject(j)));
+                            sortKeys[i - 1],
+                            new ImmutablePair<>(
+                                    resultSet.getObject(j - 1), resultSet.getObject(j)));
                 }
             }
             return result;
         } catch (SQLException e) {
             throw new S3RedshiftConnectorException(
-                CommonErrorCode.SQL_OPERATION_FAILED,
-                String.format("Execute sql failed, sql is %s ", sql),
-                e);
+                    CommonErrorCode.SQL_OPERATION_FAILED,
+                    String.format("Execute sql failed, sql is %s ", sql),
+                    e);
         }
     }
 

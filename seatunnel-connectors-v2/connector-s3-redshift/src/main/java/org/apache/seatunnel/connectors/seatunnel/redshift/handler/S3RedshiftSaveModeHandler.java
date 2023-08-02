@@ -6,7 +6,7 @@ import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
-import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftSQLGenerator;
 
 import lombok.extern.slf4j.Slf4j;
@@ -97,7 +97,7 @@ public class S3RedshiftSaveModeHandler {
                     statement.execute(sqlGenerator.getCreateTemporaryTableSQL());
                     if (existDataForSql(sqlGenerator.getIsExistTableSql(), statement)) {
                         if (existDataForSql(sqlGenerator.getIsExistDataSql(), statement)) {
-                            throw new S3RedshiftJdbcConnectorException(
+                            throw new S3RedshiftConnectorException(
                                     SOURCE_ALREADY_HAS_DATA,
                                     "The target data source already has data");
                         }
