@@ -26,7 +26,7 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.datatype.ToRedshiftTypeConverter;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorErrorCode;
-import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileCommitInfo;
 
 import lombok.extern.slf4j.Slf4j;
@@ -135,7 +135,7 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
         try {
             updateRedshiftTableSchema(event);
         } catch (Exception e) {
-            throw new S3RedshiftJdbcConnectorException(
+            throw new S3RedshiftConnectorException(
                     S3RedshiftConnectorErrorCode.UPDATE_REDSHIFT_SCHEMA_FAILED,
                     "update redshift table schema failed",
                     e);
@@ -270,10 +270,7 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
                                                         fileCommitInfo
                                                                 .getPartitionDirAndValuesMap(),
                                                         fileCommitInfo.getTransactionDir(),
-                                                        schemaChanged
-                                                                ? writeStrategy
-                                                                        .getSeaTunnelRowTypeInfo()
-                                                                : null)))
+                                                        writeStrategy.getSeaTunnelRowTypeInfo())))
                         .orElseGet(
                                 () ->
                                         Optional.of(
@@ -281,10 +278,7 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
                                                         null,
                                                         null,
                                                         null,
-                                                        schemaChanged
-                                                                ? writeStrategy
-                                                                        .getSeaTunnelRowTypeInfo()
-                                                                : null)));
+                                                        writeStrategy.getSeaTunnelRowTypeInfo())));
         schemaChanged = false;
         return result;
     }

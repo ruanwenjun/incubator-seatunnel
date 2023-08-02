@@ -51,6 +51,7 @@ public class S3RedshiftChangelogWriteStrategy extends AbstractWriteStrategy {
         for (SeaTunnelRow row : batch) {
             delegate.write(row);
         }
+        delegate.finishAndCloseFile();
     }
 
     @Override

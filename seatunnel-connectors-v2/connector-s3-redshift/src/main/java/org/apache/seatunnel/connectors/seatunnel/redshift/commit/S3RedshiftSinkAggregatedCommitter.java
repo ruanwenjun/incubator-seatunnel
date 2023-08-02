@@ -27,13 +27,13 @@ import org.apache.seatunnel.connectors.seatunnel.file.sink.util.FileSystemUtils;
 import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorErrorCode;
-import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
-import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftJdbcMultiTableResourceManager;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftSQLGenerator;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileCommitInfo;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.google.common.base.Stopwatch;
 import lombok.extern.slf4j.Slf4j;
@@ -197,34 +197,20 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                             connection.createStatement().execute(sql);
                             log.info("execute redshift sql is:" + sql);
 
-                            fileSystemUtils.deleteFile(mvFileEntry.getValue());
-                            log.info("delete file {} ", mvFileEntry.getValue());
-                        }
-                        // second delete transaction directory
-                        fileSystemUtils.deleteFile(entry.getKey());
-                        log.info("delete transaction directory {} on commit", entry.getKey());
+                        fileSystemUtils.deleteFile(mvFileEntry.getValue());
+                        log.info("delete file {} ", mvFileEntry.getValue());
                     }
-                } catch (Exception e) {
-                    log.error("commit aggregatedCommitInfo error ", e);
-                    errorAggregatedCommitInfoList.add(aggregatedCommitInfo);
-                    throw new S3RedshiftJdbcConnectorException(
-                            S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
+                    // second delete transaction directory
+                    fileSystemUtils.deleteFile(entry.getKey());
+                    log.info("delete transaction directory {} on commit", entry.getKey());
                 }
-            }
-        } catch (Exception e) {
-            log.error("commit aggregatedCommitInfo error ", e);
-            throw new S3RedshiftJdbcConnectorException(
-                    S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
-        } finally {
-            try {
-                if (connection != null) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                log.error("connection close error ", e);
+            } catch (Exception e) {
+                log.error("commit aggregatedCommitInfo error ", e);
+                errorAggregatedCommitInfoList.add(aggregatedCommitInfo);
+                throw new S3RedshiftConnectorException(
+                        S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
             }
         }
-
         return errorAggregatedCommitInfoList;
     }
 
@@ -243,7 +229,7 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                             log.warn("skip not exist file {}", tempFilePath);
                         } else if (conf.isCopyS3FileToTemporaryTableMode()) {
                             filepath = tempFilePath;
-                            copyS3FileToRedshiftTemporaryTable(filepath);
+                            copyS3FileToRedshiftTemporaryTable(tempFilePath, filepath);
                         } else {
                             loadS3FileToRedshiftExternalTable(tempFilePath, filepath);
                         }
@@ -258,7 +244,7 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
             } catch (Exception e) {
                 log.error("commit aggregatedCommitInfo error ", e);
                 errorAggregatedCommitInfoList.add(aggregatedCommitInfo);
-                throw new S3RedshiftJdbcConnectorException(
+                throw new S3RedshiftConnectorException(
                         S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
             }
         }
@@ -288,12 +274,35 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                     stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
             stopwatch.reset().start();
-            String mergeTemporaryTableSql = sqlGenerator.generateMergeSql();
+            ImmutablePair<String[], String> sortKeyValueQuerySql =
+                sqlGenerator.generateSortKeyValueQuerySql();
+            Map<String, ImmutablePair<Object, Object>> realSortValues =
+                connection.createStatement().querySortValues(sortKeyValueQuerySql.right, sortKeyValueQuerySql.left);
+
+            log.info(
+                "Copy mode, get min max value from tmp table sql: {}, sort key range: {}, cost: {}ms",
+                sortKeyValueQuerySql.right,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+            stopwatch.reset().start();
+            String mergeTemporaryTableSql = sqlGenerator.generateMergeSql(realSortValues);
             connection.createStatement().execute(mergeTemporaryTableSql);
             log.info(
-                    "Copy mode, merge temporary table to target table sql: {}, cost: {}ms",
-                    mergeTemporaryTableSql,
-                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
+                "Copy mode, merge temporary table to target table sql: {}, sort key range: {}, cost: {}ms",
+                mergeTemporaryTableSql,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+            stopwatch.reset().start();
+            String analyseSql = sqlGenerator.generateAnalyseSql(sortKeyValueQuerySql.left);
+            connection.createStatement().execute(analyseSql);
+            log.info(
+                "Copy mode, analyse table sql: {}, sort key range: {}, cost: {}ms",
+                analyseSql,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }
@@ -327,13 +336,36 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                     filepath,
                     stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-            stopwatch.reset().start();
-            String mergeExternalTableSql = sqlGenerator.generateMergeSql();
-            connection.createStatement().execute(mergeExternalTableSql);
-            log.info(
-                    "External table mode, merge external table to target table sql: {}, cost: {}ms",
-                    mergeExternalTableSql,
-                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        stopwatch.reset().start();
+        ImmutablePair<String[], String> sortKeyValueQuerySql =
+                sqlGenerator.generateSortKeyValueQuerySql();
+        Map<String, ImmutablePair<Object, Object>> realSortValues =
+            connection.createStatement()
+                        .querySortValues(sortKeyValueQuerySql.right, sortKeyValueQuerySql.left);
+
+        log.info(
+                "External table mode, get min max value from external table sql: {}, sort key range: {}, cost: {}ms",
+                sortKeyValueQuerySql.right,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+        stopwatch.reset().start();
+        String mergeTemporaryTableSql = sqlGenerator.generateMergeSql(realSortValues);
+            connection.createStatement().execute(mergeTemporaryTableSql);
+        log.info(
+                "External table mode, merge external table to target table sql: {}, sort key range: {}, cost: {}ms",
+                mergeTemporaryTableSql,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+        stopwatch.reset().start();
+        String analyseSql = sqlGenerator.generateAnalyseSql(sortKeyValueQuerySql.left);
+            connection.createStatement().execute(analyseSql);
+        log.info(
+                "External table mode, analyse table sql: {}, sort key range: {}, cost: {}ms",
+                analyseSql,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
         }

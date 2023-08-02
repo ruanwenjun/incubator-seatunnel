@@ -43,7 +43,7 @@ import org.apache.seatunnel.connectors.seatunnel.file.sink.state.FileSinkState;
 import org.apache.seatunnel.connectors.seatunnel.redshift.commit.S3RedshiftSinkAggregatedCommitter;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
-import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.redshift.handler.S3RedshiftSaveModeHandler;
 
 import com.google.auto.service.AutoService;
@@ -96,7 +96,7 @@ public class S3RedshiftSink extends BaseHdfsFileSink
                         S3RedshiftConfig.JDBC_USER.key(),
                         S3RedshiftConfig.JDBC_PASSWORD.key());
         if (!checkResult.isSuccess()) {
-            throw new S3RedshiftJdbcConnectorException(
+            throw new S3RedshiftConnectorException(
                     SeaTunnelAPIErrorCode.CONFIG_VALIDATION_FAILED,
                     String.format(
                             "PluginName: %s, PluginType: %s, Message: %s",
