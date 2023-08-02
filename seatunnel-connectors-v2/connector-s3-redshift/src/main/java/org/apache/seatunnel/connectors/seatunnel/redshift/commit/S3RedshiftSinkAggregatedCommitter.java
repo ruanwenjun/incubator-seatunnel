@@ -17,8 +17,9 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.commit;
 
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkAggregatedCommitter;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
-import org.apache.seatunnel.common.exception.CommonErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileSinkAggregatedCommitter;
@@ -27,6 +28,7 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftJdbcMultiTableResourceManager;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftSQLGenerator;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileCommitInfo;
@@ -37,6 +39,7 @@ import com.google.common.base.Stopwatch;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -47,10 +50,41 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitter {
+public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitter
+        implements SupportMultiTableSinkAggregatedCommitter<RedshiftJdbcClient> {
     private final S3RedshiftConf conf;
     private S3RedshiftSQLGenerator sqlGenerator;
     private SeaTunnelRowType defaultRowType;
+    private transient RedshiftJdbcClient redshiftJdbcClient;
+
+    @Override
+    public void init() {
+        redshiftJdbcClient =
+                new RedshiftJdbcClient(
+                        conf.getJdbcUrl(), conf.getJdbcUser(), conf.getJdbcPassword(), 1);
+    }
+
+    @Override
+    public Optional<MultiTableResourceManager<RedshiftJdbcClient>> initMultiTableResourceManager(
+            int tableSize, int queueSize) {
+        return Optional.of(
+                new S3RedshiftJdbcMultiTableResourceManager(
+                        new RedshiftJdbcClient(
+                                conf.getJdbcUrl(),
+                                conf.getJdbcUser(),
+                                conf.getJdbcPassword(),
+                                queueSize)));
+    }
+
+    @Override
+    public void setMultiTableResourceManager(
+            Optional<MultiTableResourceManager<RedshiftJdbcClient>> multiTableResourceManager,
+            int queueIndex) {
+        if (redshiftJdbcClient != null) {
+            redshiftJdbcClient.close();
+        }
+        this.redshiftJdbcClient = multiTableResourceManager.get().getSharedResource().get();
+    }
 
     public S3RedshiftSinkAggregatedCommitter(
             FileSystemUtils fileSystemUtils, S3RedshiftConf conf, SeaTunnelRowType rowType) {
@@ -103,12 +137,6 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
     @Override
     public void close() throws IOException {
         super.close();
-        try {
-            RedshiftJdbcClient.getInstance(conf).close();
-        } catch (SQLException e) {
-            throw new S3RedshiftJdbcConnectorException(
-                    CommonErrorCode.SQL_OPERATION_FAILED, "close redshift jdbc client failed", e);
-        }
     }
 
     @Override
@@ -147,38 +175,56 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
     private List<FileAggregatedCommitInfo> copyS3FilesToRedshiftTable(
             List<FileAggregatedCommitInfo> aggregatedCommitInfos) {
         List<FileAggregatedCommitInfo> errorAggregatedCommitInfoList = new ArrayList<>();
-        for (FileAggregatedCommitInfo aggregatedCommitInfo : aggregatedCommitInfos) {
-            try {
-                for (Map.Entry<String, LinkedHashMap<String, String>> entry :
-                        aggregatedCommitInfo.getTransactionMap().entrySet()) {
-                    for (Map.Entry<String, String> mvFileEntry : entry.getValue().entrySet()) {
-                        // first rename temp file
-                        fileSystemUtils.renameFile(
-                                mvFileEntry.getKey(), mvFileEntry.getValue(), true);
-                        log.info(
-                                "rename file {} to {} ",
-                                mvFileEntry.getKey(),
-                                mvFileEntry.getValue());
+        Connection connection = null;
+        try {
+            connection = redshiftJdbcClient.getConnection();
+            for (FileAggregatedCommitInfo aggregatedCommitInfo : aggregatedCommitInfos) {
+                try {
+                    for (Map.Entry<String, LinkedHashMap<String, String>> entry :
+                            aggregatedCommitInfo.getTransactionMap().entrySet()) {
+                        for (Map.Entry<String, String> mvFileEntry : entry.getValue().entrySet()) {
+                            // first rename temp file
+                            fileSystemUtils.renameFile(
+                                    mvFileEntry.getKey(), mvFileEntry.getValue(), true);
+                            log.info(
+                                    "rename file {} to {} ",
+                                    mvFileEntry.getKey(),
+                                    mvFileEntry.getValue());
 
-                        String sql =
-                                formatCopyS3FileSql(conf.getExecuteSql(), mvFileEntry.getValue());
-                        RedshiftJdbcClient.getInstance(conf).execute(sql);
-                        log.info("execute redshift sql is:" + sql);
+                            String sql =
+                                    formatCopyS3FileSql(
+                                            conf.getExecuteSql(), mvFileEntry.getValue());
+                            connection.createStatement().execute(sql);
+                            log.info("execute redshift sql is:" + sql);
 
-                        fileSystemUtils.deleteFile(mvFileEntry.getValue());
-                        log.info("delete file {} ", mvFileEntry.getValue());
+                            fileSystemUtils.deleteFile(mvFileEntry.getValue());
+                            log.info("delete file {} ", mvFileEntry.getValue());
+                        }
+                        // second delete transaction directory
+                        fileSystemUtils.deleteFile(entry.getKey());
+                        log.info("delete transaction directory {} on commit", entry.getKey());
                     }
-                    // second delete transaction directory
-                    fileSystemUtils.deleteFile(entry.getKey());
-                    log.info("delete transaction directory {} on commit", entry.getKey());
+                } catch (Exception e) {
+                    log.error("commit aggregatedCommitInfo error ", e);
+                    errorAggregatedCommitInfoList.add(aggregatedCommitInfo);
+                    throw new S3RedshiftJdbcConnectorException(
+                            S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
                 }
-            } catch (Exception e) {
-                log.error("commit aggregatedCommitInfo error ", e);
-                errorAggregatedCommitInfoList.add(aggregatedCommitInfo);
-                throw new S3RedshiftJdbcConnectorException(
-                        S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
+            }
+        } catch (Exception e) {
+            log.error("commit aggregatedCommitInfo error ", e);
+            throw new S3RedshiftJdbcConnectorException(
+                    S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
+        } finally {
+            try {
+                if (connection != null) {
+                    connection.close();
+                }
+            } catch (SQLException e) {
+                log.error("connection close error ", e);
             }
         }
+
         return errorAggregatedCommitInfoList;
     }
 
@@ -196,7 +242,8 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                         if (!fileSystemUtils.fileExist(tempFilePath)) {
                             log.warn("skip not exist file {}", tempFilePath);
                         } else if (conf.isCopyS3FileToTemporaryTableMode()) {
-                            copyS3FileToRedshiftTemporaryTable(tempFilePath, filepath);
+                            filepath = tempFilePath;
+                            copyS3FileToRedshiftTemporaryTable(filepath);
                         } else {
                             loadS3FileToRedshiftExternalTable(tempFilePath, filepath);
                         }
@@ -219,77 +266,77 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
         return errorAggregatedCommitInfoList;
     }
 
-    private void copyS3FileToRedshiftTemporaryTable(String tempFilePath, String filepath)
-            throws Exception {
+    private void copyS3FileToRedshiftTemporaryTable(String filepath) {
         Stopwatch stopwatch = Stopwatch.createStarted();
         stopwatch.reset().start();
-        fileSystemUtils.renameFile(tempFilePath, filepath, true);
-        log.info(
-                "Copy table mode, rename temporary file {} to {}, cost: {}ms",
-                tempFilePath,
-                filepath,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        try (Connection connection = redshiftJdbcClient.getConnection()) {
+            String truncateTemporaryTableSql = sqlGenerator.generateCleanTemporaryTableSql();
+            connection.createStatement().execute(truncateTemporaryTableSql);
+            log.info(
+                    "Copy mode, truncate temporary table sql: {}, cost: {}ms",
+                    truncateTemporaryTableSql,
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-        String truncateTemporaryTableSql = sqlGenerator.generateCleanTemporaryTableSql();
-        RedshiftJdbcClient.getInstance(conf).execute(truncateTemporaryTableSql);
-        log.info(
-                "Copy mode, truncate temporary table sql: {}, cost: {}ms",
-                truncateTemporaryTableSql,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+            stopwatch.reset().start();
+            String copySql =
+                    formatCopyS3FileSql(
+                            sqlGenerator.generateCopyS3FileToTemporaryTableSql(), filepath);
+            connection.createStatement().execute(copySql);
+            log.info(
+                    "Copy mode, load temporary table sql: {}, cost: {}ms",
+                    copySql,
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-        stopwatch.reset().start();
-        String copySql =
-                formatCopyS3FileSql(sqlGenerator.generateCopyS3FileToTemporaryTableSql(), filepath);
-        RedshiftJdbcClient.getInstance(conf).execute(copySql);
-        log.info(
-                "Copy mode, load temporary table sql: {}, cost: {}ms",
-                copySql,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
-
-        stopwatch.reset().start();
-        String mergeTemporaryTableSql = sqlGenerator.generateMergeSql();
-        RedshiftJdbcClient.getInstance(conf).execute(mergeTemporaryTableSql);
-        log.info(
-                "Copy mode, merge temporary table to target table sql: {}, cost: {}ms",
-                mergeTemporaryTableSql,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+            stopwatch.reset().start();
+            String mergeTemporaryTableSql = sqlGenerator.generateMergeSql();
+            connection.createStatement().execute(mergeTemporaryTableSql);
+            log.info(
+                    "Copy mode, merge temporary table to target table sql: {}, cost: {}ms",
+                    mergeTemporaryTableSql,
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        } catch (Exception e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
-    private void loadS3FileToRedshiftExternalTable(String tempFilePath, String filepath)
-            throws Exception {
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        String dropExternalTableSql = sqlGenerator.generateDropExternalTableSql();
-        RedshiftJdbcClient.getInstance(conf).execute(dropExternalTableSql);
-        log.info(
-                "External table mode, drop external table sql: {}, cost: {}ms",
-                dropExternalTableSql,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    private void loadS3FileToRedshiftExternalTable(String tempFilePath, String filepath) {
+        try (Connection connection = redshiftJdbcClient.getConnection()) {
+            Stopwatch stopwatch = Stopwatch.createStarted();
+            String dropExternalTableSql = sqlGenerator.generateDropExternalTableSql();
+            connection.createStatement().execute(dropExternalTableSql);
+            log.info(
+                    "External table mode, drop external table sql: {}, cost: {}ms",
+                    dropExternalTableSql,
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-        stopwatch.reset().start();
-        String createExternalTableSql =
-                formatCreateExternalTableSql(
-                        sqlGenerator.generateCreateExternalTableSql(), filepath);
-        RedshiftJdbcClient.getInstance(conf).execute(createExternalTableSql);
-        log.info(
-                "External table mode, create external table sql: {}, cost: {}ms",
-                createExternalTableSql,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+            stopwatch.reset().start();
+            String createExternalTableSql =
+                    formatCreateExternalTableSql(
+                            sqlGenerator.generateCreateExternalTableSql(), filepath);
+            connection.createStatement().execute(createExternalTableSql);
+            log.info(
+                    "External table mode, create external table sql: {}, cost: {}ms",
+                    createExternalTableSql,
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-        stopwatch.reset().start();
-        fileSystemUtils.renameFile(tempFilePath, filepath, true);
-        log.info(
-                "External table mode, rename temporary file {} to {}, cost: {}ms",
-                tempFilePath,
-                filepath,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+            stopwatch.reset().start();
+            fileSystemUtils.renameFile(tempFilePath, filepath, true);
+            log.info(
+                    "External table mode, rename temporary file {} to {}, cost: {}ms",
+                    tempFilePath,
+                    filepath,
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-        stopwatch.reset().start();
-        String mergeExternalTableSql = sqlGenerator.generateMergeSql();
-        RedshiftJdbcClient.getInstance(conf).execute(mergeExternalTableSql);
-        log.info(
-                "External table mode, merge external table to target table sql: {}, cost: {}ms",
-                mergeExternalTableSql,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+            stopwatch.reset().start();
+            String mergeExternalTableSql = sqlGenerator.generateMergeSql();
+            connection.createStatement().execute(mergeExternalTableSql);
+            log.info(
+                    "External table mode, merge external table to target table sql: {}, cost: {}ms",
+                    mergeExternalTableSql,
+                    stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        } catch (Exception e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     private String formatCopyS3FileSql(String sql, String filepath) {

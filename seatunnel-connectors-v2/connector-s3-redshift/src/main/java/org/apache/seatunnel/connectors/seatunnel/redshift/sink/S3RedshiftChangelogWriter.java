@@ -5,6 +5,8 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
 import org.apache.seatunnel.api.table.event.AlterTableAddColumnEvent;
 import org.apache.seatunnel.api.table.event.AlterTableChangeColumnEvent;
 import org.apache.seatunnel.api.table.event.AlterTableColumnsEvent;
@@ -30,6 +32,7 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileCo
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,7 +46,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
-public class S3RedshiftChangelogWriter extends BaseFileSinkWriter {
+public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
+        implements SupportMultiTableSinkWriter<RedshiftJdbcClient> {
     private final int flushBufferSize;
     private final int flushBufferInterval;
     private final S3RedshiftConf s3RedshiftConf;
@@ -55,6 +59,29 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter {
     private final DataTypeChangeEventDispatcher dataTypeChangeEventDispatcher =
             new DataTypeChangeEventDispatcher();
     private final S3RedshiftChangelogWriteStrategy changeStreamlogStrategy;
+    private transient RedshiftJdbcClient redshiftJdbcClient;
+
+    @Override
+    public Optional<MultiTableResourceManager<RedshiftJdbcClient>> initMultiTableResourceManager(
+            int tableSize, int queueSize) {
+        return Optional.of(
+                new S3RedshiftJdbcMultiTableResourceManager(
+                        new RedshiftJdbcClient(
+                                s3RedshiftConf.getJdbcUrl(),
+                                s3RedshiftConf.getJdbcUser(),
+                                s3RedshiftConf.getJdbcPassword(),
+                                queueSize)));
+    }
+
+    @Override
+    public void setMultiTableResourceManager(
+            Optional<MultiTableResourceManager<RedshiftJdbcClient>> multiTableResourceManager,
+            int queueIndex) {
+        if (redshiftJdbcClient != null) {
+            redshiftJdbcClient.close();
+        }
+        this.redshiftJdbcClient = multiTableResourceManager.get().getSharedResource().get();
+    }
 
     public S3RedshiftChangelogWriter(
             WriteStrategy writeStrategy,
@@ -120,20 +147,25 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter {
         if (S3RedshiftChangelogMode.APPEND_ONLY.equals(changelogMode)) {
             // ignore
         } else {
-            if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
-                List<String> sqlList =
-                        getSQLFromSchemaChangeEvent(s3RedshiftConf.getRedshiftTable(), event);
-                String temporaryTable = s3RedshiftConf.getTemporaryTableName();
-                sqlList.addAll(getSQLFromSchemaChangeEvent(temporaryTable, event));
-                for (String sql : sqlList) {
-                    RedshiftJdbcClient.getInstance(s3RedshiftConf).execute(sql);
+            try (Connection connection = redshiftJdbcClient.getConnection()) {
+                if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
+                    List<String> sqlList =
+                            getSQLFromSchemaChangeEvent(s3RedshiftConf.getRedshiftTable(), event);
+                    String temporaryTable = s3RedshiftConf.getTemporaryTableName();
+                    sqlList.addAll(getSQLFromSchemaChangeEvent(temporaryTable, event));
+                    for (String sql : sqlList) {
+                        connection.createStatement().execute(sql);
+                    }
+                } else {
+                    List<String> sqlList =
+                            getSQLFromSchemaChangeEvent(s3RedshiftConf.getRedshiftTable(), event);
+                    for (String sql : sqlList) {
+                        connection.createStatement().execute(sql);
+                    }
                 }
-            } else {
-                List<String> sqlList =
-                        getSQLFromSchemaChangeEvent(s3RedshiftConf.getRedshiftTable(), event);
-                for (String sql : sqlList) {
-                    RedshiftJdbcClient.getInstance(s3RedshiftConf).execute(sql);
-                }
+            } catch (Exception e) {
+                log.error("s3-redshift write error", e);
+                throw new IllegalArgumentException(e);
             }
         }
     }

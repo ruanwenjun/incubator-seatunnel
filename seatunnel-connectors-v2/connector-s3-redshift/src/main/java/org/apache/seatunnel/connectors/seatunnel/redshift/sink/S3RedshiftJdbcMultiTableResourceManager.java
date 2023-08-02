@@ -15,31 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.redshift.exception;
+package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
-import org.apache.seatunnel.common.exception.SeaTunnelErrorCode;
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
+import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 
-public enum S3RedshiftConnectorErrorCode implements SeaTunnelErrorCode {
-    AGGREGATE_COMMIT_ERROR("S3RedShift-01", "Aggregate committer error"),
-    UPDATE_REDSHIFT_SCHEMA_FAILED("S3RedShift-02", "Update redshift schema error"),
-    CLOSE_CONNECTION_ERROR("S3RedShift-03", "Close redshift connection error");
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-    private final String code;
+import java.util.Optional;
 
-    private final String description;
+@AllArgsConstructor
+@Slf4j
+public class S3RedshiftJdbcMultiTableResourceManager
+        implements MultiTableResourceManager<RedshiftJdbcClient> {
 
-    S3RedshiftConnectorErrorCode(String code, String description) {
-        this.code = code;
-        this.description = description;
+    private RedshiftJdbcClient redshiftJdbcClient;
+
+    @Override
+    public Optional<RedshiftJdbcClient> getSharedResource() {
+        return Optional.of(redshiftJdbcClient);
     }
 
     @Override
-    public String getCode() {
-        return this.code;
-    }
-
-    @Override
-    public String getDescription() {
-        return this.description;
+    public void close() {
+        redshiftJdbcClient.close();
     }
 }

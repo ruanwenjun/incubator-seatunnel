@@ -22,7 +22,6 @@ import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
-import org.apache.seatunnel.api.table.catalog.ConstraintKey;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
@@ -43,7 +42,6 @@ import com.google.auto.service.AutoService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_REPLICA;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.AUTO_COMMIT;
@@ -126,21 +124,6 @@ public class JdbcSinkFactory implements TableSinkFactory {
             PrimaryKey primaryKey = catalogTable.getTableSchema().getPrimaryKey();
             if (primaryKey != null && !CollectionUtils.isEmpty(primaryKey.getColumnNames())) {
                 map.put(PRIMARY_KEYS.key(), String.join(",", primaryKey.getColumnNames()));
-            } else {
-                Optional<ConstraintKey> keyOptional =
-                        catalogTable.getTableSchema().getConstraintKeys().stream()
-                                .filter(
-                                        key ->
-                                                ConstraintKey.ConstraintType.UNIQUE_KEY.equals(
-                                                        key.getConstraintType()))
-                                .findFirst();
-                if (keyOptional.isPresent()) {
-                    map.put(
-                            PRIMARY_KEYS.key(),
-                            keyOptional.get().getColumnNames().stream()
-                                    .map(key -> key.getColumnName())
-                                    .collect(Collectors.joining(",")));
-                }
             }
             config = ReadonlyConfig.fromMap(new HashMap<>(map));
         }
@@ -178,9 +161,8 @@ public class JdbcSinkFactory implements TableSinkFactory {
                         PRIMARY_KEYS,
                         SUPPORT_UPSERT_BY_INSERT_ONLY,
                         IS_PRIMARY_KEY_UPDATED,
-                        MULTI_TABLE_SINK_REPLICA,
-                        IS_PRIMARY_KEY_UPDATED,
-                        SAVE_MODE)
+                        SAVE_MODE,
+                        MULTI_TABLE_SINK_REPLICA)
                 .conditional(
                         IS_EXACTLY_ONCE,
                         true,
