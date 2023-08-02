@@ -2,15 +2,14 @@ package org.apache.seatunnel.connectors.seatunnel.redshift;
 
 import org.apache.seatunnel.common.exception.CommonErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.Duration;
 
 public class RedshiftJdbcClient implements AutoCloseable {
@@ -40,22 +39,6 @@ public class RedshiftJdbcClient implements AutoCloseable {
         try (Connection connection = getConnection()) {
             return connection.createStatement().execute(sql);
         }
-    }
-
-    public Integer executeQueryCount(String sql) throws SQLException {
-        try (Connection connection = getConnection()) {
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
-            if (!resultSet.next()) {
-                return 0;
-            }
-            resultSet.next();
-            return resultSet.getInt(1);
-        }
-    }
-
-    public boolean existDataForSql(String sql) throws SQLException {
-        return executeQueryCount(sql) > 0;
     }
 
     @Override

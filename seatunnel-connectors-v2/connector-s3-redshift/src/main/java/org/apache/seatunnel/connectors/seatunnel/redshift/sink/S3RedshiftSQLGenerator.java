@@ -99,7 +99,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
 
     public String generateDropTableSQL() {
         return String.format(
-                "DROP TABLE IF EXISTS %s ;", conf.getRedshiftTable());
+                "DROP TABLE IF EXISTS %s.%s ;", conf.getSchema(), conf.getRedshiftTable());
     }
 
     public String generateCreateTemporaryTableSQL() {
@@ -146,30 +146,28 @@ public class S3RedshiftSQLGenerator implements Serializable {
     }
 
     public String generateCleanTemporaryTableSql() {
-        return String.format("TRUNCATE TABLE %s;", conf.getTemporaryTableName());
+        return String.format(
+                "TRUNCATE TABLE %s.%s;", conf.getSchema(), conf.getTemporaryTableName());
     }
 
     public String generateCleanTableSql() {
-        return String.format(
-                "TRUNCATE TABLE %s;", conf.getRedshiftTable());
+        return String.format("TRUNCATE TABLE %s.%s;", conf.getSchema(), conf.getRedshiftTable());
     }
 
     public String generateIsExistTableSql() {
         return String.format(
-                "SELECT count(1) FROM information_schema.tables where table_name = '%s';", conf.getRedshiftTable().toLowerCase());
+                "SELECT count(1) FROM information_schema.tables where table_schema = '%s' and  table_name = '%s';",
+                conf.getSchema(), conf.getRedshiftTable().toLowerCase());
     }
 
     public String generateIsExistDataSql() {
         return String.format(
-                "select count(1) from %s;", conf.getRedshiftTable());
-        return String.format(
-                "TRUNCATE TABLE %s.%s", conf.getSchema(), conf.getTemporaryTableName());
+                "select count(1) from %s.%s;", conf.getSchema(), conf.getRedshiftTable());
     }
 
     public String generateDropTemporaryTableSql() {
         return String.format(
                 "DROP TABLE IF EXISTS %s.%s", conf.getSchema(), conf.getTemporaryTableName());
-        return String.format("DROP TABLE IF EXISTS %s;", conf.getTemporaryTableName());
     }
 
     public String generateCreateExternalTableSql() {
@@ -190,8 +188,6 @@ public class S3RedshiftSQLGenerator implements Serializable {
                 "DROP TABLE IF EXISTS %s.%s",
                 conf.getRedshiftExternalSchema(), conf.getRedshiftTable());
     }
-
-
 
     public String generateMergeSql() {
         String conditionClause =

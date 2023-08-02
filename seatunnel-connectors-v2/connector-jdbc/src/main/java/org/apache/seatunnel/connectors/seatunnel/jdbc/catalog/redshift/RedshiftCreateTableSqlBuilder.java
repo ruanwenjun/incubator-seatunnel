@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.redshift.RedshiftDataTypeConvertor.REDSHIFT_DECIMAL;
 
-
 public class RedshiftCreateTableSqlBuilder {
     private List<Column> columns;
     private PrimaryKey primaryKey;

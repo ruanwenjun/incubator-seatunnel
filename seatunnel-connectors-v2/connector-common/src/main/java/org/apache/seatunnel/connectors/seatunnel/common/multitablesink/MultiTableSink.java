@@ -39,7 +39,6 @@ import com.google.auto.service.AutoService;
 import lombok.NoArgsConstructor;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +46,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.seatunnel.api.sink.DataSaveMode.DROP_SCHEMA;
-import static org.apache.seatunnel.api.sink.DataSaveMode.ERROR_WHEN_EXISTS;
 import static org.apache.seatunnel.api.sink.DataSaveMode.KEEP_SCHEMA_AND_DATA;
-import static org.apache.seatunnel.api.sink.DataSaveMode.KEEP_SCHEMA_DROP_DATA;
 
 @AutoService(SeaTunnelSink.class)
 @NoArgsConstructor
@@ -177,20 +173,9 @@ public class MultiTableSink
     }
 
     @Override
-    public void checkOptions(Config config) {
-        SupportDataSaveMode.super.checkOptions(config);
-    }
-
-    @Override
-    public DataSaveMode getDataSaveMode() {
+    public DataSaveMode getUserConfigSaveMode() {
         // any save mode, because we never use it.
         return KEEP_SCHEMA_AND_DATA;
-    }
-
-    @Override
-    public List<DataSaveMode> supportedDataSaveModeValues() {
-        return Arrays.asList(
-                KEEP_SCHEMA_AND_DATA, KEEP_SCHEMA_DROP_DATA, DROP_SCHEMA, ERROR_WHEN_EXISTS);
     }
 
     @Override
@@ -201,7 +186,8 @@ public class MultiTableSink
                         sink ->
                                 ((SupportDataSaveMode) sink)
                                         .handleSaveMode(
-                                                ((SupportDataSaveMode) sink).getDataSaveMode()));
+                                                ((SupportDataSaveMode) sink)
+                                                        .getUserConfigSaveMode()));
     }
 
     @Override

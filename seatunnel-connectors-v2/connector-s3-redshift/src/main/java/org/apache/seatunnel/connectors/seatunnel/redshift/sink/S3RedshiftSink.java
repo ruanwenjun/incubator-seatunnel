@@ -17,9 +17,8 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
-import com.google.auto.service.AutoService;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.seatunnel.shade.com.typesafe.config.Config;
+
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
@@ -27,11 +26,6 @@ import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkCommitter;
-import org.apache.seatunnel.api.sink.SinkWriter;
-import org.apache.seatunnel.api.sink.SupportDataSaveMode;
-import org.apache.seatunnel.api.sink.DataSaveMode;
-import org.apache.seatunnel.api.sink.SeaTunnelSink;
-import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.sink.SupportMultiTableSink;
@@ -46,21 +40,20 @@ import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.state.FileSinkState;
-import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 import org.apache.seatunnel.connectors.seatunnel.redshift.commit.S3RedshiftSinkAggregatedCommitter;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
+import org.apache.seatunnel.connectors.seatunnel.redshift.handler.S3RedshiftSaveModeHandler;
+
+import com.google.auto.service.AutoService;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
-import static org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig.CUSTOM_SQL;
 
 @Slf4j
 @AutoService(SeaTunnelSink.class)
@@ -117,7 +110,7 @@ public class S3RedshiftSink extends BaseHdfsFileSink
 
     @Override
     public Optional<SinkAggregatedCommitter<FileCommitInfo, FileAggregatedCommitInfo>>
-    createAggregatedCommitter() {
+            createAggregatedCommitter() {
         return Optional.of(
                 new S3RedshiftSinkAggregatedCommitter(
                         fileSystemUtils, s3RedshiftConf, seaTunnelRowType));
@@ -168,103 +161,8 @@ public class S3RedshiftSink extends BaseHdfsFileSink
     @SneakyThrows
     @Override
     public void handleSaveMode(DataSaveMode saveMode) {
-        S3RedshiftSQLGenerator sqlGenerator;
-        if (catalogTable != null) {
-            sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, catalogTable);
-        } else {
-            sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, seaTunnelRowType);
-        }
-        switch (saveMode) {
-            case DROP_SCHEMA:
-                try {
-                    // drop
-                    log.info("Drop table sql: {}", sqlGenerator.getCreateTableSQL());
-                    client.execute(sqlGenerator.getDropTableSql());
-                    log.info("Drop table sql: {}", sqlGenerator.getDropTemporaryTableSql());
-                    client.execute(sqlGenerator.getDropTemporaryTableSql());
-                    // create
-                    client.execute(sqlGenerator.getCreateTableSQL());
-                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                } finally {
-                    client.close();
-                }
-                break;
-            case KEEP_SCHEMA_DROP_DATA:
-                try {
-                    client.execute(sqlGenerator.getDropTemporaryTableSql());
-                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    if (client.existDataForSql(sqlGenerator.generateIsExistTableSql())){
-                        client.execute(sqlGenerator.generateCleanTableSql());
-                    }
-                } finally {
-                    client.close();
-                }
-                break;
-            case KEEP_SCHEMA_AND_DATA:
-                try {
-                    client.execute(sqlGenerator.getCreateTableSQL());
-                    log.info("Create table sql: {}", sqlGenerator.getCreateTableSQL());
-                    if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
-                        client.execute(sqlGenerator.getDropTemporaryTableSql());
-                        client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                        log.info("Create temporary table sql: {}", sqlGenerator.getCreateTemporaryTableSQL());
-                    }
-                } finally {
-                    client.close();
-        if (DataSaveMode.KEEP_SCHEMA_AND_DATA.equals(saveMode)) {
-            S3RedshiftSQLGenerator sqlGenerator;
-            if (catalogTable != null) {
-                sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, catalogTable);
-            } else {
-                sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, seaTunnelRowType);
-            }
-            try (Connection connection =
-                    new RedshiftJdbcClient(
-                                    s3RedshiftConf.getJdbcUrl(),
-                                    s3RedshiftConf.getJdbcUser(),
-                                    s3RedshiftConf.getJdbcPassword(),
-                                    1)
-                            .getConnection()) {
-                connection.createStatement().execute(sqlGenerator.getCreateTableSQL());
-                log.info("Create table sql: {}", sqlGenerator.getCreateTableSQL());
-                if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
-                    connection.createStatement().execute(sqlGenerator.getDropTemporaryTableSql());
-                    connection.createStatement().execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    log.info(
-                            "Create temporary table sql: {}",
-                            sqlGenerator.getCreateTemporaryTableSQL());
-                }
-            }
-                break;
-            case CUSTOM_PROCESSING:
-                try {
-                    client.execute(sqlGenerator.getDropTemporaryTableSql());
-                    client.execute(sqlGenerator.getCreateTableSQL());
-                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    String sql = readonlyConfig.get(CUSTOM_SQL);
-                    client.execute(sql);
-                } finally {
-                    client.close();
-                }
-                break;
-            case ERROR_WHEN_EXISTS:
-                try {
-                    client.execute(sqlGenerator.getDropTemporaryTableSql());
-                    client.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    if (client.existDataForSql(sqlGenerator.getIsExistTableSql())){
-                        if (client.existDataForSql(sqlGenerator.getIsExistDataSql())){
-                            throw new S3RedshiftJdbcConnectorException(SOURCE_ALREADY_HAS_DATA,"The target data source already has data");
-                        }
-                    }
-                    client.execute(sqlGenerator.getCreateTableSQL());
-                } finally {
-                    client.close();
-                }
-                break;
-
-        }
-
-
+        new S3RedshiftSaveModeHandler(
+                        saveMode, s3RedshiftConf, catalogTable, readonlyConfig, seaTunnelRowType)
+                .doHandleSaveMode();
     }
-
 }

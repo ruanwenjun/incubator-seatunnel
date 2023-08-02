@@ -12,6 +12,7 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftSQLGene
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -69,7 +70,7 @@ public class S3RedshiftSaveModeHandler {
                 case KEEP_SCHEMA_DROP_DATA:
                     statement.execute(sqlGenerator.getDropTemporaryTableSql());
                     statement.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    if (client.existDataForSql(sqlGenerator.generateIsExistTableSql())) {
+                    if (existDataForSql(sqlGenerator.generateIsExistTableSql(), statement)) {
                         statement.execute(sqlGenerator.generateCleanTableSql());
                     }
                     break;
@@ -94,8 +95,8 @@ public class S3RedshiftSaveModeHandler {
                 case ERROR_WHEN_EXISTS:
                     statement.execute(sqlGenerator.getDropTemporaryTableSql());
                     statement.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                    if (client.existDataForSql(sqlGenerator.getIsExistTableSql())) {
-                        if (client.existDataForSql(sqlGenerator.getIsExistDataSql())) {
+                    if (existDataForSql(sqlGenerator.getIsExistTableSql(), statement)) {
+                        if (existDataForSql(sqlGenerator.getIsExistDataSql(), statement)) {
                             throw new S3RedshiftJdbcConnectorException(
                                     SOURCE_ALREADY_HAS_DATA,
                                     "The target data source already has data");
@@ -105,5 +106,18 @@ public class S3RedshiftSaveModeHandler {
                     break;
             }
         }
+    }
+
+    private boolean existDataForSql(String sql, Statement statement) throws SQLException {
+        return executeQueryCount(sql, statement) > 0;
+    }
+
+    private Integer executeQueryCount(String sql, Statement statement) throws SQLException {
+        ResultSet resultSet = statement.executeQuery(sql);
+        if (!resultSet.next()) {
+            return 0;
+        }
+        // resultSet.next();
+        return resultSet.getInt(1);
     }
 }

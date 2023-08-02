@@ -17,9 +17,6 @@
 
 package org.apache.seatunnel.connectors.seatunnel.starrocks.sink;
 
-import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.util.CatalogUtils;
-import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksOptions;
-import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.CommonOptions;
@@ -41,7 +38,9 @@ import org.apache.seatunnel.connectors.seatunnel.common.sink.AbstractSimpleSink;
 import org.apache.seatunnel.connectors.seatunnel.common.sink.AbstractSinkWriter;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.StarRocksCatalog;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.StarRocksCatalogFactory;
+import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.util.CatalogUtils;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig;
+import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.exception.StarRocksConnectorException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -68,7 +67,8 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
     private ReadonlyConfig readonlyConfig;
     private CatalogTable catalogTable;
 
-    public StarRocksSink(SinkConfig sinkConfig, CatalogTable catalogTable, final ReadonlyConfig readonlyConfig) {
+    public StarRocksSink(
+            SinkConfig sinkConfig, CatalogTable catalogTable, final ReadonlyConfig readonlyConfig) {
         this.sinkConfig = sinkConfig;
         this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
         this.catalogTable = catalogTable;
@@ -156,9 +156,9 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
             return;
         }
         try (Catalog catalog =
-                     catalogFactory.createCatalog(
-                             catalogFactory.factoryIdentifier(),
-                             ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
+                catalogFactory.createCatalog(
+                        catalogFactory.factoryIdentifier(),
+                        ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
             catalog.open();
             doHandleSaveMode(saveMode, catalog);
         } catch (Exception e) {
@@ -173,7 +173,7 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
                         sinkConfig.getDatabase()
                                 + "."
                                 + CatalogUtils.quoteTableIdentifier(
-                                sinkConfig.getTable(), fieldIde));
+                                        sinkConfig.getTable(), fieldIde));
         if (!catalog.databaseExists(sinkConfig.getDatabase())) {
             catalog.createDatabase(tablePath, true);
         }
@@ -201,7 +201,7 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
                 ((StarRocksCatalog) catalog).executeSql(sql);
                 break;
             case ERROR_WHEN_EXISTS:
-                if (catalog.tableExists(tablePath)){
+                if (catalog.tableExists(tablePath)) {
                     if (((StarRocksCatalog) catalog).isExistsData(tablePath.getTableName())) {
                         throw new StarRocksConnectorException(
                                 SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
