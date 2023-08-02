@@ -40,8 +40,8 @@ public class S3RedshiftConf implements Serializable {
     private final String jdbcUrl;
     private final String jdbcUser;
     private final String jdbcPassword;
-    private final String executeSql;
     private final String database;
+    private final String executeSql;
     private final String schema;
 
     private final String s3Bucket;

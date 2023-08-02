@@ -39,6 +39,7 @@ import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
@@ -55,13 +56,13 @@ import com.google.auto.service.AutoService;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
+import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @AutoService(SeaTunnelSink.class)
@@ -193,54 +194,92 @@ public class JdbcSink
     }
 
     @Override
-    public DataSaveMode getDataSaveMode() {
+    public DataSaveMode getUserConfigSaveMode() {
         return dataSaveMode;
     }
 
     @Override
-    public List<DataSaveMode> supportedDataSaveModeValues() {
-        return Collections.singletonList(DataSaveMode.KEEP_SCHEMA_AND_DATA);
+    public void handleSaveMode(DataSaveMode saveMode) {
+        if (catalogTable == null) {
+            return;
+        }
+        Map<String, String> catalogOptions = config.get(CatalogOptions.CATALOG_OPTIONS);
+        if (catalogOptions == null) {
+            return;
+        }
+        String factoryId = catalogOptions.get(CommonOptions.FACTORY_ID.key());
+        if (StringUtils.isBlank(jdbcSinkConfig.getDatabase())) {
+            return;
+        }
+        CatalogFactory catalogFactory =
+                discoverFactory(
+                        Thread.currentThread().getContextClassLoader(),
+                        CatalogFactory.class,
+                        factoryId);
+        if (catalogFactory == null) {
+            return;
+        }
+        // get catalog instance to operation database
+        try (Catalog catalog =
+                catalogFactory.createCatalog(
+                        catalogFactory.factoryIdentifier(),
+                        ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
+            catalog.open();
+            doHandleSaveMode(saveMode, catalog);
+        } catch (Exception e) {
+            throw new JdbcConnectorException(HANDLE_SAVE_MODE_FAILED, e);
+        }
     }
 
-    @Override
-    public void handleSaveMode(DataSaveMode saveMode) {
-        if (catalogTable != null) {
-            Map<String, String> catalogOptions = config.get(CatalogOptions.CATALOG_OPTIONS);
-            if (catalogOptions != null) {
-                String factoryId = catalogOptions.get(CommonOptions.FACTORY_ID.key());
-                if (StringUtils.isBlank(jdbcSinkConfig.getDatabase())) {
-                    return;
+    private void doHandleSaveMode(DataSaveMode saveMode, Catalog catalog) {
+        String fieldIde = config.get(JdbcOptions.FIELD_IDE);
+        AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog) catalog;
+        TablePath tablePath =
+                TablePath.of(
+                        jdbcSinkConfig.getDatabase()
+                                + "."
+                                + CatalogUtils.quoteTableIdentifier(
+                                        jdbcSinkConfig.getTable(), fieldIde));
+        switch (saveMode) {
+            case DROP_SCHEMA:
+                if (!catalog.databaseExists(jdbcSinkConfig.getDatabase())) {
+                    catalog.createDatabase(tablePath, true);
                 }
-                CatalogFactory catalogFactory =
-                        discoverFactory(
-                                Thread.currentThread().getContextClassLoader(),
-                                CatalogFactory.class,
-                                factoryId);
-                if (catalogFactory != null) {
-                    try (Catalog catalog =
-                            catalogFactory.createCatalog(
-                                    catalogFactory.factoryIdentifier(),
-                                    ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
-                        catalog.open();
-                        String fieldIde = config.get(JdbcOptions.FIELD_IDE);
-                        TablePath tablePath =
-                                TablePath.of(
-                                        jdbcSinkConfig.getDatabase()
-                                                + "."
-                                                + CatalogUtils.quoteTableIdentifier(
-                                                        jdbcSinkConfig.getTable(), fieldIde));
-                        if (!catalog.databaseExists(jdbcSinkConfig.getDatabase())) {
-                            catalog.createDatabase(tablePath, true);
-                        }
-                        catalogTable.getOptions().put("fieldIde", fieldIde);
-                        if (!catalog.tableExists(tablePath)) {
-                            catalog.createTable(tablePath, catalogTable, true);
-                        }
-                    } catch (Exception e) {
-                        throw new JdbcConnectorException(HANDLE_SAVE_MODE_FAILED, e);
-                    }
+                if (catalog.tableExists(tablePath)) {
+                    catalog.dropTable(tablePath, true);
                 }
-            }
+                catalogTable.getOptions().put("fieldIde", fieldIde);
+                if (!catalog.tableExists(tablePath)) {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
+                break;
+            case KEEP_SCHEMA_DROP_DATA:
+                if (catalog.tableExists(tablePath)) {
+                    catalog.truncateTable(tablePath, true);
+                } else {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
+                break;
+            case KEEP_SCHEMA_AND_DATA:
+                if (!catalog.tableExists(tablePath)) {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
+                break;
+            case CUSTOM_PROCESSING:
+                if (!catalog.tableExists(tablePath)) {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
+                String customSql = config.get(JdbcOptions.CUSTOM_SQL);
+                jdbcCatalog.executeSql(customSql);
+                break;
+            case ERROR_WHEN_EXISTS:
+                if (!catalog.tableExists(tablePath)) {
+                    catalog.createTable(tablePath, catalogTable, true);
+                }
+                if (jdbcCatalog.isExistsData(tablePath.getFullName())) {
+                    throw new JdbcConnectorException(
+                            SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
+                }
         }
     }
 }
