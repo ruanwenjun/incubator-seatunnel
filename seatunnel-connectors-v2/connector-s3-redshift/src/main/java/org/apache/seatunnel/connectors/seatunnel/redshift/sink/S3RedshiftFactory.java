@@ -56,6 +56,8 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3RedshiftConfig.JDBC_URL,
                         S3RedshiftConfig.JDBC_USER,
                         S3RedshiftConfig.JDBC_PASSWORD,
+                        S3RedshiftConfig.DATABASE,
+                        S3RedshiftConfig.SCHEMA_NAME,
                         BaseSinkConfig.FILE_PATH,
                         BaseSinkConfig.TMP_PATH,
                         S3Config.S3A_AWS_CREDENTIALS_PROVIDER)
@@ -75,7 +77,11 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         BaseSinkConfig.FILE_FORMAT_TYPE,
                         FileFormat.CSV,
                         BaseSinkConfig.ROW_DELIMITER)
-                .optional(S3RedshiftConfig.CHANGELOG_MODE, S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE)
+                .optional(
+                        S3RedshiftConfig.CHANGELOG_MODE,
+                        S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE,
+                        S3RedshiftConfig.REDSHIFT_TABLE,
+                        S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS)
                 .conditional(
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftChangelogMode.APPEND_ONLY,
@@ -83,16 +89,12 @@ public class S3RedshiftFactory implements TableSinkFactory {
                 .conditional(
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE,
-                        // S3RedshiftConfig.REDSHIFT_TABLE,
-                        S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
                         S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME)
                 .conditional(
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE,
-                        // S3RedshiftConfig.REDSHIFT_TABLE,
-                        S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
                         S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME)

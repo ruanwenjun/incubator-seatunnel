@@ -1,100 +1,54 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.seatunnel.connectors.seatunnel.redshift;
 
 import org.apache.seatunnel.common.exception.CommonErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.time.Duration;
 
-public class RedshiftJdbcClient {
+public class RedshiftJdbcClient implements AutoCloseable {
+    private final HikariDataSource dataSource;
 
-    private static volatile RedshiftJdbcClient INSTANCE = null;
-
-    private final Connection connection;
-
-    public static RedshiftJdbcClient getInstance(S3RedshiftConf config)
-            throws S3RedshiftJdbcConnectorException {
-        if (INSTANCE == null) {
-            synchronized (RedshiftJdbcClient.class) {
-                if (INSTANCE == null) {
-
-                    try {
-                        INSTANCE =
-                                new RedshiftJdbcClient(
-                                        config.getJdbcUrl(),
-                                        config.getJdbcUser(),
-                                        config.getJdbcPassword());
-                    } catch (SQLException | ClassNotFoundException e) {
-                        throw new S3RedshiftJdbcConnectorException(
-                                CommonErrorCode.SQL_OPERATION_FAILED,
-                                "RedshiftJdbcClient init error",
-                                e);
-                    }
-                }
-            }
-        }
-        return INSTANCE;
+    public RedshiftJdbcClient(String jdbcUrl, String user, String password, int maxPoolSize) {
+        this(jdbcUrl, user, password, maxPoolSize, Duration.ofMinutes(30));
     }
 
-    private RedshiftJdbcClient(String url, String user, String password)
-            throws SQLException, ClassNotFoundException {
-        Class.forName("com.amazon.redshift.jdbc42.Driver");
-        this.connection = DriverManager.getConnection(url, user, password);
+    public RedshiftJdbcClient(
+            String jdbcUrl, String user, String password, int maxPoolSize, Duration maxIdleTime) {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(jdbcUrl);
+        config.setUsername(user);
+        config.setPassword(password);
+        config.setDriverClassName("com.amazon.redshift.jdbc42.Driver");
+        config.setMaximumPoolSize(maxPoolSize);
+        config.setIdleTimeout(maxIdleTime.toMillis());
+        this.dataSource = new HikariDataSource(config);
     }
 
-    public boolean checkTableExists(String tableName) {
-        boolean flag = false;
-        try {
-            DatabaseMetaData meta = connection.getMetaData();
-            String[] type = {"TABLE"};
-            ResultSet rs = meta.getTables(null, null, tableName, type);
-            flag = rs.next();
-        } catch (SQLException e) {
-            throw new S3RedshiftJdbcConnectorException(
-                    CommonErrorCode.TABLE_SCHEMA_GET_FAILED,
-                    String.format(
-                            "Check table is or not existed failed, table name is %s ", tableName),
-                    e);
-        }
-        return flag;
+    public Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
     }
 
-    public boolean execute(String sql) throws Exception {
-        try (Statement statement = connection.createStatement()) {
-            return statement.execute(sql);
-        } catch (SQLException e) {
-            throw new S3RedshiftJdbcConnectorException(
-                    CommonErrorCode.SQL_OPERATION_FAILED,
-                    String.format("Execute sql failed, sql is %s ", sql),
-                    e);
+    public boolean execute(String sql) throws SQLException {
+        try (Connection connection = getConnection()) {
+            return connection.createStatement().execute(sql);
         }
+    }
+
+    @Override
+    public void close() {
+        dataSource.close();
     }
 
     public Integer executeQueryForNum(String sql) throws Exception {
-        try (Statement statement = connection.createStatement()) {
-            ResultSet resultSet = statement.executeQuery(sql);
+        try (Connection connection = getConnection()) {
+            ResultSet resultSet = connection.createStatement().executeQuery(sql);
             if (resultSet == null) {
                 return 0;
             }
@@ -108,14 +62,22 @@ public class RedshiftJdbcClient {
         }
     }
 
-    public boolean existDataForSql(String sql) throws Exception {
-        return executeQueryForNum(sql) > 0;
+    public static RedshiftJdbcClient newSingleConnection(S3RedshiftConf conf) {
+        return newConnectionPool(conf, 1);
     }
 
-    public void close() throws SQLException {
-        synchronized (RedshiftJdbcClient.class) {
-            connection.close();
-            INSTANCE = null;
-        }
+    public static RedshiftJdbcClient newConnectionPool(S3RedshiftConf conf, int maxPoolSize) {
+        return new RedshiftJdbcClient(
+                conf.getJdbcUrl(), conf.getJdbcUser(), conf.getJdbcPassword(), maxPoolSize);
+    }
+
+    public static RedshiftJdbcClient newConnectionPool(
+            S3RedshiftConf conf, int maxPoolSize, Duration maxIdleTime) {
+        return new RedshiftJdbcClient(
+                conf.getJdbcUrl(),
+                conf.getJdbcUser(),
+                conf.getJdbcPassword(),
+                maxPoolSize,
+                maxIdleTime);
     }
 }
