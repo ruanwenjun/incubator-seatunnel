@@ -43,8 +43,7 @@ import org.apache.seatunnel.connectors.seatunnel.file.sink.state.FileSinkState;
 import org.apache.seatunnel.connectors.seatunnel.redshift.commit.S3RedshiftSinkAggregatedCommitter;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
-import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
-import org.apache.seatunnel.connectors.seatunnel.redshift.handler.S3RedshiftSaveModeHandler;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorException;
 
 import com.google.auto.service.AutoService;
 import lombok.SneakyThrows;
@@ -60,23 +59,20 @@ import java.util.Optional;
 public class S3RedshiftSink extends BaseHdfsFileSink
         implements SupportDataSaveMode, SupportMultiTableSink {
 
-    private DataSaveMode saveMode;
     private S3RedshiftConf s3RedshiftConf;
     private CatalogTable catalogTable;
     private ReadonlyConfig readonlyConfig;
 
     public S3RedshiftSink(
-            DataSaveMode saveMode,
             CatalogTable catalogTable,
             S3RedshiftConf s3RedshiftConf,
             Config pluginConfig,
             ReadonlyConfig readonlyConfig) {
         this.readonlyConfig = readonlyConfig;
-        this.pluginConfig = pluginConfig;
+        this.pluginConfig = S3RedshiftConf.enhanceS3RedshiftConfig(pluginConfig);
         this.catalogTable = catalogTable;
-        this.hadoopConf = S3Conf.buildWithConfig(pluginConfig);
+        this.hadoopConf = S3Conf.buildWithConfig(this.pluginConfig);
         this.s3RedshiftConf = s3RedshiftConf;
-        this.saveMode = saveMode;
         this.setTypeInfo(catalogTable.getTableSchema().toPhysicalRowDataType());
     }
 
@@ -96,16 +92,15 @@ public class S3RedshiftSink extends BaseHdfsFileSink
                         S3RedshiftConfig.JDBC_USER.key(),
                         S3RedshiftConfig.JDBC_PASSWORD.key());
         if (!checkResult.isSuccess()) {
-            throw new S3RedshiftJdbcConnectorException(
+            throw new S3RedshiftConnectorException(
                     SeaTunnelAPIErrorCode.CONFIG_VALIDATION_FAILED,
                     String.format(
                             "PluginName: %s, PluginType: %s, Message: %s",
                             getPluginName(), PluginType.SINK, checkResult.getMsg()));
         }
-        this.pluginConfig = pluginConfig;
-        hadoopConf = S3Conf.buildWithConfig(pluginConfig);
-        s3RedshiftConf = S3RedshiftConf.valueOf(pluginConfig);
-        saveMode = DataSaveMode.KEEP_SCHEMA_AND_DATA;
+        this.pluginConfig = S3RedshiftConf.enhanceS3RedshiftConfig(this.pluginConfig);
+        hadoopConf = S3Conf.buildWithConfig(this.pluginConfig);
+        s3RedshiftConf = S3RedshiftConf.valueOf(this.pluginConfig);
     }
 
     @Override
@@ -119,9 +114,6 @@ public class S3RedshiftSink extends BaseHdfsFileSink
     @Override
     public SinkWriter<SeaTunnelRow, FileCommitInfo, FileSinkState> createWriter(
             SinkWriter.Context context) throws IOException {
-        if (s3RedshiftConf.isAppendOnlyMode()) {
-            return super.createWriter(context);
-        }
         return new S3RedshiftChangelogWriter(
                 writeStrategy,
                 hadoopConf,
@@ -135,9 +127,6 @@ public class S3RedshiftSink extends BaseHdfsFileSink
     @Override
     public SinkWriter<SeaTunnelRow, FileCommitInfo, FileSinkState> restoreWriter(
             SinkWriter.Context context, List<FileSinkState> states) throws IOException {
-        if (s3RedshiftConf.isAppendOnlyMode()) {
-            return super.createWriter(context);
-        }
         return new S3RedshiftChangelogWriter(
                 writeStrategy,
                 hadoopConf,
@@ -155,14 +144,21 @@ public class S3RedshiftSink extends BaseHdfsFileSink
 
     @Override
     public DataSaveMode getUserConfigSaveMode() {
-        return saveMode;
+        return s3RedshiftConf.getSaveMode();
     }
 
     @SneakyThrows
     @Override
     public void handleSaveMode(DataSaveMode saveMode) {
-        new S3RedshiftSaveModeHandler(
-                        saveMode, s3RedshiftConf, catalogTable, readonlyConfig, seaTunnelRowType)
-                .doHandleSaveMode();
+        S3RedshiftSQLGenerator sqlGenerator;
+        if (catalogTable != null) {
+            sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, catalogTable);
+        } else {
+            sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, seaTunnelRowType);
+        }
+        try (S3RedshiftSaveModeHandler saveModeHandler =
+                new S3RedshiftSaveModeHandler(sqlGenerator, s3RedshiftConf)) {
+            saveModeHandler.handle(saveMode);
+        }
     }
 }

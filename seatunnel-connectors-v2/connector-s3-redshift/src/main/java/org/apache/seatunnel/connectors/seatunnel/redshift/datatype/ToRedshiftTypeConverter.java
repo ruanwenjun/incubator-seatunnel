@@ -33,6 +33,7 @@ public class ToRedshiftTypeConverter implements Serializable {
     private static final String FLOAT8 = "FLOAT8";
     private static final String BOOLEAN = "BOOLEAN";
     private static final String VARCHAR = "VARCHAR";
+    private static final String MAX_LENGTH_VARCHAR = "VARCHAR(65535)";
     private static final String VARBINARY = "VARBINARY";
     private static final String DATE = "DATE";
     private static final String TIMESTAMP = "TIMESTAMP";
@@ -47,7 +48,10 @@ public class ToRedshiftTypeConverter implements Serializable {
                 if (column.getLongColumnLength() != null && column.getLongColumnLength() >= 65535) {
                     return SUPER;
                 }
-                return VARCHAR + "(65535)";
+                if (column.getLongColumnLength() != null) {
+                    return VARCHAR + "(" + column.getLongColumnLength() + ")";
+                }
+                return MAX_LENGTH_VARCHAR;
             default:
                 return convert(column.getDataType());
         }
@@ -74,7 +78,7 @@ public class ToRedshiftTypeConverter implements Serializable {
             case BOOLEAN:
                 return BOOLEAN;
             case STRING:
-                return VARCHAR + "(65535)";
+                return MAX_LENGTH_VARCHAR;
             case BYTES:
                 return VARBINARY;
             case DATE:

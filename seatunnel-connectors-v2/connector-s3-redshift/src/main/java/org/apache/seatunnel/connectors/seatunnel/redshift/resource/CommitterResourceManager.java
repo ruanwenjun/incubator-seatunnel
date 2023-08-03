@@ -15,25 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.redshift.exception;
+package org.apache.seatunnel.connectors.seatunnel.redshift.resource;
 
-import org.apache.seatunnel.common.exception.SeaTunnelErrorCode;
-import org.apache.seatunnel.common.exception.SeaTunnelRuntimeException;
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
 
-public class S3RedshiftJdbcConnectorException extends SeaTunnelRuntimeException {
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-    public S3RedshiftJdbcConnectorException(
-            SeaTunnelErrorCode seaTunnelErrorCode, String errorMessage) {
-        super(seaTunnelErrorCode, errorMessage);
+import java.util.Optional;
+
+@AllArgsConstructor
+@Slf4j
+public class CommitterResourceManager implements MultiTableResourceManager<CommitterResource> {
+
+    private final CommitterResource resource;
+
+    @Override
+    public Optional<CommitterResource> getSharedResource() {
+        return Optional.of(resource);
     }
 
-    public S3RedshiftJdbcConnectorException(
-            SeaTunnelErrorCode seaTunnelErrorCode, String errorMessage, Throwable cause) {
-        super(seaTunnelErrorCode, errorMessage, cause);
-    }
-
-    public S3RedshiftJdbcConnectorException(
-            SeaTunnelErrorCode seaTunnelErrorCode, Throwable cause) {
-        super(seaTunnelErrorCode, cause);
+    @Override
+    public void close() {
+        if (resource != null) {
+            resource.close();
+        }
     }
 }

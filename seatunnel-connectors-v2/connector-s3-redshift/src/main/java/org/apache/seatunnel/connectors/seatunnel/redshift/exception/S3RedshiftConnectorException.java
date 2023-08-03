@@ -15,12 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
+package org.apache.seatunnel.connectors.seatunnel.redshift.exception;
 
-public enum S3RedshiftChangelogMode {
-    APPEND_ONLY,
-    APPEND_ON_DUPLICATE_UPDATE,
-    APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC,
-    APPEND_ON_DUPLICATE_DELETE,
-    APPEND_ON_DUPLICATE_DELETE_AUTOMATIC;
+import org.apache.seatunnel.common.exception.SeaTunnelErrorCode;
+import org.apache.seatunnel.common.exception.SeaTunnelRuntimeException;
+
+public class S3RedshiftConnectorException extends SeaTunnelRuntimeException {
+
+    public S3RedshiftConnectorException(
+            SeaTunnelErrorCode seaTunnelErrorCode, String errorMessage) {
+        super(seaTunnelErrorCode, errorMessage);
+    }
+
+    public S3RedshiftConnectorException(
+            SeaTunnelErrorCode seaTunnelErrorCode, String errorMessage, Throwable cause) {
+        super(seaTunnelErrorCode, errorMessage, cause);
+    }
+
+    public S3RedshiftConnectorException(SeaTunnelErrorCode seaTunnelErrorCode, Throwable cause) {
+        super(seaTunnelErrorCode, cause);
+    }
 }

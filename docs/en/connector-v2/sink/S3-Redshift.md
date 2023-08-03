@@ -18,38 +18,28 @@ Output data to AWS Redshift.
 
 By default, we use 2PC commit to ensure `exactly-once`
 
-- [x] file format type
-  - [x] text
-  - [x] csv
-  - [x] parquet
-  - [x] orc
-  - [x] json
-
 ## Options
 
-|                name                |  type  | required |         default value          |
-|------------------------------------|--------|----------|--------------------------------|
-| jdbc_url                           | string | yes      | -                              |
-| jdbc_user                          | string | yes      | -                              |
-| jdbc_password                      | string | yes      | -                              |
-| execute_sql                        | string | false    | -                              |
-| path                               | string | yes      | -                              |
-| tmp_path                           | string | yes      | /tmp/seatunnel                 |
-| bucket                             | string | yes      | -                              |
-| access_key                         | string | no       | -                              |
-| access_secret                      | string | no       | -                              |
-| hadoop_s3_properties               | map    | no       | -                              |
-| file_format_type                   | string | no       | "text"                         |
-| field_delimiter                    | string | no       | '\001'                         |
-| row_delimiter                      | string | no       | "\n"                           |
-| changelog_mode                     | enum   | no       | APPEND_ONLY                    |
-| changelog_buffer_flush_size        | int    | no       | 20000                          |
-| changelog_buffer_flush_interval_ms | int    | no       | 20000                          |
-| redshift_table                     | string | no       | -                              |
-| redshift_table_primary_keys        | array  | no       | -                              |
-| redshift_temporary_table_name      | string | no       | st_temporary_${redshift_table} |
-| redshift_s3_iam_role               | string | no       | -                              |
-| common-options                     |        | no       | -                              |
+|                name                 |  type  | required |         default value          |
+|-------------------------------------|--------|----------|--------------------------------|
+| jdbc_url                            | string | yes      | -                              |
+| jdbc_user                           | string | yes      | -                              |
+| jdbc_password                       | string | yes      | -                              |
+| path                                | string | yes      | -                              |
+| tmp_path                            | string | yes      | /tmp/seatunnel                 |
+| bucket                              | string | yes      | -                              |
+| access_key                          | string | no       | -                              |
+| access_secret                       | string | no       | -                              |
+| hadoop_s3_properties                | map    | no       | -                              |
+| changelog_mode                      | enum   | no       | APPEND_ONLY                    |
+| changelog_buffer_flush_size         | int    | no       | 20000                          |
+| changelog_buffer_flush_interval_ms  | int    | no       | 20000                          |
+| redshift_table                      | string | yes      | -                              |
+| redshift_table_primary_keys         | array  | no       | -                              |
+| redshift_temporary_table_name       | string | no       | st_temporary_${redshift_table} |
+| redshift_s3_iam_role                | string | no       | -                              |
+| redshift_s3_file_commit_worker_size | int    | no       | 1                              |
+| common-options                      |        | no       | -                              |
 
 ### jdbc_url
 
@@ -62,29 +52,6 @@ The JDBC user to connect to the Redshift database.
 ### jdbc_password
 
 The JDBC password to connect to the Redshift database.
-
-### execute_sql
-
-The SQL to execute after the data is written to S3.
-
-eg:
-
-```sql
-
-COPY target_table FROM 's3://yourbucket${path}' IAM_ROLE 'arn:XXX' REGION 'your region' format as json 'auto';
-```
-
-`target_table` is the table name in Redshift.
-
-`${path}` is the path of the file written to S3. please confirm your sql include this variable. and don't need replace it. we will replace it when execute sql.
-
-IAM_ROLE is the role that has permission to access S3.
-
-format is the format of the file written to S3. please confirm this format is same as the file format you set in the configuration.
-
-please refer to [Redshift COPY](https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html) for more details.
-
-please confirm that the role has permission to access S3.
 
 ### path [string]
 
@@ -116,25 +83,14 @@ hadoop_s3_properties {
  }
 ```
 
-### file_format_type [string]
-
-We supported as the following file types:
-
-`text` `csv` `parquet` `orc` `json`
-
-Please note that, The final file name will end with the file_format's suffix, the suffix of the text file is `txt`.
-
-### field_delimiter [string]
-
-The separator between columns in a row of data. Only needed by `text` and `csv` file format.
-
-### row_delimiter [string]
-
-The separator between rows in a file. Only needed by `text` and `csv` file format.
-
 ### changelog_mode [enum]
 
-The changelog mode of the sink writer, support [`APPEND_ONLY`、`APPEND_ON_DUPLICATE_UPDATE`、`APPEND_ON_DUPLICATE_DELETE`].
+The changelog mode of the sink writer, support:
+`APPEND_ONLY`: Only append data to the target table.
+`APPEND_ON_DUPLICATE_UPDATE`: If the primary key exists, update the data, otherwise insert the data.
+`APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC`: If the primary key exists, update the data, otherwise insert the data. Automatically switch copy/merge mode between snapshot sync and incremental sync.
+`APPEND_ON_DUPLICATE_DELETE`: If the primary key exists, delete the data, otherwise insert the data.
+`APPEND_ON_DUPLICATE_DELETE_AUTOMATIC`: If the primary key exists, delete the data, otherwise insert the data. Automatically switch copy/merge mode between snapshot sync and incremental sync.
 
 ### changelog_buffer_flush_size [int]
 
@@ -150,7 +106,7 @@ The target table name of redshift changelog.
 
 ### redshift_table_primary_keys [array]
 
-The primary keys of the buffer/target-table, only needed by `APPEND_ON_DUPLICATE_UPDATE` and `APPEND_ON_DUPLICATE_DELETE` changelog mode.
+The primary keys of the buffer/target-table, only needed by `APPEND_ON_DUPLICATE_UPDATE*` and `APPEND_ON_DUPLICATE_DELETE*` changelog mode.
 
 ### redshift_temporary_table_name [string]
 
@@ -160,81 +116,47 @@ The temporary table of redshift changelog.
 
 The s3 iam role of redshift changelog.
 
+### redshift_s3_file_commit_worker_size [int]
+
+The worker size of redshift changelog file commit.
+
 ### common options
 
 Sink plugin common parameters, please refer to [Sink Common Options](common-options.md) for details.
 
 ## Example
 
-For text file format
+For append only
 
 ```hocon
 
   S3Redshift {
+    source_table_name = "test_xxx_1"
+
+    # file config
+    tmp_path = "/tmp/seatunnel/s3_redshift_xxx/"
+    path = "/seatunnel/s3_redshift_xxx/"
+
+    # s3 config
+    fs.s3a.endpoint = "s3.cn-north-1.amazonaws.com.cn"
+    bucket = "s3a://seatunnel-test-bucket"
+    access_key = "xxxxxxxxxxxxxxxxx"
+    secret_key = "xxxxxxxxxxxxxxxxx"
+    fs.s3a.aws.credentials.provider = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+
+    # redshift config
     jdbc_url = "jdbc:redshift://xxx.amazonaws.com.cn:5439/xxx"
     jdbc_user = "xxx"
     jdbc_password = "xxxx"
-    execute_sql="COPY table_name FROM 's3://test${path}' IAM_ROLE 'arn:aws-cn:iam::xxx' REGION 'cn-north-1' removequotes emptyasnull blanksasnull maxerror 100 delimiter '|' ;"
-    access_key = "xxxxxxxxxxxxxxxxx"
-    secret_key = "xxxxxxxxxxxxxxxxx"
-    bucket = "s3a://seatunnel-test"
-    tmp_path = "/tmp/seatunnel"
-    path="/seatunnel/text"
-    row_delimiter="\n"
-    file_format_type = "text"
-    hadoop_s3_properties {
-       "fs.s3a.aws.credentials.provider" = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
-    }
+
+    # cdc changelog config
+    changelog_mode = "APPEND_ONLY"
+    redshift_table = "your_target_table"
   }
 
 ```
 
-For parquet file format
-
-```hocon
-
-  S3Redshift {
-    jdbc_url = "jdbc:redshift://xxx.amazonaws.com.cn:5439/xxx"
-    jdbc_user = "xxx"
-    jdbc_password = "xxxx"
-    execute_sql="COPY table_name FROM 's3://test${path}' IAM_ROLE 'arn:aws-cn:iam::xxx' REGION 'cn-north-1' format as PARQUET;"
-    access_key = "xxxxxxxxxxxxxxxxx"
-    secret_key = "xxxxxxxxxxxxxxxxx"
-    bucket = "s3a://seatunnel-test"
-    tmp_path = "/tmp/seatunnel"
-    path="/seatunnel/parquet"
-    row_delimiter="\n"
-    file_format_type = "parquet"
-    hadoop_s3_properties {
-       "fs.s3a.aws.credentials.provider" = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
-    }
-  }
-
-```
-
-For orc file format
-
-```hocon
-
-  S3Redshift {
-    jdbc_url = "jdbc:redshift://xxx.amazonaws.com.cn:5439/xxx"
-    jdbc_user = "xxx"
-    jdbc_password = "xxxx"
-    execute_sql="COPY table_name FROM 's3://test${path}' IAM_ROLE 'arn:aws-cn:iam::xxx' REGION 'cn-north-1' format as ORC;"
-    access_key = "xxxxxxxxxxxxxxxxx"
-    secret_key = "xxxxxxxxxxxxxxxxx"
-    bucket = "s3a://seatunnel-test"
-    tmp_path = "/tmp/seatunnel"
-    path="/seatunnel/orc"
-    file_format_type = "orc"
-    hadoop_s3_properties {
-       "fs.s3a.aws.credentials.provider" = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
-    }
-  }
-
-```
-
-Support write cdc changelog event(APPEND_ON_DUPLICATE_UPDATE/APPEND_ON_DUPLICATE_DELETE).
+Support write cdc changelog event(APPEND_ON_DUPLICATE_UPDATE/APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC/APPEND_ON_DUPLICATE_DELETE/APPEND_ON_DUPLICATE_DELETE_AUTOMATIC).
 
 *Using Redshift COPY sql import s3 file into tmp table, and use Redshift MERGE sql merge tmp table data into target table.*
 - [Redshift TEMPORARY Table](https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html)
@@ -268,7 +190,6 @@ sink {
     source_table_name = "test_xxx_1"
     
     # file config
-    file_format_type = "orc"
     tmp_path = "/tmp/seatunnel/s3_redshift_xxx/"
     path = "/seatunnel/s3_redshift_xxx/"
 

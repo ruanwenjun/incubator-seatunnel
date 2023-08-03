@@ -753,7 +753,9 @@ public class ClusterFaultToleranceIT {
         try {
             String yaml =
                     "hazelcast:\n"
-                            + "  cluster-name: seatunnel\n"
+                            + "  cluster-name: "
+                            + testClusterName
+                            + "\n"
                             + "  network:\n"
                             + "    rest-api:\n"
                             + "      enabled: true\n"
