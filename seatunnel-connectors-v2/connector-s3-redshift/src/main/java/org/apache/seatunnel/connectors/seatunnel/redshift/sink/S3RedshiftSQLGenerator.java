@@ -314,7 +314,8 @@ public class S3RedshiftSQLGenerator implements Serializable {
 
     public String generateAnalyseSql(@NonNull String[] sortKeys) {
         String columns = Arrays.stream(sortKeys).collect(Collectors.joining(" , "));
-        return String.format("ANALYZE %s(%s)", conf.getRedshiftTable(), columns);
+        return String.format(
+                "ANALYZE %s.%s(%s)", conf.getSchema(), conf.getRedshiftTable(), columns);
     }
 
     private List<String> getTableSortKey() {
