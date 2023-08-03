@@ -125,6 +125,14 @@ public class S3RedshiftSQLGenerator implements Serializable {
     }
 
     public String generateCopyS3FileToTemporaryTableSql() {
+        return generateCopyS3FileToTableSql(conf.getTemporaryTableName());
+    }
+
+    public String generateCopyS3FileToTargetTableSql() {
+        return generateCopyS3FileToTableSql(conf.getRedshiftTable());
+    }
+
+    private String generateCopyS3FileToTableSql(String table) {
         String bucket = getBucket(conf.getS3Bucket());
         if (bucket.endsWith("/")) {
             bucket = bucket.substring(0, bucket.lastIndexOf("/"));
@@ -135,7 +143,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
             return String.format(
                     "COPY %s.%s(%s) FROM '%s/${path}' ACCESS_KEY_ID '%s' SECRET_ACCESS_KEY '%s' FORMAT ORC SERIALIZETOJSON",
                     conf.getSchema(),
-                    conf.getTemporaryTableName(),
+                    table,
                     columns,
                     bucket,
                     conf.getAccessKey(),
@@ -144,11 +152,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
         if (!Strings.isNullOrEmpty(conf.getRedshiftS3IamRole())) {
             return String.format(
                     "COPY %s.%s(%s) FROM '%s/${path}' IAM_ROLE '%s' FORMAT ORC SERIALIZETOJSON",
-                    conf.getSchema(),
-                    conf.getTemporaryTableName(),
-                    columns,
-                    bucket,
-                    conf.getRedshiftS3IamRole());
+                    conf.getSchema(), table, columns, bucket, conf.getRedshiftS3IamRole());
         }
         throw new IllegalArgumentException("Either accessKey/secretKey or iamRole must be set");
     }
@@ -255,7 +259,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
         }
 
         String matchedClause = "DELETE";
-        if (S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE.equals(conf.getChangelogMode())) {
+        if (conf.isAllowUpdate()) {
             matchedClause =
                     Stream.of(rowType.getFieldNames())
                             .filter(field -> !conf.getRedshiftTablePrimaryKeys().contains(field))
@@ -270,7 +274,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
 
         String sourceTable =
                 conf.isCopyS3FileToTemporaryTableMode()
-                        ? conf.getTemporaryTableName()
+                        ? conf.getSchema() + "." + conf.getTemporaryTableName()
                         : conf.getRedshiftExternalSchema() + "." + conf.getTemporaryTableName();
         return String.format(
                 "MERGE INTO %s.%s "
@@ -300,7 +304,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
 
         String sourceTable =
                 conf.isCopyS3FileToTemporaryTableMode()
-                        ? conf.getTemporaryTableName()
+                        ? conf.getSchema() + "." + conf.getTemporaryTableName()
                         : conf.getRedshiftExternalSchema() + "." + conf.getTemporaryTableName();
 
         String[] sortKeys = getTableSortKey().toArray(new String[0]);

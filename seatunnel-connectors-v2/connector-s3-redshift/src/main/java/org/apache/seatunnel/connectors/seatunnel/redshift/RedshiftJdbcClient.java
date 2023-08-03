@@ -68,19 +68,17 @@ public class RedshiftJdbcClient implements AutoCloseable {
         dataSource.close();
     }
 
-    public Integer executeQueryForNum(String sql) throws Exception {
+    public boolean existDataForSql(String sql) throws SQLException {
+        return executeQueryCount(sql) > 0;
+    }
+
+    public Integer executeQueryCount(String sql) throws SQLException {
         try (Connection connection = getConnection()) {
             ResultSet resultSet = connection.createStatement().executeQuery(sql);
-            if (resultSet == null) {
+            if (!resultSet.next()) {
                 return 0;
             }
-            resultSet.next();
             return resultSet.getInt(1);
-        } catch (SQLException e) {
-            throw new S3RedshiftConnectorException(
-                    CommonErrorCode.SQL_OPERATION_FAILED,
-                    String.format("Execute sql failed, sql is %s ", sql),
-                    e);
         }
     }
 

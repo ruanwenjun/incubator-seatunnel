@@ -18,8 +18,10 @@
 package org.apache.seatunnel.connectors.seatunnel.redshift.config;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
+import org.apache.seatunnel.shade.com.typesafe.config.ConfigValueFactory;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
@@ -33,6 +35,13 @@ import lombok.ToString;
 import java.io.Serializable;
 import java.util.List;
 
+import static org.apache.seatunnel.connectors.seatunnel.file.config.BaseSourceConfig.FILE_FORMAT_TYPE;
+import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ONLY;
+import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE;
+import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE_AUTOMATIC;
+import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE;
+import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC;
+
 @Builder
 @Getter
 @ToString
@@ -40,15 +49,14 @@ public class S3RedshiftConf implements Serializable {
     private final String jdbcUrl;
     private final String jdbcUser;
     private final String jdbcPassword;
-    private final String database;
     private final String executeSql;
     private final String schema;
 
     private final String s3Bucket;
     private final String accessKey;
     private final String secretKey;
-    private final FileFormat fileFormat;
 
+    private final DataSaveMode saveMode;
     private final S3RedshiftChangelogMode changelogMode;
     private final int changelogBufferFlushSize;
     private final int changelogBufferFlushInterval;
@@ -58,9 +66,30 @@ public class S3RedshiftConf implements Serializable {
     private final String redshiftTemporaryTableName;
     private final String redshiftExternalSchema;
     private final String redshiftS3IamRole;
+    private final int redshiftS3FileCommitWorkerSize;
+    private final String customSql;
 
     public boolean isAppendOnlyMode() {
-        return S3RedshiftChangelogMode.APPEND_ONLY.equals(changelogMode);
+        return APPEND_ONLY.equals(changelogMode);
+    }
+
+    public boolean notAppendOnlyMode() {
+        return !isAppendOnlyMode();
+    }
+
+    public boolean isAllowAppend() {
+        return APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC.equals(changelogMode)
+                || APPEND_ON_DUPLICATE_DELETE_AUTOMATIC.equals(changelogMode);
+    }
+
+    public boolean isAllowUpdate() {
+        return APPEND_ON_DUPLICATE_UPDATE.equals(changelogMode)
+                || APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC.equals(changelogMode);
+    }
+
+    public boolean isAllowDelete() {
+        return APPEND_ON_DUPLICATE_DELETE.equals(changelogMode)
+                || APPEND_ON_DUPLICATE_DELETE_AUTOMATIC.equals(changelogMode);
     }
 
     public boolean isCopyS3FileToTemporaryTableMode() {
@@ -86,15 +115,13 @@ public class S3RedshiftConf implements Serializable {
         builder.jdbcUrl(readonlyConfig.get(S3RedshiftConfig.JDBC_URL));
         builder.jdbcUser(readonlyConfig.get(S3RedshiftConfig.JDBC_USER));
         builder.jdbcPassword(readonlyConfig.get(S3RedshiftConfig.JDBC_PASSWORD));
-        builder.database(readonlyConfig.get(S3RedshiftConfig.DATABASE));
         builder.schema(readonlyConfig.get(S3RedshiftConfig.SCHEMA_NAME));
-        builder.executeSql(readonlyConfig.get(S3RedshiftConfig.EXECUTE_SQL));
 
         builder.s3Bucket(readonlyConfig.get(S3RedshiftConfig.S3_BUCKET));
         builder.accessKey(readonlyConfig.get(S3RedshiftConfig.S3_ACCESS_KEY));
         builder.secretKey(readonlyConfig.get(S3RedshiftConfig.S3_SECRET_KEY));
-        builder.fileFormat(readonlyConfig.get(S3RedshiftConfig.FILE_FORMAT_TYPE));
 
+        builder.saveMode(readonlyConfig.get(S3RedshiftConfig.SAVE_MODE));
         builder.changelogMode(readonlyConfig.get(S3RedshiftConfig.CHANGELOG_MODE));
         builder.redshiftTemporaryTableMode(
                 readonlyConfig.get(S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_MODE));
@@ -112,23 +139,15 @@ public class S3RedshiftConf implements Serializable {
         builder.redshiftExternalSchema(
                 readonlyConfig.get(S3RedshiftConfig.REDSHIFT_EXTERNAL_SCHEMA));
         builder.redshiftS3IamRole(readonlyConfig.get(S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE));
-
-        if (!S3RedshiftChangelogMode.APPEND_ONLY.equals(builder.changelogMode)) {
-            checkFormat(builder.fileFormat);
-        }
+        builder.redshiftS3FileCommitWorkerSize(
+                readonlyConfig.get(S3RedshiftConfig.REDSHIFT_S3_FILE_COMMIT_WORKER_SIZE));
+        builder.customSql(readonlyConfig.get(S3RedshiftConfig.CUSTOM_SQL));
         return builder.build();
     }
 
     public String getTemporaryTableName() {
         return getRedshiftTemporaryTableName()
                 .replace("${redshift_table}", getRedshiftTable().replace(".", "_"));
-    }
-
-    private static void checkFormat(FileFormat fileFormat) throws IllegalArgumentException {
-        if (!FileFormat.ORC.equals(fileFormat)) {
-            throw new IllegalArgumentException(
-                    "Only orc file format is supported for changelog mode");
-        }
     }
 
     private static void checkPath(String... paths) throws IllegalArgumentException {
@@ -140,5 +159,10 @@ public class S3RedshiftConf implements Serializable {
                 throw new IllegalArgumentException("Path must start with /");
             }
         }
+    }
+
+    public static Config enhanceS3RedshiftConfig(Config config) {
+        return config.withValue(
+                FILE_FORMAT_TYPE.key(), ConfigValueFactory.fromAnyRef(FileFormat.ORC.name()));
     }
 }

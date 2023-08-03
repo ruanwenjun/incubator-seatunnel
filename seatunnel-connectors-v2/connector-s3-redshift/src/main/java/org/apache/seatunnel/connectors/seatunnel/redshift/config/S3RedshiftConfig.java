@@ -26,7 +26,6 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftTempora
 
 import lombok.Builder;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Builder
@@ -50,35 +49,16 @@ public class S3RedshiftConfig extends S3Config {
                     .noDefaultValue()
                     .withDescription("Redshift JDBC password");
 
-    public static final Option<String> DATABASE =
-            Options.key("database")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Redshift database name");
-
     public static final Option<String> SCHEMA_NAME =
             Options.key("schema_name")
                     .stringType()
-                    .noDefaultValue()
+                    .defaultValue("public")
                     .withDescription("Redshift JDBC schema");
 
-    public static final Option<String> EXECUTE_SQL =
-            Options.key("execute_sql")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Redshift execute sql");
-
-    public static final Option<String> SAVE_MODE =
+    public static final Option<DataSaveMode> SAVE_MODE =
             Options.key("save_mode")
-                    .singleChoice(
-                            String.class,
-                            Arrays.asList(
-                                    DataSaveMode.DROP_SCHEMA.toString(),
-                                    DataSaveMode.KEEP_SCHEMA_DROP_DATA.toString(),
-                                    DataSaveMode.KEEP_SCHEMA_AND_DATA.toString(),
-                                    DataSaveMode.CUSTOM_PROCESSING.toString(),
-                                    DataSaveMode.ERROR_WHEN_EXISTS.toString()))
-                    .noDefaultValue()
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
                     .withDescription("save_mode");
 
     public static final Option<String> CUSTOM_SQL =
@@ -137,4 +117,10 @@ public class S3RedshiftConfig extends S3Config {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Redshift connect S3 iam role");
+
+    public static final Option<Integer> REDSHIFT_S3_FILE_COMMIT_WORKER_SIZE =
+            Options.key("redshift_s3_file_commit_worker_size")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription("Redshift s3 file commit worker size");
 }

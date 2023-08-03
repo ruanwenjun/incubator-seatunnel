@@ -15,12 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
+package org.apache.seatunnel.connectors.seatunnel.redshift.resource;
 
-public enum S3RedshiftChangelogMode {
-    APPEND_ONLY,
-    APPEND_ON_DUPLICATE_UPDATE,
-    APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC,
-    APPEND_ON_DUPLICATE_DELETE,
-    APPEND_ON_DUPLICATE_DELETE_AUTOMATIC;
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.Optional;
+
+@AllArgsConstructor
+@Slf4j
+public class WriterResourceManager implements MultiTableResourceManager<WriterResource> {
+
+    private final WriterResource resource;
+
+    @Override
+    public Optional<WriterResource> getSharedResource() {
+        return Optional.of(resource);
+    }
+
+    @Override
+    public void close() {
+        if (resource != null) {
+            resource.close();
+        }
+    }
 }

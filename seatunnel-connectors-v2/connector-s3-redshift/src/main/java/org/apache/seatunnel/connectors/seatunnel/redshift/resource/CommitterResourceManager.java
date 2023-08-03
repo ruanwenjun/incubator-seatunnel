@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
+package org.apache.seatunnel.connectors.seatunnel.redshift.resource;
 
 import org.apache.seatunnel.api.sink.MultiTableResourceManager;
-import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,18 +26,19 @@ import java.util.Optional;
 
 @AllArgsConstructor
 @Slf4j
-public class S3RedshiftJdbcMultiTableResourceManager
-        implements MultiTableResourceManager<RedshiftJdbcClient> {
+public class CommitterResourceManager implements MultiTableResourceManager<CommitterResource> {
 
-    private RedshiftJdbcClient redshiftJdbcClient;
+    private final CommitterResource resource;
 
     @Override
-    public Optional<RedshiftJdbcClient> getSharedResource() {
-        return Optional.of(redshiftJdbcClient);
+    public Optional<CommitterResource> getSharedResource() {
+        return Optional.of(resource);
     }
 
     @Override
     public void close() {
-        redshiftJdbcClient.close();
+        if (resource != null) {
+            resource.close();
+        }
     }
 }
