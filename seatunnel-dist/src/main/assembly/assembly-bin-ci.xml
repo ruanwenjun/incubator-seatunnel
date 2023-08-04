@@ -103,6 +103,10 @@
             <source>../plugin-mapping.properties</source>
             <outputDirectory>/connectors</outputDirectory>
         </file>
+        <file>
+            <source>../seatunnel-api/src/main/resources/version.properties</source>
+            <outputDirectory>.</outputDirectory>
+        </file>
     </files>
     <dependencySets>
         <!-- ============ Logging Jars ============  -->

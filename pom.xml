@@ -874,6 +874,37 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>pl.project13.maven</groupId>
+                <artifactId>git-commit-id-plugin</artifactId>
+                <version>4.9.10</version>
+                <configuration>
+                    <verbose>false</verbose>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>${project.basedir}/src/main/resources/version.properties</generateGitPropertiesFilename>
+                    <dateFormatTimeZone>UTC</dateFormatTimeZone>
+                    <dateFormat>yyyyMMddHHmmss</dateFormat>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>git.build.time</includeOnlyProperty>
+                        <includeOnlyProperty>git.build.version</includeOnlyProperty>
+                        <includeOnlyProperty>git.commit.author.time</includeOnlyProperty>
+                        <includeOnlyProperty>git.commit.committer.time</includeOnlyProperty>
+                        <includeOnlyProperty>git.commit.id</includeOnlyProperty>
+                        <includeOnlyProperty>git.commit.id.abbrev</includeOnlyProperty>
+                        <includeOnlyProperty>git.commit.time</includeOnlyProperty>
+                    </includeOnlyProperties>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>get-the-git-information</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
