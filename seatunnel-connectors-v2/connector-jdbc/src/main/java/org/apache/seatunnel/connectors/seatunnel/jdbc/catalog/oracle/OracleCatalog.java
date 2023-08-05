@@ -160,7 +160,10 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                 ps.execute();
             } catch (Exception e) {
                 throw new CatalogException(
-                        String.format("Failed creating table %s.%s", tablePath.getSchemaName(),tablePath.getTableName()), e);
+                        String.format(
+                                "Failed creating table %s.%s",
+                                tablePath.getSchemaName(), tablePath.getTableName()),
+                        e);
             }
         }
         return true;
@@ -170,8 +173,10 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     protected boolean dropTableInternal(TablePath tablePath) throws CatalogException {
         Connection connection = defaultConnection;
         try (PreparedStatement ps =
-                     connection.prepareStatement(
-                             String.format("DROP TABLE %s.%s",  tablePath.getSchemaName(),tablePath.getTableName()))) {
+                connection.prepareStatement(
+                        String.format(
+                                "DROP TABLE %s.%s",
+                                tablePath.getSchemaName(), tablePath.getTableName()))) {
             // Will there exist concurrent truncate for one table?
             return ps.execute();
         } catch (SQLException e) {
@@ -185,7 +190,9 @@ public class OracleCatalog extends AbstractJdbcCatalog {
         Connection connection = defaultConnection;
         try (PreparedStatement ps =
                 connection.prepareStatement(
-                        String.format("TRUNCATE TABLE %s.%s",  tablePath.getSchemaName(),tablePath.getTableName()))) {
+                        String.format(
+                                "TRUNCATE TABLE %s.%s",
+                                tablePath.getSchemaName(), tablePath.getTableName()))) {
             // Will there exist concurrent truncate for one table?
             return ps.execute();
         } catch (SQLException e) {
@@ -206,8 +213,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
 
     public String getCountSql(TablePath tablePath) {
         return String.format(
-                "select count(*) from %s.%s",
-                tablePath.getSchemaName(), tablePath.getTableName());
+                "select count(*) from %s.%s", tablePath.getSchemaName(), tablePath.getTableName());
     }
 
     @Override
