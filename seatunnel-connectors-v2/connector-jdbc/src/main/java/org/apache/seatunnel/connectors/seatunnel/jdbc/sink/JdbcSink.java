@@ -225,61 +225,10 @@ public class JdbcSink
                         catalogFactory.factoryIdentifier(),
                         ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
             catalog.open();
-            doHandleSaveMode(saveMode, catalog);
+            new JdbcSaveModeHandler(jdbcSinkConfig,config,saveMode,catalogTable,catalog).doHandleSaveMode();
+
         } catch (Exception e) {
             throw new JdbcConnectorException(HANDLE_SAVE_MODE_FAILED, e);
-        }
-    }
-
-    private void doHandleSaveMode(DataSaveMode saveMode, Catalog catalog) {
-        String fieldIde = config.get(JdbcOptions.FIELD_IDE);
-        AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog) catalog;
-        TablePath tablePath =
-                TablePath.of(
-                        jdbcSinkConfig.getDatabase()
-                                + "."
-                                + CatalogUtils.quoteTableIdentifier(
-                                        jdbcSinkConfig.getTable(), fieldIde));
-        switch (saveMode) {
-            case DROP_SCHEMA:
-                if (!catalog.databaseExists(jdbcSinkConfig.getDatabase())) {
-                    catalog.createDatabase(tablePath, true);
-                }
-                if (catalog.tableExists(tablePath)) {
-                    catalog.dropTable(tablePath, true);
-                }
-                catalogTable.getOptions().put("fieldIde", fieldIde);
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                break;
-            case KEEP_SCHEMA_DROP_DATA:
-                if (catalog.tableExists(tablePath)) {
-                    catalog.truncateTable(tablePath, true);
-                } else {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                break;
-            case KEEP_SCHEMA_AND_DATA:
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                break;
-            case CUSTOM_PROCESSING:
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                String customSql = config.get(JdbcOptions.CUSTOM_SQL);
-                jdbcCatalog.executeSql(customSql);
-                break;
-            case ERROR_WHEN_EXISTS:
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                if (jdbcCatalog.isExistsData(tablePath.getFullName())) {
-                    throw new JdbcConnectorException(
-                            SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
-                }
         }
     }
 }

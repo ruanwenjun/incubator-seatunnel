@@ -318,8 +318,8 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         try (PreparedStatement ps =
                 connection.prepareStatement(
                         String.format(
-                                "DROP TABLE IF EXISTS %s;",
-                                tablePath.getDatabaseName() + "." + tablePath.getTableName()))) {
+                                "DROP TABLE IF EXISTS %s.%s;",
+                                tablePath.getDatabaseName() , tablePath.getTableName()))) {
             // Will there exist concurrent drop for one table?
             return ps.execute();
         } catch (SQLException e) {
@@ -335,8 +335,8 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         try (PreparedStatement ps =
                 connection.prepareStatement(
                         String.format(
-                                "TRUNCATE TABLE %s;",
-                                tablePath.getDatabaseName() + "." + tablePath.getTableName()))) {
+                                "TRUNCATE TABLE %s.%s;",
+                                tablePath.getDatabaseName() , tablePath.getTableName()))) {
             // Will there exist concurrent truncate for one table?
             return ps.execute();
         } catch (SQLException e) {
@@ -373,6 +373,10 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
                             databaseName, this.catalogName),
                     e);
         }
+    }
+
+    public String getCountSql(TablePath tablePath) {
+        return String.format("select count(*) from %s.%s;", tablePath.getDatabaseName(),tablePath.getTableName());
     }
 
     /**

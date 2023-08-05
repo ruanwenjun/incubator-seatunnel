@@ -148,9 +148,9 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         }
     }
 
-    public boolean isExistsData(String tableFullName) {
+    public boolean isExistsData(TablePath tablePath) {
         Connection connection = defaultConnection;
-        String sql = String.format("select count(*) from %s;", tableFullName);
+        String sql = getCountSql(tablePath);
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ResultSet resultSet = ps.executeQuery();
             if (resultSet == null) {
@@ -163,6 +163,10 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         } catch (SQLException e) {
             throw new CatalogException(String.format("Failed executeSql error %s", sql), e);
         }
+    }
+
+    public String getCountSql(TablePath tablePath) {
+        return String.format("select count(*) from %s;", tablePath.getFullName());
     }
 
     protected Optional<PrimaryKey> getPrimaryKey(
