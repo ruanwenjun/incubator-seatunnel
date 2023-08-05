@@ -147,7 +147,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
     @Override
     public OptionRule optionRule() {
         return OptionRule.builder()
-                .required(URL, DRIVER,SAVE_MODE)
+                .required(URL, DRIVER, SAVE_MODE)
                 .optional(
                         USER,
                         PASSWORD,
@@ -171,7 +171,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 .conditional(IS_EXACTLY_ONCE, false, MAX_RETRIES)
                 .conditional(GENERATE_SINK_SQL, true, DATABASE)
                 .conditional(GENERATE_SINK_SQL, false, QUERY)
-                .conditional(SAVE_MODE,DataSaveMode.CUSTOM_PROCESSING,CUSTOM_SQL)
+                .conditional(SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
                 .build();
     }
 }

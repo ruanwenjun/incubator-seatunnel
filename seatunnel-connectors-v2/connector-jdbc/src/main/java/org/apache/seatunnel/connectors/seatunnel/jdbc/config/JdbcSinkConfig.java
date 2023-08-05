@@ -18,10 +18,10 @@
 package org.apache.seatunnel.connectors.seatunnel.jdbc.config;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 
 import lombok.Builder;
 import lombok.Data;
-import org.apache.seatunnel.api.sink.DataSaveMode;
 
 import java.io.Serializable;
 import java.util.List;

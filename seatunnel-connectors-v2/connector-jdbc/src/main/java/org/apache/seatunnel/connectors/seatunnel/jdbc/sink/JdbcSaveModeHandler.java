@@ -10,7 +10,6 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorException;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
 
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
 
@@ -26,7 +25,12 @@ public class JdbcSaveModeHandler {
 
     private final Catalog catalog;
 
-    JdbcSaveModeHandler(JdbcSinkConfig jdbcSinkConfig,ReadonlyConfig config,DataSaveMode saveMode,CatalogTable catalogTable,Catalog catalog){
+    JdbcSaveModeHandler(
+            JdbcSinkConfig jdbcSinkConfig,
+            ReadonlyConfig config,
+            DataSaveMode saveMode,
+            CatalogTable catalogTable,
+            Catalog catalog) {
         this.jdbcSinkConfig = jdbcSinkConfig;
         this.config = config;
         this.saveMode = saveMode;
@@ -42,7 +46,7 @@ public class JdbcSaveModeHandler {
                         jdbcSinkConfig.getDatabase()
                                 + "."
                                 + CatalogUtils.quoteTableIdentifier(
-                                jdbcSinkConfig.getTable(), fieldIde));
+                                        jdbcSinkConfig.getTable(), fieldIde));
         switch (saveMode) {
             case DROP_SCHEMA:
                 dropSchema(fieldIde, tablePath);

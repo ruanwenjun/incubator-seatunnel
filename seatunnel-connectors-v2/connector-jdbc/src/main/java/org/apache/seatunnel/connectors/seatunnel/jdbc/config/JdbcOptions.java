@@ -22,7 +22,6 @@ import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.List;
 
 @SuppressWarnings("checkstyle:MagicNumber")
