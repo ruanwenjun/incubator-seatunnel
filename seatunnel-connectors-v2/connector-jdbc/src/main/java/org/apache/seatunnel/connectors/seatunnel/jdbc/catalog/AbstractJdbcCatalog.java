@@ -165,9 +165,7 @@ public abstract class AbstractJdbcCatalog implements Catalog {
         }
     }
 
-    public String getCountSql(TablePath tablePath) {
-        return String.format("select count(*) from %s;", tablePath.getFullName());
-    }
+    public abstract String getCountSql(TablePath tablePath);
 
     protected Optional<PrimaryKey> getPrimaryKey(
             DatabaseMetaData metaData, String database, String table) throws SQLException {
