@@ -33,6 +33,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.IcebergCatalogFactory;
 
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -43,6 +44,8 @@ import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class IcebergCatalog implements Catalog {
 
     IcebergCatalogFactory icebergCatalogFactory;
@@ -65,15 +69,20 @@ public class IcebergCatalog implements Catalog {
 
     @Override
     public void open() throws CatalogException {
+        log.info("Opening IcebergCatalog...");
         this.catalog = icebergCatalogFactory.create();
+        log.info("IcebergCatalog opened successfully.");
     }
 
     @Override
     public void close() throws CatalogException {
+        log.info("Closing IcebergCatalog...");
         if (catalog != null && catalog instanceof Closeable) {
             try {
                 ((Closeable) catalog).close();
+                log.info("IcebergCatalog closed successfully.");
             } catch (IOException e) {
+                log.error("Error while closing IcebergCatalog.", e);
                 throw new CatalogException(e);
             }
         }
@@ -81,13 +90,17 @@ public class IcebergCatalog implements Catalog {
 
     @Override
     public String getDefaultDatabase() throws CatalogException {
-        throw new UnsupportedOperationException();
+        log.info("Fetching default database...");
+        return "default";
     }
 
     @Override
     public boolean databaseExists(String databaseName) throws CatalogException {
         if (catalog instanceof SupportsNamespaces) {
-            return ((SupportsNamespaces) catalog).namespaceExists(Namespace.of(databaseName));
+            boolean exists =
+                    ((SupportsNamespaces) catalog).namespaceExists(Namespace.of(databaseName));
+            log.info("Database {} existence status: {}", databaseName, exists);
+            return exists;
         } else {
             throw new UnsupportedOperationException(
                     "catalog not implements SupportsNamespaces so can't check database exists");
@@ -97,10 +110,13 @@ public class IcebergCatalog implements Catalog {
     @Override
     public List<String> listDatabases() throws CatalogException {
         if (catalog instanceof SupportsNamespaces) {
-            return ((SupportsNamespaces) catalog)
-                    .listNamespaces().stream()
-                            .map(Namespace::toString)
-                            .collect(Collectors.toList());
+            List<String> databases =
+                    ((SupportsNamespaces) catalog)
+                            .listNamespaces().stream()
+                                    .map(Namespace::toString)
+                                    .collect(Collectors.toList());
+            log.info("Fetched {} databases.", databases.size());
+            return databases;
         } else {
             throw new UnsupportedOperationException(
                     "catalog not implements SupportsNamespaces so can't list databases");
@@ -110,14 +126,19 @@ public class IcebergCatalog implements Catalog {
     @Override
     public List<String> listTables(String databaseName)
             throws CatalogException, DatabaseNotExistException {
-        return catalog.listTables(Namespace.of(databaseName)).stream()
-                .map(tableIdentifier -> toTablePath(tableIdentifier).getTableName())
-                .collect(Collectors.toList());
+        List<String> tables =
+                catalog.listTables(Namespace.of(databaseName)).stream()
+                        .map(tableIdentifier -> toTablePath(tableIdentifier).getTableName())
+                        .collect(Collectors.toList());
+        log.info("Fetched {} tables.", tables.size());
+        return tables;
     }
 
     @Override
     public boolean tableExists(TablePath tablePath) throws CatalogException {
-        return catalog.tableExists(toIcebergTableIdentifier(tablePath));
+        boolean exists = catalog.tableExists(toIcebergTableIdentifier(tablePath));
+        log.info("Table {} existence status: {}", tablePath, exists);
+        return exists;
     }
 
     @Override
@@ -125,7 +146,10 @@ public class IcebergCatalog implements Catalog {
             throws CatalogException, TableNotExistException {
         TableIdentifier icebergTableIdentifier = toIcebergTableIdentifier(tablePath);
         try {
-            return toCatalogTable(catalog.loadTable(icebergTableIdentifier), tablePath);
+            CatalogTable catalogTable =
+                    toCatalogTable(catalog.loadTable(icebergTableIdentifier), tablePath);
+            log.info("Fetched table details for: {}", tablePath);
+            return catalogTable;
         } catch (NoSuchTableException e) {
             throw new TableNotExistException("table not exist", tablePath, e);
         }
@@ -134,7 +158,7 @@ public class IcebergCatalog implements Catalog {
     @Override
     public void createTable(TablePath tablePath, CatalogTable table, boolean ignoreIfExists)
             throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
-
+        log.info("Creating table at path: {}", tablePath);
         TableSchema tableSchema = table.getTableSchema();
         Schema icebergSchema = toIcebergSchema(tableSchema);
         PartitionSpec.Builder psBuilder = PartitionSpec.builderFor(icebergSchema);
@@ -143,8 +167,13 @@ public class IcebergCatalog implements Catalog {
         }
 
         Map<String, String> options = new HashMap<>(table.getOptions());
-        options.put("bucketing_version", "2");
-
+        options.put("format-version", "2");
+        log.info(
+                "tablePath: {}, tableSchema: {}, partitionKeys: {}, options: {}",
+                tablePath,
+                tableSchema,
+                table.getPartitionKeys(),
+                options);
         catalog.createTable(
                 toIcebergTableIdentifier(tablePath), icebergSchema, psBuilder.build(), options);
     }
@@ -154,33 +183,26 @@ public class IcebergCatalog implements Catalog {
             throws TableNotExistException, CatalogException {
         if (ignoreIfNotExists) {
             if (!tableExists(tablePath)) {
+                log.info(
+                        "Attempted to drop table at path: {}. The table does not exist, but proceeding as 'ignoreIfNotExists' is set to true.",
+                        tablePath);
                 return;
             }
         }
         catalog.dropTable(toIcebergTableIdentifier(tablePath), true);
+        log.info("Dropped table at path: {}", tablePath);
     }
 
     @Override
     public void createDatabase(TablePath tablePath, boolean ignoreIfExists)
             throws DatabaseAlreadyExistException, CatalogException {
-        if (catalog instanceof SupportsNamespaces) {
-            ((SupportsNamespaces) catalog)
-                    .createNamespace(Namespace.of(tablePath.getDatabaseName()));
-        } else {
-            throw new UnsupportedOperationException(
-                    "catalog not implements SupportsNamespaces so can't create namespace");
-        }
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void dropDatabase(TablePath tablePath, boolean ignoreIfNotExists)
             throws DatabaseNotExistException, CatalogException {
-        if (catalog instanceof SupportsNamespaces) {
-            ((SupportsNamespaces) catalog).dropNamespace(Namespace.of(tablePath.getDatabaseName()));
-        } else {
-            throw new UnsupportedOperationException(
-                    "catalog not implements SupportsNamespaces so can't drop namespace");
-        }
+        throw new UnsupportedOperationException();
     }
 
     public void truncateTable(TablePath tablePath) throws TableNotExistException, CatalogException {
@@ -192,6 +214,7 @@ public class IcebergCatalog implements Catalog {
                 .newDelete()
                 .deleteFromRowFilter(org.apache.iceberg.expressions.Expressions.alwaysTrue())
                 .commit();
+        log.info("Truncated table at path: {}", tablePath);
     }
 
     public CatalogTable toCatalogTable(Table icebergTable, TablePath tablePath) {
@@ -214,9 +237,10 @@ public class IcebergCatalog implements Catalog {
                                             nestedField.doc());
                             builder.column(physicalColumn);
                         });
+
         List<String> partitionKeys =
-                icebergTable.spec().schema().columns().stream()
-                        .map(Types.NestedField::name)
+                icebergTable.spec().fields().stream()
+                        .map(PartitionField::name)
                         .collect(Collectors.toList());
 
         return CatalogTable.of(
@@ -237,7 +261,10 @@ public class IcebergCatalog implements Catalog {
             Column column = columns.get(i);
             SeaTunnelDataType<?> dataType = column.getDataType();
             String name = column.getName();
-            Map<String, Object> options = new HashMap<>(column.getOptions());
+            Map<String, Object> options =
+                    column.getOptions() != null
+                            ? new HashMap<>(column.getOptions())
+                            : new HashMap<>();
             if (dataType.getSqlType().equals(SqlType.DECIMAL)) {
                 DecimalType decimalType = (DecimalType) dataType;
                 options.put(IcebergDataTypeConvertor.PRECISION, decimalType.getPrecision());
