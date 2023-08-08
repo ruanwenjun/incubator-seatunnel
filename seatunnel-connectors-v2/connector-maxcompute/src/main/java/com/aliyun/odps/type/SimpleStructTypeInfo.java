@@ -30,7 +30,7 @@ public class SimpleStructTypeInfo implements StructTypeInfo {
     private final List<String> fieldNames;
     private final List<TypeInfo> fieldTypeInfos;
 
-    SimpleStructTypeInfo(List<String> names, List<TypeInfo> typeInfos) {
+    public SimpleStructTypeInfo(List<String> names, List<TypeInfo> typeInfos) {
         this.validateParameters(names, typeInfos);
         this.fieldNames = this.toLowerCase(names);
         this.fieldTypeInfos = new ArrayList(typeInfos);

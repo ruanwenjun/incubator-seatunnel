@@ -26,7 +26,7 @@ public class SimpleMapTypeInfo implements MapTypeInfo {
     private final TypeInfo keyType;
     private final TypeInfo valueType;
 
-    SimpleMapTypeInfo(TypeInfo keyType, TypeInfo valueType) {
+    public SimpleMapTypeInfo(TypeInfo keyType, TypeInfo valueType) {
         if (keyType != null && valueType != null) {
             this.keyType = keyType;
             this.valueType = valueType;

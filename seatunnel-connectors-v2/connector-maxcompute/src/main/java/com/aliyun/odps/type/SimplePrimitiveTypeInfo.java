@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.example.engine;
+package com.aliyun.odps.type;
 
-import org.apache.seatunnel.core.starter.SeaTunnel;
-import org.apache.seatunnel.core.starter.exception.CommandException;
-import org.apache.seatunnel.core.starter.seatunnel.args.ServerCommandArgs;
+import com.aliyun.odps.OdpsType;
 
-public class SeaTunnelEngineServerExample {
-    public static void main(String[] args) throws CommandException {
-        ServerCommandArgs serverCommandArgs = new ServerCommandArgs();
-        serverCommandArgs.setClusterName("seatunnel");
-        SeaTunnel.run(serverCommandArgs.buildCommand());
+/**
+ * We override this class to change the constructor to public.
+ */
+public class SimplePrimitiveTypeInfo extends AbstractPrimitiveTypeInfo {
+    public SimplePrimitiveTypeInfo(OdpsType odpsType) {
+        super(odpsType);
     }
 }

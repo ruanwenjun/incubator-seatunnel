@@ -246,6 +246,8 @@ public class CatalogTableUtil implements Serializable {
                 return LocalTimeType.LOCAL_TIME_TYPE;
             case TIMESTAMP:
                 return LocalTimeType.LOCAL_DATE_TIME_TYPE;
+            case MAP:
+                return parseMapType(columnStr);
             default:
                 throw new UnsupportedOperationException(
                         String.format("the type[%s] is not support", columnStr));
