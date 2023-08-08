@@ -25,6 +25,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import lombok.RequiredArgsConstructor;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -34,26 +35,35 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+@RequiredArgsConstructor
 public class RedshiftJdbcClient implements AutoCloseable {
-    private final HikariDataSource dataSource;
+    private final String jdbcUrl;
+    private final String user;
+    private final String password;
+    private final int maxPoolSize;
+    private final Duration maxIdleTime;
+
+    private volatile HikariDataSource dataSource;
 
     public RedshiftJdbcClient(String jdbcUrl, String user, String password, int maxPoolSize) {
         this(jdbcUrl, user, password, maxPoolSize, Duration.ofMinutes(30));
     }
 
-    public RedshiftJdbcClient(
-            String jdbcUrl, String user, String password, int maxPoolSize, Duration maxIdleTime) {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(jdbcUrl);
-        config.setUsername(user);
-        config.setPassword(password);
-        config.setDriverClassName("com.amazon.redshift.jdbc42.Driver");
-        config.setMaximumPoolSize(maxPoolSize);
-        config.setIdleTimeout(maxIdleTime.toMillis());
-        this.dataSource = new HikariDataSource(config);
-    }
-
     public Connection getConnection() throws SQLException {
+        if (dataSource == null) {
+            synchronized (this) {
+                if (dataSource == null) {
+                    HikariConfig config = new HikariConfig();
+                    config.setJdbcUrl(jdbcUrl);
+                    config.setUsername(user);
+                    config.setPassword(password);
+                    config.setDriverClassName("com.amazon.redshift.jdbc42.Driver");
+                    config.setMaximumPoolSize(maxPoolSize);
+                    config.setIdleTimeout(maxIdleTime.toMillis());
+                    dataSource = new HikariDataSource(config);
+                }
+            }
+        }
         return dataSource.getConnection();
     }
 
@@ -65,7 +75,9 @@ public class RedshiftJdbcClient implements AutoCloseable {
 
     @Override
     public void close() {
-        dataSource.close();
+        if (dataSource != null) {
+            dataSource.close();
+        }
     }
 
     public boolean existDataForSql(String sql) throws SQLException {

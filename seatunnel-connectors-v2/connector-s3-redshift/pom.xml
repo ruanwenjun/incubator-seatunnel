@@ -55,6 +55,7 @@
             <groupId>com.amazon.redshift</groupId>
             <artifactId>redshift-jdbc42</artifactId>
             <version>${redshift.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
