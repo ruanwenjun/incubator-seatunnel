@@ -144,7 +144,10 @@ public class CommonConfig implements Serializable {
         }
         this.warehouse = pluginConfig.getOptional(KEY_WAREHOUSE).get();
         this.namespace = pluginConfig.getOptional(KEY_NAMESPACE).get();
-        this.table = pluginConfig.getOptional(KEY_TABLE).get();
+
+        if (pluginConfig.getOptional(KEY_TABLE).isPresent()) {
+            this.table = pluginConfig.getOptional(KEY_TABLE).get();
+        }
 
         if (pluginConfig.getOptional(KEY_CASE_SENSITIVE).isPresent()) {
             this.caseSensitive = pluginConfig.getOptional(KEY_CASE_SENSITIVE).get();

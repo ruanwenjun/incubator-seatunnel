@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.iceberg.config;
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.data.SupportedFileFormat;
 
 import org.apache.iceberg.FileFormat;
@@ -52,10 +53,33 @@ public class SinkConfig extends CommonConfig {
                     .defaultValue(128 * 1024 * 1024L)
                     .withDescription("target file size bytes");
 
+    public static final Option<String> TABLE_PREFIX =
+            Options.key("tablePrefix")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The table prefix name added when the table is automatically created");
+
+    public static final Option<String> TABLE_SUFFIX =
+            Options.key("tableSuffix")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The table suffix name added when the table is automatically created");
+
+    public static final Option<DataSaveMode> SAVE_MODE =
+            Options.key("save_mode")
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
+                    .withDescription("save_mode");
+
     @Getter private boolean enableUpsert = true;
     @Getter private List<String> primaryKeys;
     @Getter private FileFormat fileFormat = FileFormat.PARQUET;
     @Getter private long targetFileSizeBytes = 128 * 1024 * 1024L;
+    @Getter private String tablePrefix = "";
+    @Getter private String tableSuffix = "";
+    @Getter private DataSaveMode saveMode = DataSaveMode.KEEP_SCHEMA_AND_DATA;
 
     public SinkConfig(ReadonlyConfig pluginConfig) {
         super(pluginConfig);
@@ -71,6 +95,15 @@ public class SinkConfig extends CommonConfig {
         }
         if (pluginConfig.getOptional(TARGET_FILE_SIZE_BYTES).isPresent()) {
             this.targetFileSizeBytes = pluginConfig.getOptional(TARGET_FILE_SIZE_BYTES).get();
+        }
+        if (pluginConfig.getOptional(TABLE_PREFIX).isPresent()) {
+            this.tablePrefix = pluginConfig.getOptional(TABLE_PREFIX).get();
+        }
+        if (pluginConfig.getOptional(TABLE_SUFFIX).isPresent()) {
+            this.tableSuffix = pluginConfig.getOptional(TABLE_SUFFIX).get();
+        }
+        if (pluginConfig.getOptional(SAVE_MODE).isPresent()) {
+            this.saveMode = pluginConfig.getOptional(SAVE_MODE).get();
         }
     }
 }
