@@ -19,9 +19,7 @@ package com.aliyun.odps.type;
 
 import com.aliyun.odps.OdpsType;
 
-/**
- * We override this class to change the constructor to public.
- */
+/** We override this class to change the constructor to public. */
 public class DecimalTypeInfo extends AbstractPrimitiveTypeInfo {
     static final int DEFAULT_PRECISION = 54;
     static final int DEFAULT_SCALE = 18;

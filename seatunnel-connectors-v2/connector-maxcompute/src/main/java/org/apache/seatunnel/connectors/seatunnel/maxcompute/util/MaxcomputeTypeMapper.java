@@ -61,9 +61,9 @@ public class MaxcomputeTypeMapper implements Serializable {
 
     public static SeaTunnelRow getSeaTunnelRowData(Record rs, SeaTunnelRowType typeInfo) {
         List<Object> fields = new ArrayList<>();
-        SeaTunnelDataType<?>[] seaTunnelDataTypes = typeInfo.getFieldTypes();
-        for (int i = 0; i < rs.getColumns().length; i++) {
-            fields.add(resolveObject2SeaTunnel(rs.get(i), seaTunnelDataTypes[i]));
+        for (int i = 0; i < typeInfo.getTotalFields(); i++) {
+            String typeName = typeInfo.getFieldName(i);
+            fields.add(resolveObject2SeaTunnel(rs.get(typeName), typeInfo.getFieldType(i)));
         }
         return new SeaTunnelRow(fields.toArray());
     }

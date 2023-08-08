@@ -19,9 +19,7 @@ package com.aliyun.odps.type;
 
 import com.aliyun.odps.OdpsType;
 
-/**
- * We override this class to change the constructor to public.
- */
+/** We override this class to change the constructor to public. */
 public class SimplePrimitiveTypeInfo extends AbstractPrimitiveTypeInfo {
     public SimplePrimitiveTypeInfo(OdpsType odpsType) {
         super(odpsType);
