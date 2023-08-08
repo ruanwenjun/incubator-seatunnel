@@ -48,6 +48,7 @@ import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.BATCH_INTERVAL_MS;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.BATCH_SIZE;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.CONNECTION_CHECK_TIMEOUT_SEC;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.CUSTOM_SQL;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.DATABASE;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.DRIVER;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.ENABLE_UPSERT;
@@ -134,10 +135,9 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 JdbcDialectLoader.load(sinkConfig.getJdbcConnectionConfig().getUrl(), fieldIde);
         CatalogTable finalCatalogTable = catalogTable;
         // get saveMode
-        String saveModeStr = config.get(JdbcOptions.SAVE_MODE);
         DataSaveMode dataSaveMode = DataSaveMode.ERROR_WHEN_EXISTS;
-        if (StringUtils.isNotEmpty(saveModeStr)) {
-            dataSaveMode = DataSaveMode.valueOf(saveModeStr);
+        if (config.get(JdbcOptions.SAVE_MODE) != null) {
+            dataSaveMode = config.get(JdbcOptions.SAVE_MODE);
         }
         DataSaveMode finalDataSaveMode = dataSaveMode;
         return () ->
@@ -147,7 +147,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
     @Override
     public OptionRule optionRule() {
         return OptionRule.builder()
-                .required(URL, DRIVER)
+                .required(URL, DRIVER, SAVE_MODE)
                 .optional(
                         USER,
                         PASSWORD,
@@ -161,7 +161,6 @@ public class JdbcSinkFactory implements TableSinkFactory {
                         PRIMARY_KEYS,
                         SUPPORT_UPSERT_BY_INSERT_ONLY,
                         IS_PRIMARY_KEY_UPDATED,
-                        SAVE_MODE,
                         MULTI_TABLE_SINK_REPLICA)
                 .conditional(
                         IS_EXACTLY_ONCE,
@@ -172,6 +171,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 .conditional(IS_EXACTLY_ONCE, false, MAX_RETRIES)
                 .conditional(GENERATE_SINK_SQL, true, DATABASE)
                 .conditional(GENERATE_SINK_SQL, false, QUERY)
+                .conditional(SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
                 .build();
     }
 }

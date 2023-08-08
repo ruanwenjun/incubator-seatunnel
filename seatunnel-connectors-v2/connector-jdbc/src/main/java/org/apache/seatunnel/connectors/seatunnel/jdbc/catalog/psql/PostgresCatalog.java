@@ -365,6 +365,10 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
         }
     }
 
+    public String getCountSql(TablePath tablePath) {
+        return String.format("select count(*) from %s;", tablePath.getFullName());
+    }
+
     @Override
     protected boolean truncateTableInternal(TablePath tablePath) throws CatalogException {
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());

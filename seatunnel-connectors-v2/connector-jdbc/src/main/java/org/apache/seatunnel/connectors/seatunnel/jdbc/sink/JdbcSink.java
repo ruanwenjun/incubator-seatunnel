@@ -34,14 +34,10 @@ import org.apache.seatunnel.api.sink.SupportMultiTableSink;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
-import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
@@ -62,7 +58,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @AutoService(SeaTunnelSink.class)
@@ -225,61 +220,11 @@ public class JdbcSink
                         catalogFactory.factoryIdentifier(),
                         ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
             catalog.open();
-            doHandleSaveMode(saveMode, catalog);
+            new JdbcSaveModeHandler(jdbcSinkConfig, config, saveMode, catalogTable, catalog)
+                    .doHandleSaveMode();
+
         } catch (Exception e) {
             throw new JdbcConnectorException(HANDLE_SAVE_MODE_FAILED, e);
-        }
-    }
-
-    private void doHandleSaveMode(DataSaveMode saveMode, Catalog catalog) {
-        String fieldIde = config.get(JdbcOptions.FIELD_IDE);
-        AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog) catalog;
-        TablePath tablePath =
-                TablePath.of(
-                        jdbcSinkConfig.getDatabase()
-                                + "."
-                                + CatalogUtils.quoteTableIdentifier(
-                                        jdbcSinkConfig.getTable(), fieldIde));
-        switch (saveMode) {
-            case DROP_SCHEMA:
-                if (!catalog.databaseExists(jdbcSinkConfig.getDatabase())) {
-                    catalog.createDatabase(tablePath, true);
-                }
-                if (catalog.tableExists(tablePath)) {
-                    catalog.dropTable(tablePath, true);
-                }
-                catalogTable.getOptions().put("fieldIde", fieldIde);
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                break;
-            case KEEP_SCHEMA_DROP_DATA:
-                if (catalog.tableExists(tablePath)) {
-                    catalog.truncateTable(tablePath, true);
-                } else {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                break;
-            case KEEP_SCHEMA_AND_DATA:
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                break;
-            case CUSTOM_PROCESSING:
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                String customSql = config.get(JdbcOptions.CUSTOM_SQL);
-                jdbcCatalog.executeSql(customSql);
-                break;
-            case ERROR_WHEN_EXISTS:
-                if (!catalog.tableExists(tablePath)) {
-                    catalog.createTable(tablePath, catalogTable, true);
-                }
-                if (jdbcCatalog.isExistsData(tablePath.getFullName())) {
-                    throw new JdbcConnectorException(
-                            SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
-                }
         }
     }
 }

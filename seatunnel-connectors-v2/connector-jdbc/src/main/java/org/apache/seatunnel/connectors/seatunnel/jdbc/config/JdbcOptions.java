@@ -22,7 +22,6 @@ import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.List;
 
 @SuppressWarnings("checkstyle:MagicNumber")
@@ -50,17 +49,10 @@ public interface JdbcOptions {
     Option<String> QUERY =
             Options.key("query").stringType().noDefaultValue().withDescription("query");
 
-    Option<String> SAVE_MODE =
+    Option<DataSaveMode> SAVE_MODE =
             Options.key("save_mode")
-                    .singleChoice(
-                            String.class,
-                            Arrays.asList(
-                                    DataSaveMode.DROP_SCHEMA.toString(),
-                                    DataSaveMode.KEEP_SCHEMA_DROP_DATA.toString(),
-                                    DataSaveMode.KEEP_SCHEMA_AND_DATA.toString(),
-                                    DataSaveMode.CUSTOM_PROCESSING.toString(),
-                                    DataSaveMode.ERROR_WHEN_EXISTS.toString()))
-                    .noDefaultValue()
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
                     .withDescription("save_mode");
 
     Option<String> CUSTOM_SQL =

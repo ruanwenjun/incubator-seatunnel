@@ -21,6 +21,7 @@ import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.connector.TableSink;
@@ -53,6 +54,7 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3RedshiftConfig.JDBC_USER,
                         S3RedshiftConfig.JDBC_PASSWORD,
                         S3RedshiftConfig.SCHEMA_NAME,
+                        S3RedshiftConfig.SAVE_MODE,
                         BaseSinkConfig.FILE_PATH,
                         BaseSinkConfig.TMP_PATH,
                         S3Config.S3A_AWS_CREDENTIALS_PROVIDER)
@@ -61,6 +63,10 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3Config.S3aAwsCredentialsProvider.SimpleAWSCredentialsProvider,
                         S3Config.S3_ACCESS_KEY,
                         S3Config.S3_SECRET_KEY)
+                .conditional(
+                        S3RedshiftConfig.SAVE_MODE,
+                        DataSaveMode.CUSTOM_PROCESSING,
+                        S3RedshiftConfig.CUSTOM_SQL)
                 .optional(S3Config.S3_PROPERTIES)
                 .optional(
                         S3RedshiftConfig.CHANGELOG_MODE,
