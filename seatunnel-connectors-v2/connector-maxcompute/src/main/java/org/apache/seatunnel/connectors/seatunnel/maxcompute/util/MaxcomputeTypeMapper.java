@@ -45,6 +45,7 @@ import com.aliyun.odps.type.TypeInfo;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -162,7 +163,7 @@ public class MaxcomputeTypeMapper implements Serializable {
             case BYTES:
                 return ((Binary) field).data();
             case DECIMAL:
-                return null;
+                return ((BigDecimal) field);
             case STRING:
                 if (field instanceof byte[]) {
                     return new String((byte[]) field);
