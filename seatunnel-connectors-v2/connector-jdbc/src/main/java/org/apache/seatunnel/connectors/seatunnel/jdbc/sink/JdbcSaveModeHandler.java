@@ -44,6 +44,7 @@ public class JdbcSaveModeHandler {
         String fieldIde =
                 fieldIdeEnum == null ? FieldIdeEnum.ORIGINAL.getValue() : fieldIdeEnum.getValue();
         AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog) catalog;
+        catalogTable.getOptions().put("fieldIde", fieldIde);
         TablePath tablePath =
                 TablePath.of(
                         jdbcSinkConfig.getDatabase()
@@ -52,7 +53,7 @@ public class JdbcSaveModeHandler {
                                         jdbcSinkConfig.getTable(), fieldIde));
         switch (saveMode) {
             case DROP_SCHEMA:
-                dropSchema(fieldIde, tablePath);
+                dropSchema(tablePath);
                 break;
             case KEEP_SCHEMA_DROP_DATA:
                 keepSchemaDropData(tablePath);
@@ -103,14 +104,13 @@ public class JdbcSaveModeHandler {
         }
     }
 
-    private void dropSchema(String fieldIde, TablePath tablePath) {
+    private void dropSchema(TablePath tablePath) {
         if (!catalog.databaseExists(jdbcSinkConfig.getDatabase())) {
             catalog.createDatabase(tablePath, true);
         }
         if (catalog.tableExists(tablePath)) {
             catalog.dropTable(tablePath, true);
         }
-        catalogTable.getOptions().put("fieldIde", fieldIde);
         if (!catalog.tableExists(tablePath)) {
             catalog.createTable(tablePath, catalogTable, true);
         }
