@@ -10,6 +10,7 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dialectenum.FieldIdeEnum;
 
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
 
@@ -39,7 +40,9 @@ public class JdbcSaveModeHandler {
     }
 
     public void doHandleSaveMode() {
-        String fieldIde = config.get(JdbcOptions.FIELD_IDE);
+        FieldIdeEnum fieldIdeEnum = config.get(JdbcOptions.FIELD_IDE);
+        String fieldIde =
+                fieldIdeEnum == null ? FieldIdeEnum.ORIGINAL.getValue() : fieldIdeEnum.getValue();
         AbstractJdbcCatalog jdbcCatalog = (AbstractJdbcCatalog) catalog;
         TablePath tablePath =
                 TablePath.of(
