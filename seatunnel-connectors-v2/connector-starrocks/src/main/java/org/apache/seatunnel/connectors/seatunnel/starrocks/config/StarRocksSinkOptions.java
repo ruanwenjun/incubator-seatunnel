@@ -19,12 +19,9 @@ package org.apache.seatunnel.connectors.seatunnel.starrocks.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
-import org.apache.seatunnel.api.configuration.SingleChoiceOption;
 import org.apache.seatunnel.api.sink.DataSaveMode;
-import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig.StreamLoadFormat;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -144,23 +141,12 @@ public interface StarRocksSinkOptions {
                     .noDefaultValue()
                     .withDescription("Whether case conversion is required");
 
-    Option<String> CUSTOM_SQL =
-            Options.key("custom_sql")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Customer custom sql");
-
-    SingleChoiceOption<DataSaveMode> SAVE_MODE =
-            Options.key(SupportDataSaveMode.SAVE_MODE_KEY)
-                    .singleChoice(
-                            DataSaveMode.class,
-                            Arrays.asList(
-                                    DataSaveMode.DROP_SCHEMA,
-                                    DataSaveMode.KEEP_SCHEMA_DROP_DATA,
-                                    DataSaveMode.KEEP_SCHEMA_AND_DATA,
-                                    DataSaveMode.CUSTOM_PROCESSING,
-                                    DataSaveMode.ERROR_WHEN_EXISTS))
+    Option<DataSaveMode> SAVE_MODE =
+            Options.key("save_mode")
+                    .enumType(DataSaveMode.class)
                     .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
-                    .withDescription(
-                            "Table structure and data processing methods that already exist on the target end");
+                    .withDescription("save_mode");
+
+    Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
 }

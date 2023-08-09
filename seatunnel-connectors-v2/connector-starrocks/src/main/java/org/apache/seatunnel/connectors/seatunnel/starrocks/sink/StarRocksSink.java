@@ -29,18 +29,14 @@ import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
-import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.common.sink.AbstractSimpleSink;
 import org.apache.seatunnel.connectors.seatunnel.common.sink.AbstractSinkWriter;
-import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.StarRocksCatalog;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.StarRocksCatalogFactory;
-import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.util.CatalogUtils;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig;
-import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.exception.StarRocksConnectorException;
 
 import org.apache.commons.lang3.StringUtils;
@@ -52,9 +48,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.SOURCE_ALREADY_HAS_DATA;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
-import static org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions.CUSTOM_SQL;
 
 @NoArgsConstructor
 @AutoService(SeaTunnelSink.class)
@@ -92,27 +86,6 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
         dataSaveMode = sinkConfig.getDataSaveMode();
     }
 
-    private void autoCreateTable(String template) {
-        StarRocksCatalog starRocksCatalog =
-                new StarRocksCatalog(
-                        "StarRocks",
-                        sinkConfig.getUsername(),
-                        sinkConfig.getPassword(),
-                        sinkConfig.getJdbcUrl());
-        if (!starRocksCatalog.databaseExists(sinkConfig.getDatabase())) {
-            starRocksCatalog.createDatabase(TablePath.of(sinkConfig.getDatabase(), ""), true);
-        }
-        if (!starRocksCatalog.tableExists(
-                TablePath.of(sinkConfig.getDatabase(), sinkConfig.getTable()))) {
-            starRocksCatalog.createTable(
-                    StarRocksSaveModeUtil.fillingCreateSql(
-                            template,
-                            sinkConfig.getDatabase(),
-                            sinkConfig.getTable(),
-                            catalogTable.getTableSchema()));
-        }
-    }
-
     @Override
     public void setTypeInfo(SeaTunnelRowType seaTunnelRowType) {
         this.seaTunnelRowType = seaTunnelRowType;
@@ -138,7 +111,6 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
         if (catalogTable == null) {
             return;
         }
-
         Map<String, String> catalogOptions = readonlyConfig.toMap();
         if (catalogOptions == null) {
             return;
@@ -160,54 +132,11 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
                         catalogFactory.factoryIdentifier(),
                         ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
             catalog.open();
-            doHandleSaveMode(saveMode, catalog);
+            new StarRocksSaveModeHandler(
+                            sinkConfig, saveMode, readonlyConfig, catalogTable, catalog)
+                    .doHandleSaveMode();
         } catch (Exception e) {
             throw new StarRocksConnectorException(HANDLE_SAVE_MODE_FAILED, e);
-        }
-    }
-
-    private void doHandleSaveMode(DataSaveMode saveMode, Catalog catalog) {
-        String fieldIde = readonlyConfig.get(StarRocksSinkOptions.FIELD_IDE);
-        TablePath tablePath =
-                TablePath.of(
-                        sinkConfig.getDatabase()
-                                + "."
-                                + CatalogUtils.quoteTableIdentifier(
-                                        sinkConfig.getTable(), fieldIde));
-        if (!catalog.databaseExists(sinkConfig.getDatabase())) {
-            catalog.createDatabase(tablePath, true);
-        }
-        switch (saveMode) {
-            case DROP_SCHEMA:
-                if (catalog.tableExists(tablePath)) {
-                    catalog.dropTable(tablePath, true);
-                }
-                autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
-                break;
-            case KEEP_SCHEMA_DROP_DATA:
-                if (catalog.tableExists(tablePath)) {
-                    catalog.truncateTable(tablePath, true);
-                } else {
-                    autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
-                }
-                break;
-            case KEEP_SCHEMA_AND_DATA:
-                if (!catalog.tableExists(tablePath)) {
-                    autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
-                }
-                break;
-            case CUSTOM_PROCESSING:
-                String sql = readonlyConfig.get(CUSTOM_SQL);
-                ((StarRocksCatalog) catalog).executeSql(sql);
-                break;
-            case ERROR_WHEN_EXISTS:
-                if (catalog.tableExists(tablePath)) {
-                    if (((StarRocksCatalog) catalog).isExistsData(tablePath.getTableName())) {
-                        throw new StarRocksConnectorException(
-                                SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
-                    }
-                }
-                break;
         }
     }
 }
