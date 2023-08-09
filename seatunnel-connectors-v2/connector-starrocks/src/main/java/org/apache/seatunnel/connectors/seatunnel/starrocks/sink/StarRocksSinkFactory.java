@@ -18,6 +18,7 @@
 package org.apache.seatunnel.connectors.seatunnel.starrocks.sink;
 
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
@@ -44,6 +45,7 @@ public class StarRocksSinkFactory implements TableSinkFactory {
                 .required(StarRocksOptions.USERNAME, StarRocksOptions.PASSWORD)
                 .required(StarRocksSinkOptions.DATABASE, StarRocksOptions.BASE_URL)
                 .required(StarRocksSinkOptions.NODE_URLS)
+                .required(StarRocksSinkOptions.SAVE_MODE)
                 .optional(
                         StarRocksSinkOptions.TABLE,
                         StarRocksSinkOptions.LABEL_PREFIX,
@@ -55,8 +57,11 @@ public class StarRocksSinkFactory implements TableSinkFactory {
                         StarRocksSinkOptions.RETRY_BACKOFF_MULTIPLIER_MS,
                         StarRocksSinkOptions.STARROCKS_CONFIG,
                         StarRocksSinkOptions.ENABLE_UPSERT_DELETE,
-                        StarRocksSinkOptions.SAVE_MODE,
                         StarRocksSinkOptions.SAVE_MODE_CREATE_TEMPLATE)
+                .conditional(
+                        StarRocksSinkOptions.SAVE_MODE,
+                        DataSaveMode.CUSTOM_PROCESSING,
+                        StarRocksSinkOptions.CUSTOM_SQL)
                 .build();
     }
 
