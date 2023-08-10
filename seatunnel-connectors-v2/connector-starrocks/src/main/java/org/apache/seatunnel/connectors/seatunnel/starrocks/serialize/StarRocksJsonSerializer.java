@@ -45,9 +45,12 @@ public class StarRocksJsonSerializer extends StarRocksBaseSerializer
         for (int i = 0; i < row.getFields().length; i++) {
             SeaTunnelDataType<?> fieldType = seaTunnelRowType.getFieldType(i);
             Object value;
-            if (fieldType.getSqlType() == SqlType.ARRAY || fieldType.getSqlType() == SqlType.MAP) {
-                // For array and map, we cannot transform to JsonString
-                // Since the rowMap will be transformed to JsonString
+            if (fieldType.getSqlType() == SqlType.ARRAY
+                    || fieldType.getSqlType() == SqlType.MAP
+                    || fieldType.getSqlType() == SqlType.ROW
+                    || fieldType.getSqlType() == SqlType.MULTIPLE_ROW) {
+                // For struct type, we cannot transform to JsonString
+                // Since the whole rowMap will be transformed to JsonString
                 value = row.getField(i);
             } else {
                 value = convert(seaTunnelRowType.getFieldType(i), row.getField(i));
