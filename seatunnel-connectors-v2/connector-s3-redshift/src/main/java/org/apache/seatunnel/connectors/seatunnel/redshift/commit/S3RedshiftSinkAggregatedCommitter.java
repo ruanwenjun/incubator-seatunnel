@@ -281,14 +281,17 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
 
             if (!fileSystemUtils.fileExist(tempFilePath)) {
                 log.warn("skip not exist file {}", tempFilePath);
-            } else if (appendOnlyCommit) {
+                return;
+            }
+
+            if (appendOnlyCommit) {
                 filepath = tempFilePath;
                 copyS3FileToRedshiftTable(filepath);
             } else if (conf.isCopyS3FileToTemporaryTableMode()) {
                 filepath = tempFilePath;
                 mergeS3FileToRedshiftWithTemporaryTable(filepath);
             } else {
-                filepath = mvFileEntry.getKey();
+                filepath = mvFileEntry.getValue();
                 mergeS3FileToRedshiftWithExternalTable(tempFilePath, filepath);
             }
 
