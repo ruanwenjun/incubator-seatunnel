@@ -205,12 +205,8 @@ public class StarRocksCatalog implements Catalog {
     public void dropTable(TablePath tablePath, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException {
         try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
-            if (ignoreIfNotExists) {
-                conn.createStatement().execute("DROP TABLE `" + tablePath.getTableName() + "`");
-            } else {
-                conn.createStatement()
-                        .execute(String.format("DROP TABLE `%s`", tablePath.getDatabaseName()));
-            }
+            conn.createStatement()
+                    .execute(String.format("DROP TABLE IF EXISTS %s", tablePath.getFullName()));
         } catch (Exception e) {
             throw new CatalogException(
                     String.format("Failed DROP TABLE in catalog %s", tablePath.getFullName()), e);
@@ -222,7 +218,7 @@ public class StarRocksCatalog implements Catalog {
         try (Connection conn = DriverManager.getConnection(defaultUrl, username, pwd)) {
             if (ignoreIfNotExists) {
                 conn.createStatement()
-                        .execute("TRUNCATE TABLE  `" + tablePath.getTableName() + "`");
+                        .execute(String.format("TRUNCATE TABLE  %s", tablePath.getFullName()));
             }
         } catch (Exception e) {
             throw new CatalogException(
