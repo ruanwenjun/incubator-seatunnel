@@ -128,7 +128,25 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 map.put(PRIMARY_KEYS.key(), String.join(",", primaryKey.getColumnNames()));
             }
             config = ReadonlyConfig.fromMap(new HashMap<>(map));
+        } else {
+            if (catalogOptions != null && !catalogOptions.isEmpty()){
+                // todo
+            }
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         final ReadonlyConfig options = config;
         JdbcSinkConfig sinkConfig = JdbcSinkConfig.of(config);
         String fieldIde =

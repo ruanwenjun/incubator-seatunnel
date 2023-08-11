@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.engine.core.parse;
 
+import org.apache.seatunnel.api.sink.SupportAutoCreateTable;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.CommonOptions;
@@ -656,10 +657,17 @@ public class MultipleTableJobConfigParser {
                         factoryUrls,
                         actionConfig);
         if (!isStartWithSavePoint) {
+            handleAutoCreateTable(sink);
             handleSaveMode(sink);
         }
         sinkAction.setParallelism(parallelism);
         return sinkAction;
+    }
+
+    public static void handleAutoCreateTable(SeaTunnelSink<?, ?, ?, ?> sink){
+        if (SupportAutoCreateTable.class.isAssignableFrom(sink.getClass())){
+            ((SupportAutoCreateTable) sink).handleAutoCreateTable();
+        }
     }
 
     public static void handleSaveMode(SeaTunnelSink<?, ?, ?, ?> sink) {

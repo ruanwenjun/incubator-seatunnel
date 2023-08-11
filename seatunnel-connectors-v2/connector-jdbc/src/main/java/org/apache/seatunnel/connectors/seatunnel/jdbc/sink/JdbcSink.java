@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.connectors.seatunnel.jdbc.sink;
 
+import org.apache.seatunnel.api.sink.SupportAutoCreateTable;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.CommonOptions;
@@ -66,7 +67,7 @@ import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory
 public class JdbcSink
         implements SeaTunnelSink<SeaTunnelRow, JdbcSinkState, XidInfo, JdbcAggregatedCommitInfo>,
                 SupportDataSaveMode,
-                SupportMultiTableSink {
+                SupportMultiTableSink, SupportAutoCreateTable {
 
     private SeaTunnelRowType seaTunnelRowType;
 
@@ -233,5 +234,10 @@ public class JdbcSink
         } catch (Exception e) {
             throw new JdbcConnectorException(HANDLE_SAVE_MODE_FAILED, e);
         }
+    }
+
+    @Override
+    public void handleAutoCreateTable() {
+        new JdbcAutoCreateTableHandler(catalogTable,config,jdbcSinkConfig).doAutoCreatTable();
     }
 }

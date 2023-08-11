@@ -137,9 +137,14 @@ public class JdbcSourceFactory implements TableSourceFactory {
             String partitionColumn = partitionColumnOptional.get();
             SeaTunnelDataType<?> dataType =
                     validationPartitionColumn(partitionColumn, tableSchema.toPhysicalRowDataType());
-            return Optional.of(
-                    createPartitionParameter(
-                            config, partitionColumn, dataType, connectionProvider.getConnection()));
+            try(Connection connection = connectionProvider.getOrEstablishConnection()){
+                return Optional.of(
+                        createPartitionParameter(
+                                config, partitionColumn, dataType,connection));
+            }catch (Exception e){
+                throw new PrepareFailException("jdbc", PluginType.SOURCE, e.toString());
+            }
+
         }
         log.info(
                 "The partition_column parameter is not configured, and the source parallelism is set to 1");

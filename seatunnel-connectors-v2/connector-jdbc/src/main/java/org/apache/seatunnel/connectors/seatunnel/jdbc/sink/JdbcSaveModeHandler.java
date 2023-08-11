@@ -50,7 +50,7 @@ public class JdbcSaveModeHandler {
                         jdbcSinkConfig.getDatabase()
                                 + "."
                                 + CatalogUtils.quoteTableIdentifier(
-                                        jdbcSinkConfig.getTable(), fieldIde));
+                                        catalogTable.getTableId().getTableName(), fieldIde));
         switch (saveMode) {
             case DROP_SCHEMA:
                 dropSchema(tablePath);
