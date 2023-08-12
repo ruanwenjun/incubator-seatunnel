@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.common.multitablesink;
 import org.apache.seatunnel.api.sink.MultiTableResourceManager;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
+import org.apache.seatunnel.api.table.event.SchemaChangeEvent;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 
 import lombok.extern.slf4j.Slf4j;
@@ -115,6 +116,24 @@ public class MultiTableSinkWriter
         for (MultiTableWriterRunnable writerRunnable : runnable) {
             if (writerRunnable.getThrowable() != null) {
                 throw new RuntimeException(writerRunnable.getThrowable());
+            }
+        }
+    }
+
+    @Override
+    public void applySchemaChange(SchemaChangeEvent event) throws IOException {
+        subSinkErrorCheck();
+        for (int i = 0; i < sinkWritersWithIndex.size(); i++) {
+            for (Map.Entry<SinkIdentifier, SinkWriter<SeaTunnelRow, ?, ?>> sinkWriterEntry :
+                    sinkWritersWithIndex.get(i).entrySet()) {
+                if (sinkWriterEntry
+                        .getKey()
+                        .getTableIdentifier()
+                        .equals(event.tablePath().getFullName())) {
+                    synchronized (runnable.get(i)) {
+                        sinkWriterEntry.getValue().applySchemaChange(event);
+                    }
+                }
             }
         }
     }
