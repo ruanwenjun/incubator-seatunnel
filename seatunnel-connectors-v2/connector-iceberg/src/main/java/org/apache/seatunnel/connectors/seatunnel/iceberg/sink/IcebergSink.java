@@ -241,27 +241,32 @@ public class IcebergSink
                                 .collect(Collectors.toList()));
         builder.primaryKey(newPrimaryKey);
 
-        tableSchema
-                .getConstraintKeys()
-                .forEach(
-                        constraintKey -> {
-                            ConstraintKey newConstraintKey =
-                                    ConstraintKey.of(
-                                            constraintKey.getConstraintType(),
-                                            constraintKey.getConstraintName(),
-                                            constraintKey.getColumnNames().stream()
-                                                    .map(
-                                                            constraintKeyColumn ->
-                                                                    ConstraintKey
-                                                                            .ConstraintKeyColumn.of(
-                                                                            constraintKeyColumn
-                                                                                    .getColumnName()
-                                                                                    .toLowerCase(),
-                                                                            constraintKeyColumn
-                                                                                    .getSortType()))
-                                                    .collect(Collectors.toList()));
-                            builder.constraintKey(newConstraintKey);
-                        });
+        if (tableSchema.getConstraintKeys() != null) {
+            tableSchema
+                    .getConstraintKeys()
+                    .forEach(
+                            constraintKey -> {
+                                ConstraintKey newConstraintKey =
+                                        ConstraintKey.of(
+                                                constraintKey.getConstraintType(),
+                                                constraintKey.getConstraintName(),
+                                                constraintKey.getColumnNames() != null
+                                                        ? constraintKey.getColumnNames().stream()
+                                                                .map(
+                                                                        constraintKeyColumn ->
+                                                                                ConstraintKey
+                                                                                        .ConstraintKeyColumn
+                                                                                        .of(
+                                                                                                constraintKeyColumn
+                                                                                                        .getColumnName()
+                                                                                                        .toLowerCase(),
+                                                                                                constraintKeyColumn
+                                                                                                        .getSortType()))
+                                                                .collect(Collectors.toList())
+                                                        : null);
+                                builder.constraintKey(newConstraintKey);
+                            });
+        }
 
         return CatalogTable.of(
                 catalogTable.getTableId(),
