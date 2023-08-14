@@ -258,8 +258,12 @@ public class IcebergSink
                                                                                         .ConstraintKeyColumn
                                                                                         .of(
                                                                                                 constraintKeyColumn
-                                                                                                        .getColumnName()
-                                                                                                        .toLowerCase(),
+                                                                                                                        .getColumnName()
+                                                                                                                != null
+                                                                                                        ? constraintKeyColumn
+                                                                                                                .getColumnName()
+                                                                                                                .toLowerCase()
+                                                                                                        : null,
                                                                                                 constraintKeyColumn
                                                                                                         .getSortType()))
                                                                 .collect(Collectors.toList())
