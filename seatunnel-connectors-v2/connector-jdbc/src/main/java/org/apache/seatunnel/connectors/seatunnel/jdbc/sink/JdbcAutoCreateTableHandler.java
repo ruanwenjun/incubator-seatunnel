@@ -1,7 +1,5 @@
 package org.apache.seatunnel.connectors.seatunnel.jdbc.sink;
 
-import lombok.AllArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.seatunnel.api.common.CommonOptions;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.table.catalog.Catalog;
@@ -14,10 +12,12 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dialectenum.FieldIdeEnum;
 
-import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
+import lombok.AllArgsConstructor;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @AllArgsConstructor
 public class JdbcAutoCreateTableHandler {
@@ -45,14 +45,15 @@ public class JdbcAutoCreateTableHandler {
                         jdbcSinkConfig.getDatabase()
                                 + "."
                                 + CatalogUtils.quoteTableIdentifier(
-                                catalogTable.getTableId().getTableName(), fieldIde));
+                                        jdbcSinkConfig.getTable(), fieldIde));
         Catalog catalog = this.createCatalog();
-        if (catalog == null){
+        if (catalog == null) {
             return;
         }
+        catalog.open();
         // table is exist？
-        if (!catalog.tableExists(tablePath)){
-            catalog.createTable(tablePath,catalogTable,true);
+        if (!catalog.tableExists(tablePath)) {
+            catalog.createTable(tablePath, catalogTable, true);
         }
     }
 

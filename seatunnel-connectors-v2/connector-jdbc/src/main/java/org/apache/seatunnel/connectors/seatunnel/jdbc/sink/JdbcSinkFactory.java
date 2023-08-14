@@ -129,7 +129,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
             }
             config = ReadonlyConfig.fromMap(new HashMap<>(map));
         } else {
-            if (catalogOptions != null && !catalogOptions.isEmpty()){
+            if (catalogOptions != null && !catalogOptions.isEmpty()) {
                 // todo
                 TableIdentifier tableId = catalogTable.getTableId();
                 String sourceTableName = tableId.getTableName();
@@ -140,10 +140,9 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 String suffix = catalogOptions.get(JdbcCatalogOptions.TABLE_SUFFIX.key());
                 if (StringUtils.isNotEmpty(prefix) || StringUtils.isNotEmpty(suffix)) {
                     tempTableName =
-                            StringUtils.isNotEmpty(prefix)
-                                    ? prefix + sinkTableName
-                                    : sinkTableName;
-                    tempTableName = StringUtils.isNotEmpty(suffix) ? tempTableName + suffix : tempTableName;
+                            StringUtils.isNotEmpty(prefix) ? prefix + sinkTableName : sinkTableName;
+                    tempTableName =
+                            StringUtils.isNotEmpty(suffix) ? tempTableName + suffix : tempTableName;
 
                 } else {
                     tempTableName = sinkTableName;
@@ -185,7 +184,6 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 }
                 config = ReadonlyConfig.fromMap(new HashMap<>(map));
             }
-
         }
         // always execute
         final ReadonlyConfig options = config;
@@ -194,7 +192,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 config.get(JdbcOptions.FIELD_IDE) == null
                         ? FieldIdeEnum.ORIGINAL.getValue()
                         : config.get(JdbcOptions.FIELD_IDE).getValue();
-        //catalogTable.getOptions().put("fieldIde", fieldIde);
+        // catalogTable.getOptions().put("fieldIde", fieldIde);
         JdbcDialect dialect =
                 JdbcDialectLoader.load(sinkConfig.getJdbcConnectionConfig().getUrl(), fieldIde);
         CatalogTable finalCatalogTable = catalogTable;
