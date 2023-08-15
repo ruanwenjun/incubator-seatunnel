@@ -87,8 +87,11 @@ public class InformixDataTypeConvertor implements DataTypeConvertor<String> {
             String connectorDataType, Map<String, Object> dataTypeProperties)
             throws DataTypeConvertException {
         checkNotNull(connectorDataType, "seaTunnelDataType cannot be null");
-
-        switch (connectorDataType.toUpperCase()) {
+        String dataType = connectorDataType.toUpperCase();
+        if (dataType.startsWith(DATETIME)) {
+            return LocalTimeType.LOCAL_DATE_TIME_TYPE;
+        }
+        switch (dataType) {
             case SMALLINT:
                 return BasicType.SHORT_TYPE;
             case BIGINT:

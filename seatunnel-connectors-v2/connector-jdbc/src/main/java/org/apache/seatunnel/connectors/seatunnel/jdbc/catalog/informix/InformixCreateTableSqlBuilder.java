@@ -19,13 +19,13 @@ import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.Postgr
 public class InformixCreateTableSqlBuilder {
     private List<Column> columns;
     private PrimaryKey primaryKey;
-    private InformixDataTypeConvertor postgresDataTypeConvertor;
+    private InformixDataTypeConvertor informixDataTypeConvertor;
     private String sourceCatalogName;
 
     public InformixCreateTableSqlBuilder(CatalogTable catalogTable) {
         this.columns = catalogTable.getTableSchema().getColumns();
         this.primaryKey = catalogTable.getTableSchema().getPrimaryKey();
-        this.postgresDataTypeConvertor = new InformixDataTypeConvertor();
+        this.informixDataTypeConvertor = new InformixDataTypeConvertor();
         this.sourceCatalogName = catalogTable.getCatalogName();
     }
 
@@ -114,7 +114,7 @@ public class InformixCreateTableSqlBuilder {
                     return "text";
                 }
             default:
-                String type = postgresDataTypeConvertor.toConnectorType(column.getDataType(), null);
+                String type = informixDataTypeConvertor.toConnectorType(column.getDataType(), null);
                 if (type.equals(PG_NUMERIC)) {
                     DecimalType decimalType = (DecimalType) column.getDataType();
                     return "numeric("
