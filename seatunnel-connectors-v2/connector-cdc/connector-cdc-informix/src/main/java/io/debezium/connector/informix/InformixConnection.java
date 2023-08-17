@@ -26,6 +26,7 @@ import io.debezium.relational.RelationalTableFilters;
 import io.debezium.relational.TableId;
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -83,7 +84,6 @@ public class InformixConnection extends JdbcConnection {
 
     public Lsn currentCheckpointLsn(InformixDatabaseSchema databaseSchema) {
         InformixCDCEngine cdcEngine = InformixCDCEngine.build(config);
-
         try {
             cdcEngine.init(databaseSchema);
             CompletableFuture<Long> sequenceId =
@@ -104,6 +104,18 @@ public class InformixConnection extends JdbcConnection {
                                     throw new RuntimeException(e);
                                 }
                             });
+            try (Connection connection = cdcEngine.getDs().getConnection()) {
+                connection
+                        .createStatement()
+                        .execute(
+                                "CREATE TABLE IF NOT EXISTS syscdcv1:informix.seatunnel_track (id int)");
+                connection
+                        .createStatement()
+                        .execute("DELETE FROM syscdcv1:informix.seatunnel_track where id = 1");
+                connection
+                        .createStatement()
+                        .execute("Insert Into syscdcv1:informix.seatunnel_track (id) values (1)");
+            }
             return Lsn.valueOf(sequenceId.get());
         } catch (Exception e) {
             throw new RuntimeException(e);

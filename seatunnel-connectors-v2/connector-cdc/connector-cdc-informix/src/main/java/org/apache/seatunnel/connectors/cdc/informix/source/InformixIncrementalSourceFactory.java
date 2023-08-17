@@ -24,6 +24,7 @@ import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.connector.TableSource;
 import org.apache.seatunnel.api.table.factory.Factory;
+import org.apache.seatunnel.api.table.factory.SupportMultipleTable;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSourceFactory;
 import org.apache.seatunnel.api.table.type.MultipleRowType;
@@ -39,11 +40,12 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions
 import com.google.auto.service.AutoService;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 @AutoService(Factory.class)
-public class InformixIncrementalSourceFactory implements TableSourceFactory {
+public class InformixIncrementalSourceFactory implements TableSourceFactory, SupportMultipleTable {
     @Override
     public String factoryIdentifier() {
         return InformixIncrementalSource.IDENTIFIER;
@@ -97,5 +99,10 @@ public class InformixIncrementalSourceFactory implements TableSourceFactory {
     @Override
     public Class<? extends SeaTunnelSource> getSourceClass() {
         return InformixIncrementalSource.class;
+    }
+
+    @Override
+    public Result applyTables(TableFactoryContext context) {
+        return Result.of(context.getCatalogTables(), Collections.emptyList());
     }
 }
