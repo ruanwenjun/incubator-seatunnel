@@ -103,6 +103,7 @@ public class MySqlTypeMapper implements JdbcDialectTypeMapper {
                     return PrimitiveByteArrayType.INSTANCE;
                 }
             case MYSQL_TINYINT:
+                return BasicType.BYTE_TYPE;
             case MYSQL_TINYINT_UNSIGNED:
             case MYSQL_SMALLINT:
                 return BasicType.SHORT_TYPE;
