@@ -105,6 +105,7 @@ public class MySqlTypeMapper implements JdbcDialectTypeMapper {
             case MYSQL_TINYINT:
             case MYSQL_TINYINT_UNSIGNED:
             case MYSQL_SMALLINT:
+                return BasicType.SHORT_TYPE;
             case MYSQL_SMALLINT_UNSIGNED:
             case MYSQL_MEDIUMINT:
             case MYSQL_MEDIUMINT_UNSIGNED:
