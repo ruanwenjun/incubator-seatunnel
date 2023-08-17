@@ -20,12 +20,13 @@ package org.apache.seatunnel.connectors.cdc.informix.utils;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.cdc.base.utils.SourceRecordUtils;
 
+import com.informix.jdbc.IfxPreparedStatement;
+import com.informix.jdbc.IfxSqliConnect;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Column;
 import io.debezium.relational.TableId;
 import lombok.extern.slf4j.Slf4j;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -155,9 +156,9 @@ public class InformixConnectionUtils {
             String filterCondition =
                     Stream.concat(
                                     Arrays.stream(rowType.getFieldNames())
-                                            .map(field -> field + "  <= ? "),
+                                            .map(field -> field + "  >= ? "),
                                     Arrays.stream(rowType.getFieldNames())
-                                            .map(field -> field + "  >= ? "))
+                                            .map(field -> field + "  <= ? "))
                             .collect(Collectors.joining(" AND "));
             String notCondition =
                     Arrays.stream(rowType.getFieldNames())
@@ -184,9 +185,13 @@ public class InformixConnectionUtils {
             int primaryKeyNum,
             int fetchSize) {
         try {
-            Connection connection = jdbc.connection();
-            PreparedStatement statement = connection.prepareStatement(sql);
+            IfxSqliConnect connection = (IfxSqliConnect) jdbc.connection();
+            IfxPreparedStatement statement =
+                    (IfxPreparedStatement)
+                            connection.prepareStatement(
+                                    sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
             statement.setFetchSize(fetchSize);
+            statement.setFetchBufferSize(100000);
             if (isFirstSplit && isLastSplit) {
                 return statement;
             }

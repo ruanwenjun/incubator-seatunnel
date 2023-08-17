@@ -202,11 +202,11 @@ public class InformixSnapshotSplitReadTask extends AbstractSnapshotChangeEventSo
                                 snapshotSplit.getSplitKeyType().getTotalFields(),
                                 connectorConfig.getQueryFetchSize());
                 ResultSet rs = selectStatement.executeQuery()) {
+            rs.setFetchSize(connectorConfig.getQueryFetchSize());
 
             ColumnUtils.ColumnArray columnArray = ColumnUtils.toArray(rs, table);
             Threads.Timer logTimer = getTableScanLogTimer();
             long rows = 0;
-
             while (rs.next()) {
                 rows++;
                 Object[] row = new Object[columnArray.getGreatestColumnPosition()];
