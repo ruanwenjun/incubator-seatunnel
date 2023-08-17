@@ -29,7 +29,6 @@ import org.apache.seatunnel.api.sink.SinkCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.sink.SupportMultiTableSink;
-import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.common.config.CheckConfigUtil;
@@ -53,7 +52,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -152,13 +150,6 @@ public class S3RedshiftSink extends BaseHdfsFileSink
     @SneakyThrows
     @Override
     public void handleSaveMode(DataSaveMode saveMode) {
-        if (catalogTable == null) {
-            return;
-        }
-        Map<String, String> catalogOptions = readonlyConfig.get(CatalogOptions.CATALOG_OPTIONS);
-        if (catalogOptions == null) {
-            return;
-        }
         S3RedshiftSQLGenerator sqlGenerator;
         if (catalogTable != null) {
             sqlGenerator = new S3RedshiftSQLGenerator(s3RedshiftConf, catalogTable);
