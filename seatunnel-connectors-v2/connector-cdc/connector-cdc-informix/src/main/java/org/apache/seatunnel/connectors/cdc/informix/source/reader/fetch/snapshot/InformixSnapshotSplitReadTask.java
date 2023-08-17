@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.cdc.informix.source.reader.fetch.snapsho
 import org.apache.seatunnel.connectors.cdc.base.relational.JdbcSourceEventDispatcher;
 import org.apache.seatunnel.connectors.cdc.base.source.split.SnapshotSplit;
 import org.apache.seatunnel.connectors.cdc.base.source.split.wartermark.WatermarkKind;
+import org.apache.seatunnel.connectors.cdc.informix.source.InformixDialect;
 import org.apache.seatunnel.connectors.cdc.informix.source.offset.InformixOffset;
 import org.apache.seatunnel.connectors.cdc.informix.utils.InformixConnectionUtils;
 
@@ -66,6 +67,7 @@ public class InformixSnapshotSplitReadTask extends AbstractSnapshotChangeEventSo
     private final JdbcSourceEventDispatcher eventDispatcher;
     private final SnapshotSplit snapshotSplit;
     private final Clock clock;
+    private final InformixDialect dialect;
 
     public InformixSnapshotSplitReadTask(
             InformixConnectorConfig connectorConfig,
@@ -74,7 +76,8 @@ public class InformixSnapshotSplitReadTask extends AbstractSnapshotChangeEventSo
             InformixDatabaseSchema databaseSchema,
             InformixConnection jdbcConnection,
             JdbcSourceEventDispatcher eventDispatcher,
-            SnapshotSplit snapshotSplit) {
+            SnapshotSplit snapshotSplit,
+            InformixDialect dialect) {
         super(connectorConfig, snapshotProgressListener);
         this.connectorConfig = connectorConfig;
         this.offsetContext = previousOffset;
@@ -84,6 +87,7 @@ public class InformixSnapshotSplitReadTask extends AbstractSnapshotChangeEventSo
         this.eventDispatcher = eventDispatcher;
         this.snapshotSplit = snapshotSplit;
         this.clock = Clock.SYSTEM;
+        this.dialect = dialect;
     }
 
     @Override
@@ -119,7 +123,7 @@ public class InformixSnapshotSplitReadTask extends AbstractSnapshotChangeEventSo
                 (RelationalSnapshotChangeEventSource.RelationalSnapshotContext) snapshotContext;
         ctx.offset = offsetContext;
 
-        Lsn lsn = jdbcConnection.currentCheckpointLsn(databaseSchema);
+        Lsn lsn = dialect.getGlobalLsn(jdbcConnection, databaseSchema);
         InformixOffset lowWatermark = new InformixOffset(lsn, lsn);
         log.info(
                 "Snapshot step 1 - Determining low watermark {} for split {}",
@@ -132,7 +136,7 @@ public class InformixSnapshotSplitReadTask extends AbstractSnapshotChangeEventSo
         log.info("Snapshot step 2 - Snapshotting data");
         createDataEvents(ctx, snapshotSplit.getTableId());
 
-        Lsn highLsn = jdbcConnection.currentCheckpointLsn(databaseSchema);
+        Lsn highLsn = dialect.getGlobalLsn(jdbcConnection, databaseSchema);
         InformixOffset highWatermark = new InformixOffset(highLsn, highLsn);
         log.info(
                 "Snapshot step 3 - Determining high watermark {} for split {}",

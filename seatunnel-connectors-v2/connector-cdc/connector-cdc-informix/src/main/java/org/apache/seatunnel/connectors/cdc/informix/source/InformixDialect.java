@@ -35,6 +35,8 @@ import org.apache.seatunnel.connectors.cdc.informix.source.reader.fetch.snapshot
 import org.apache.seatunnel.connectors.cdc.informix.utils.InformixSchema;
 
 import io.debezium.connector.informix.InformixConnection;
+import io.debezium.connector.informix.InformixDatabaseSchema;
+import io.debezium.connector.informix.Lsn;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.TableId;
 import io.debezium.relational.history.TableChanges;
@@ -45,6 +47,8 @@ import java.util.List;
 public class InformixDialect implements JdbcDataSourceDialect {
     private final InformixSourceConfig sourceConfig;
     private transient InformixSchema informixSchema;
+
+    private transient volatile Lsn globalLsn;
 
     public InformixDialect(InformixSourceConfigFactory configFactory) {
         this(configFactory.create(0));
@@ -121,10 +125,17 @@ public class InformixDialect implements JdbcDataSourceDialect {
         return new InformixSourceFetchTaskContext(taskSourceConfig, this);
     }
 
+    public Lsn getGlobalLsn(InformixConnection connection, InformixDatabaseSchema databaseSchema) {
+        if (globalLsn == null) {
+            globalLsn = connection.currentCheckpointLsn(databaseSchema);
+        }
+        return globalLsn;
+    }
+
     @Override
     public FetchTask<SourceSplitBase> createFetchTask(SourceSplitBase sourceSplitBase) {
         if (sourceSplitBase.isSnapshotSplit()) {
-            return new InformixSnapshotFetchTask(sourceSplitBase.asSnapshotSplit());
+            return new InformixSnapshotFetchTask(sourceSplitBase.asSnapshotSplit(), this);
         } else {
             return new InformixCDCLogFetchTask(sourceSplitBase.asIncrementalSplit());
         }

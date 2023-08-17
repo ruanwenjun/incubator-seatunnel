@@ -23,6 +23,7 @@ import org.apache.seatunnel.connectors.cdc.base.source.split.IncrementalSplit;
 import org.apache.seatunnel.connectors.cdc.base.source.split.SnapshotSplit;
 import org.apache.seatunnel.connectors.cdc.base.source.split.SourceSplitBase;
 import org.apache.seatunnel.connectors.cdc.base.source.split.wartermark.WatermarkKind;
+import org.apache.seatunnel.connectors.cdc.informix.source.InformixDialect;
 import org.apache.seatunnel.connectors.cdc.informix.source.reader.fetch.InformixSourceFetchTaskContext;
 import org.apache.seatunnel.connectors.cdc.informix.source.reader.fetch.cdc.InformixCDCLogSplitReadTask;
 
@@ -42,6 +43,7 @@ public class InformixSnapshotFetchTask implements FetchTask<SourceSplitBase> {
     private final SnapshotSplit split;
     private volatile boolean taskRunning = false;
     private InformixSnapshotSplitReadTask snapshotSplitReadTask;
+    private final InformixDialect dialect;
 
     @Override
     public void execute(Context context) throws Exception {
@@ -57,7 +59,8 @@ public class InformixSnapshotFetchTask implements FetchTask<SourceSplitBase> {
                         sourceFetchContext.getDatabaseSchema(),
                         sourceFetchContext.getConnection(),
                         sourceFetchContext.getDispatcher(),
-                        split);
+                        split,
+                        dialect);
         InformixSnapshotSplitChangeEventSourceContext changeEventSourceContext =
                 new InformixSnapshotSplitChangeEventSourceContext();
         SnapshotResult snapshotResult =
