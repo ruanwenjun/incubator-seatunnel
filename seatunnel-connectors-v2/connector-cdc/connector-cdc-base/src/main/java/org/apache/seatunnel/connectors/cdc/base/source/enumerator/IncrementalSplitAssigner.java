@@ -179,10 +179,21 @@ public class IncrementalSplitAssigner<C extends SourceConfig> implements SplitAs
     public List<IncrementalSplit> createIncrementalSplits(boolean startWithSnapshotMinimumOffset) {
         Set<TableId> allTables = new HashSet<>(context.getCapturedTables());
         assignedSplits.values().forEach(split -> split.getTableIds().forEach(allTables::remove));
-        List<TableId>[] capturedTables = new List[incrementalParallelism];
+        // Generate IncrementalSplit for each table
+        // The maximum number of IncrementalSplit is min(incrementalParallelism, table number)
+        // This means that each IncrementalSplit should contain at least one table
+        if (incrementalParallelism > allTables.size()) {
+            LOG.info(
+                    "There is only {} tables, but input incremental parallelism is {}, will adjust the parallelism to {} .",
+                    allTables.size(),
+                    incrementalParallelism,
+                    allTables.size());
+        }
+        List<TableId>[] capturedTables =
+                new List[Math.min(incrementalParallelism, allTables.size())];
         int i = 0;
         for (TableId tableId : allTables) {
-            int index = i % incrementalParallelism;
+            int index = i % capturedTables.length;
             if (capturedTables[index] == null) {
                 capturedTables[index] = new ArrayList<>();
             }
