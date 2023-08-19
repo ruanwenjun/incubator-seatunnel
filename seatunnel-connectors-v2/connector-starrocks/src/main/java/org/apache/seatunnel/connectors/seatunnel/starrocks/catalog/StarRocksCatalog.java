@@ -241,25 +241,17 @@ public class StarRocksCatalog implements Catalog {
     }
 
     public boolean isExistsData(String tableName) {
-        Connection connection = null;
-        try {
-            connection = DriverManager.getConnection(defaultUrl, username, pwd);
-        } catch (SQLException e) {
-            throw new CatalogException(
-                    String.format("Failed Connection JDBC error %s", tableName), e);
-        }
-        String sql = String.format("select count(*) from %s;", tableName);
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (Connection connection = DriverManager.getConnection(defaultUrl, username, pwd)) {
+            String sql = String.format("select * from %s limit 1", tableName);
+            PreparedStatement ps = connection.prepareStatement(sql);
             ResultSet resultSet = ps.executeQuery();
             if (resultSet == null) {
                 return false;
             }
-            resultSet.next();
-            int count = 0;
-            count = resultSet.getInt(1);
-            return count > 0;
+            return resultSet.next();
         } catch (SQLException e) {
-            throw new CatalogException(String.format("Failed executeSql error %s", sql), e);
+            throw new CatalogException(
+                    String.format("Failed Connection JDBC error %s", tableName), e);
         }
     }
 
