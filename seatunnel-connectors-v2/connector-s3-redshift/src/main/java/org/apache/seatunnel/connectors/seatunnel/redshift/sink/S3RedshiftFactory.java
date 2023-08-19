@@ -64,6 +64,10 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3Config.S3_ACCESS_KEY,
                         S3Config.S3_SECRET_KEY)
                 .conditional(
+                        S3Config.S3A_AWS_CREDENTIALS_PROVIDER,
+                        S3Config.S3aAwsCredentialsProvider.InstanceProfileCredentialsProvider,
+                        S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE)
+                .conditional(
                         S3RedshiftConfig.SAVE_MODE,
                         DataSaveMode.CUSTOM_PROCESSING,
                         S3RedshiftConfig.CUSTOM_SQL)
@@ -72,7 +76,6 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3RedshiftConfig.CHANGELOG_MODE,
                         S3RedshiftConfig.REDSHIFT_TABLE,
                         S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS,
-                        S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE,
                         S3RedshiftConfig.REDSHIFT_S3_FILE_COMMIT_WORKER_SIZE)
                 .conditional(S3RedshiftConfig.CHANGELOG_MODE, S3RedshiftChangelogMode.APPEND_ONLY)
                 .conditional(

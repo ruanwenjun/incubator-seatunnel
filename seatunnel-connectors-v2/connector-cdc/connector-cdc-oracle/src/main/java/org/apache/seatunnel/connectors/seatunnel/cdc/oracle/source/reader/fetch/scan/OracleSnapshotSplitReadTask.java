@@ -97,6 +97,8 @@ public class OracleSnapshotSplitReadTask extends AbstractSnapshotChangeEventSour
             throw e;
         } catch (Exception t) {
             throw new DebeziumException(t);
+        } finally {
+            complete(ctx);
         }
     }
 
@@ -144,7 +146,17 @@ public class OracleSnapshotSplitReadTask extends AbstractSnapshotChangeEventSour
     @Override
     protected SnapshotContext prepare(ChangeEventSourceContext changeEventSourceContext)
             throws Exception {
+        if (connectorConfig.getPdbName() != null) {
+            jdbcConnection.setSessionToPdb(connectorConfig.getPdbName());
+        }
         return new OracleSnapshotContext();
+    }
+
+    @Override
+    protected void complete(SnapshotContext snapshotContext) {
+        if (connectorConfig.getPdbName() != null) {
+            jdbcConnection.resetSessionToCdb();
+        }
     }
 
     private void createDataEvents(
