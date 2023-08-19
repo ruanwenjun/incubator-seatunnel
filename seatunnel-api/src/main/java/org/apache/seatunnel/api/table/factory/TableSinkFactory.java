@@ -41,4 +41,8 @@ public interface TableSinkFactory<IN, StateT, CommitInfoT, AggregatedCommitInfoT
         throw new UnsupportedOperationException(
                 "The Factory has not been implemented and the deprecated Plugin will be used.");
     }
+
+    default Class<?> getSinkClass() {
+        return null;
+    }
 }

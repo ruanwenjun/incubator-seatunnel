@@ -76,6 +76,10 @@ public class JdbcSinkFactory implements TableSinkFactory {
         return "Jdbc";
     }
 
+    public Class<?> getSinkClass() {
+        return JdbcSink.class;
+    }
+
     @Override
     public TableSink createSink(TableFactoryContext context) {
         ReadonlyConfig config = context.getOptions();
