@@ -17,9 +17,9 @@
 
 package org.apache.seatunnel.connectors.selectdb.sink.writer;
 
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
-
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig;
@@ -39,10 +39,12 @@ import static com.google.common.base.Preconditions.checkState;
 
 @Slf4j
 public class SelectDBSinkWriter
-        implements SinkWriter<SeaTunnelRow, SelectDBCommitInfo, SelectDBSinkState> {
+        implements SinkWriter<SeaTunnelRow, SelectDBCommitInfo, SelectDBSinkState>,
+                SupportMultiTableSinkWriter {
     private final SelectDBConfig selectdbConfig;
     private final long lastCheckpointId;
     private SelectDBStageLoad selectDBStageLoad;
+    private CatalogTable catalogTable;
     volatile boolean loading;
     private final String labelPrefix;
     private final byte[] lineDelimiter;
@@ -53,10 +55,11 @@ public class SelectDBSinkWriter
     public SelectDBSinkWriter(
             SinkWriter.Context context,
             List<SelectDBSinkState> state,
-            SeaTunnelRowType seaTunnelRowType,
-            Config pluginConfig,
+            CatalogTable catalogTable,
+            SelectDBConfig selectdbConfig,
             String jobId) {
-        this.selectdbConfig = SelectDBConfig.loadConfig(pluginConfig);
+        this.selectdbConfig = selectdbConfig;
+        this.catalogTable = catalogTable;
         this.lastCheckpointId = state.size() != 0 ? state.get(0).getCheckpointId() : 0;
         log.info("restore checkpointId {}", lastCheckpointId);
         // filename prefix is uuid
@@ -73,7 +76,9 @@ public class SelectDBSinkWriter
                                 LoadConstants.LINE_DELIMITER_DEFAULT)
                         .getBytes();
         this.labelGenerator = new LabelGenerator(labelPrefix);
-        this.serializer = createSerializer(selectdbConfig, seaTunnelRowType);
+        this.serializer =
+                createSerializer(
+                        selectdbConfig, catalogTable.getTableSchema().toPhysicalRowDataType());
         this.loading = false;
     }
 
@@ -84,7 +89,7 @@ public class SelectDBSinkWriter
     }
 
     @Override
-    public synchronized void write(SeaTunnelRow element) throws IOException {
+    public void write(SeaTunnelRow element) throws IOException {
         byte[] serialize = serializer.serialize(element);
         if (Objects.isNull(serialize)) {
             // schema change is null
@@ -98,7 +103,7 @@ public class SelectDBSinkWriter
     }
 
     @Override
-    public synchronized Optional<SelectDBCommitInfo> prepareCommit() throws IOException {
+    public Optional<SelectDBCommitInfo> prepareCommit() throws IOException {
         checkState(selectDBStageLoad != null);
         log.info("checkpoint arrived, upload buffer to storage");
         try {
@@ -107,7 +112,7 @@ public class SelectDBSinkWriter
             throw new RuntimeException(e);
         }
         CopySQLBuilder copySQLBuilder =
-                new CopySQLBuilder(selectdbConfig, selectDBStageLoad.getFileList());
+                new CopySQLBuilder(selectdbConfig, catalogTable, selectDBStageLoad.getFileList());
         String copySql = copySQLBuilder.buildCopySQL();
         return Optional.of(
                 new SelectDBCommitInfo(
@@ -115,8 +120,7 @@ public class SelectDBSinkWriter
     }
 
     @Override
-    public synchronized List<SelectDBSinkState> snapshotState(long checkpointId)
-            throws IOException {
+    public List<SelectDBSinkState> snapshotState(long checkpointId) throws IOException {
         checkState(selectDBStageLoad != null);
         log.info("clear the file list {}", selectDBStageLoad.getFileList());
         this.selectDBStageLoad.clearFileList();
@@ -137,11 +141,9 @@ public class SelectDBSinkWriter
 
     public static SelectDBSerializer createSerializer(
             SelectDBConfig selectdbConfig, SeaTunnelRowType seaTunnelRowType) {
+        String format = selectdbConfig.getStageLoadProps().getProperty(LoadConstants.FORMAT_KEY);
         return new SeaTunnelRowSerializer(
-                selectdbConfig
-                        .getStageLoadProps()
-                        .getProperty(LoadConstants.FORMAT_KEY)
-                        .toLowerCase(),
+                (format != null ? format : LoadConstants.JSON).toLowerCase(),
                 seaTunnelRowType,
                 selectdbConfig.getStageLoadProps().getProperty(LoadConstants.FIELD_DELIMITER_KEY),
                 selectdbConfig.getEnableDelete());

@@ -28,26 +28,31 @@ import java.util.stream.Collectors;
 
 public class MultiTableSinkCommitter implements SinkCommitter<MultiTableCommitInfo> {
 
-    private final Map<SinkIdentifier, SinkCommitter<?>> sinkCommitters;
+    private final Map<String, SinkCommitter<?>> sinkCommitters;
 
-    public MultiTableSinkCommitter(Map<SinkIdentifier, SinkCommitter<?>> sinkCommitters) {
+    public MultiTableSinkCommitter(Map<String, SinkCommitter<?>> sinkCommitters) {
         this.sinkCommitters = sinkCommitters;
     }
 
     @Override
     public List<MultiTableCommitInfo> commit(List<MultiTableCommitInfo> commitInfos)
             throws IOException {
-        for (SinkIdentifier sinkIdentifier : sinkCommitters.keySet()) {
+        for (String sinkIdentifier : sinkCommitters.keySet()) {
             SinkCommitter<?> sinkCommitter = sinkCommitters.get(sinkIdentifier);
             if (sinkCommitter != null) {
                 List commitInfo =
                         commitInfos.stream()
-                                .map(
+                                .flatMap(
                                         multiTableCommitInfo ->
-                                                multiTableCommitInfo
-                                                        .getCommitInfo()
-                                                        .get(sinkIdentifier))
-                                .filter(Objects::nonNull)
+                                                multiTableCommitInfo.getCommitInfo().entrySet()
+                                                        .stream()
+                                                        .filter(
+                                                                entry ->
+                                                                        entry.getKey()
+                                                                                .getTableIdentifier()
+                                                                                .equals(
+                                                                                        sinkIdentifier)))
+                                .map(Map.Entry::getValue)
                                 .collect(Collectors.toList());
                 sinkCommitter.commit(commitInfo);
             }
@@ -57,7 +62,7 @@ public class MultiTableSinkCommitter implements SinkCommitter<MultiTableCommitIn
 
     @Override
     public void abort(List<MultiTableCommitInfo> commitInfos) throws IOException {
-        for (SinkIdentifier sinkIdentifier : sinkCommitters.keySet()) {
+        for (String sinkIdentifier : sinkCommitters.keySet()) {
             SinkCommitter<?> sinkCommitter = sinkCommitters.get(sinkIdentifier);
             if (sinkCommitter != null) {
                 List commitInfo =
