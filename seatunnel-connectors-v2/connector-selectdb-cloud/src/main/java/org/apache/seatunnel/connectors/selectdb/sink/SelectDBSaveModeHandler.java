@@ -17,6 +17,7 @@ public class SelectDBSaveModeHandler {
     private final CatalogTable catalogTable;
 
     private final SelectDBCatalog catalog;
+    private final TablePath tablePath;
 
     SelectDBSaveModeHandler(
             SelectDBConfig selectDBConfig,
@@ -27,13 +28,15 @@ public class SelectDBSaveModeHandler {
         this.saveMode = saveMode;
         this.catalogTable = catalogTable;
         this.catalog = catalog;
+        if (selectDBConfig.getTableIdentifier() != null) {
+            tablePath = TablePath.of(selectDBConfig.getTableIdentifier());
+        } else {
+            tablePath = catalogTable.getTableId().toTablePath();
+        }
     }
 
     public void doHandleSaveMode() {
-
-        TablePath tablePath = catalogTable.getTableId().toTablePath();
-
-        if (!catalog.databaseExists(catalogTable.getTableId().getDatabaseName())) {
+        if (!catalog.databaseExists(tablePath.getDatabaseName())) {
             catalog.createDatabase(tablePath, true);
         }
         switch (saveMode) {
@@ -76,8 +79,8 @@ public class SelectDBSaveModeHandler {
     }
 
     private void autoCreateTable(String template) {
-        String database = catalogTable.getTableId().getDatabaseName();
-        String tableName = catalogTable.getTableId().getTableName();
+        String database = tablePath.getDatabaseName();
+        String tableName = tablePath.getTableName();
         if (!catalog.databaseExists(database)) {
             catalog.createDatabase(TablePath.of(database, ""), true);
         }
