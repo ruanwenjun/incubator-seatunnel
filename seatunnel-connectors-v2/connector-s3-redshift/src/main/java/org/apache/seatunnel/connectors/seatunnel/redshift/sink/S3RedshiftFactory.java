@@ -37,6 +37,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.auto.service.AutoService;
 
+import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_REPLICA;
+
 @AutoService(Factory.class)
 public class S3RedshiftFactory implements TableSinkFactory {
 
@@ -57,7 +59,8 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3RedshiftConfig.SAVE_MODE,
                         BaseSinkConfig.FILE_PATH,
                         BaseSinkConfig.TMP_PATH,
-                        S3Config.S3A_AWS_CREDENTIALS_PROVIDER)
+                        S3Config.S3A_AWS_CREDENTIALS_PROVIDER,
+                        MULTI_TABLE_SINK_REPLICA)
                 .conditional(
                         S3Config.S3A_AWS_CREDENTIALS_PROVIDER,
                         S3Config.S3aAwsCredentialsProvider.SimpleAWSCredentialsProvider,
