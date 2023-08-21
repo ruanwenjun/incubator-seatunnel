@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.api.table.factory;
 
+import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.table.connector.TableSink;
 
 /**
@@ -42,7 +43,7 @@ public interface TableSinkFactory<IN, StateT, CommitInfoT, AggregatedCommitInfoT
                 "The Factory has not been implemented and the deprecated Plugin will be used.");
     }
 
-    default Class<?> getSinkClass() {
+    default Class<? extends SeaTunnelSink> getSinkClass() {
         return null;
     }
 }

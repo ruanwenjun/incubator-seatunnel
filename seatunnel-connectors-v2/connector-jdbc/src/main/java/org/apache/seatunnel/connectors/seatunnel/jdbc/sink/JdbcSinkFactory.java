@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.sink;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
@@ -76,7 +77,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
         return "Jdbc";
     }
 
-    public Class<?> getSinkClass() {
+    public Class<? extends SeaTunnelSink> getSinkClass() {
         return JdbcSink.class;
     }
 
