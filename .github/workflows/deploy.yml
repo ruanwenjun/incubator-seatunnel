@@ -22,6 +22,7 @@ on:
   push:
     branches:
       - '**-release'
+      - '**-test'
 env:
   GH_USERNAME: ${{ secrets.GH_PACKAGE_USER }}
   GH_TOKEN: ${{ secrets.GH_PACKAGE_TOKEN }}
