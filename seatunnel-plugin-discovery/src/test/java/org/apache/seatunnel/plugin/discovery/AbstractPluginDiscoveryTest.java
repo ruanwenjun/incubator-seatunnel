@@ -47,17 +47,4 @@ public class AbstractPluginDiscoveryTest {
                 AbstractPluginDiscovery.getAllSupportedPlugins(PluginType.SINK);
         Assertions.assertEquals(30, sinkPlugins.size());
     }
-
-    @Test
-    public void getAllSinkIsSupportAutoCreateTableMap() {
-        Common.setDeployMode(DeployMode.CLIENT);
-        System.setProperty("SEATUNNEL_HOME", "");
-        Map<PluginIdentifier, String> sourcePlugins =
-                AbstractPluginDiscovery.getAllSupportedPlugins(PluginType.SOURCE);
-        Assertions.assertEquals(27, sourcePlugins.size());
-
-        Map<PluginIdentifier, String> sinkPlugins =
-                AbstractPluginDiscovery.getAllSupportedPlugins(PluginType.SINK);
-        Assertions.assertEquals(30, sinkPlugins.size());
-    }
 }
