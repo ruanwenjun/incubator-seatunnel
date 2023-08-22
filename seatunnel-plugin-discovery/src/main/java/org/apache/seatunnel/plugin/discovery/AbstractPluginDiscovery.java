@@ -24,6 +24,7 @@ import org.apache.seatunnel.shade.com.typesafe.config.ConfigValue;
 
 import org.apache.seatunnel.api.common.PluginIdentifierInterface;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.sink.SupportAutoCreateTable;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.FactoryUtil;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
@@ -35,6 +36,7 @@ import org.apache.seatunnel.common.constants.PluginType;
 import org.apache.seatunnel.common.utils.FileUtils;
 import org.apache.seatunnel.common.utils.ReflectionUtils;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -167,6 +169,38 @@ public abstract class AbstractPluginDiscovery<T> implements PluginDiscovery<T> {
                             });
         }
         return pluginIdentifiers;
+    }
+
+    public Map<String, Boolean> getAllSinkIsSupportAutoCreateTableMap() throws IOException {
+        List<Factory> factories;
+        if (this.pluginDir.toFile().exists()) {
+            log.info("load plugin from plugin dir: {}", this.pluginDir);
+            List<URL> files = FileUtils.searchJarFiles(this.pluginDir);
+            factories =
+                    FactoryUtil.discoverFactories(new URLClassLoader(files.toArray(new URL[0])));
+        } else {
+            log.warn("plugin dir: {} not exists, load plugin from classpath", this.pluginDir);
+            factories =
+                    FactoryUtil.discoverFactories(Thread.currentThread().getContextClassLoader());
+        }
+        Map<String, Boolean> sinkIsSupportAutoCreateTableMap = new HashMap<>();
+        if (CollectionUtils.isEmpty(factories)) {
+            return sinkIsSupportAutoCreateTableMap;
+        }
+
+        factories.forEach(
+                factory -> {
+                    if (factory instanceof TableSinkFactory) {
+                        final Class<?> sinkClass =
+                                ((TableSinkFactory<?, ?, ?, ?>) factory).getSinkClass();
+                        boolean isSupportAutoCreateTable =
+                                sinkClass != null
+                                        && SupportAutoCreateTable.class.isAssignableFrom(sinkClass);
+                        sinkIsSupportAutoCreateTableMap.put(
+                                factory.factoryIdentifier(), isSupportAutoCreateTable);
+                    }
+                });
+        return sinkIsSupportAutoCreateTableMap;
     }
 
     public Path getPluginDir() {

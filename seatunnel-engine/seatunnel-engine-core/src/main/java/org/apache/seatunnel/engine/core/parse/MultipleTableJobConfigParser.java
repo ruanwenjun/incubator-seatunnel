@@ -26,6 +26,7 @@ import org.apache.seatunnel.api.env.EnvCommonOptions;
 import org.apache.seatunnel.api.env.ParsingMode;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
+import org.apache.seatunnel.api.sink.SupportAutoCreateTable;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.sink.SupportMultiTableSink;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
@@ -656,10 +657,17 @@ public class MultipleTableJobConfigParser {
                         factoryUrls,
                         actionConfig);
         if (!isStartWithSavePoint) {
+            handleAutoCreateTable(sink);
             handleSaveMode(sink);
         }
         sinkAction.setParallelism(parallelism);
         return sinkAction;
+    }
+
+    public static void handleAutoCreateTable(SeaTunnelSink<?, ?, ?, ?> sink) {
+        if (SupportAutoCreateTable.class.isAssignableFrom(sink.getClass())) {
+            ((SupportAutoCreateTable) sink).handleAutoCreateTable();
+        }
     }
 
     public static void handleSaveMode(SeaTunnelSink<?, ?, ?, ?> sink) {

@@ -128,4 +128,8 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         ConfigFactory.parseMap(config.toMap()),
                         config);
     }
+
+    public Class<?> getSinkClass() {
+        return S3RedshiftSink.class;
+    }
 }
