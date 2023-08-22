@@ -29,7 +29,6 @@ import lombok.ToString;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
 
 @Setter
 @Getter
@@ -90,7 +89,7 @@ public class SelectDBConfig implements Serializable {
     public static final Option<String> SINK_LABEL_PREFIX =
             Options.key("sink.label-prefix")
                     .stringType()
-                    .defaultValue(UUID.randomUUID().toString())
+                    .defaultValue("seatunnel")
                     .withDescription("the unique label prefix.");
     public static final Option<Boolean> SINK_ENABLE_DELETE =
             Options.key("sink.enable-delete")

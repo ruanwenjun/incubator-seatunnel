@@ -59,8 +59,9 @@ public class SelectDBSinkFactory
     @Override
     public OptionRule optionRule() {
         return OptionRule.builder()
-                .required(BASE_URL, LOAD_URL, CLUSTER_NAME, USERNAME, PASSWORD, TABLE_IDENTIFIER)
+                .required(BASE_URL, LOAD_URL, CLUSTER_NAME, USERNAME, PASSWORD)
                 .optional(
+                        TABLE_IDENTIFIER,
                         SINK_MAX_RETRIES,
                         SINK_LABEL_PREFIX,
                         SINK_BUFFER_SIZE,
