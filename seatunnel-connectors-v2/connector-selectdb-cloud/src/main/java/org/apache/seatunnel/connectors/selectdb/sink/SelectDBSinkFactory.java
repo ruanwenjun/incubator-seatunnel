@@ -32,9 +32,11 @@ import com.google.auto.service.AutoService;
 import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_REPLICA;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.BASE_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CLUSTER_NAME;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CUSTOM_SQL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.LOAD_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.PASSWORD;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SAVE_MODE;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SAVE_MODE_CREATE_TEMPLATE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SELECTDB_SINK_CONFIG_PREFIX;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SINK_BUFFER_COUNT;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SINK_BUFFER_SIZE;
@@ -66,6 +68,8 @@ public class SelectDBSinkFactory
                         SINK_ENABLE_DELETE,
                         SINK_FLUSH_QUEUE_SIZE,
                         SAVE_MODE,
+                        CUSTOM_SQL,
+                        SAVE_MODE_CREATE_TEMPLATE,
                         SELECTDB_SINK_CONFIG_PREFIX,
                         MULTI_TABLE_SINK_REPLICA)
                 .build();
