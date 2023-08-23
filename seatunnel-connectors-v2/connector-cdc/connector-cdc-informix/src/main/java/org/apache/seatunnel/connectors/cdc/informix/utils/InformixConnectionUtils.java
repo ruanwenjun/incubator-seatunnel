@@ -251,7 +251,7 @@ public class InformixConnectionUtils {
                         .map(Column::name)
                         .collect(
                                 Collectors.joining(
-                                        ",", "SELECT ", " FROM " + quote(tableId) + " LIMIT 1"));
+                                        ",", "SELECT FIRST 1 ", " FROM " + quote(tableId)));
         jdbc.query(
                 selectMetadataSQL,
                 rs -> {
