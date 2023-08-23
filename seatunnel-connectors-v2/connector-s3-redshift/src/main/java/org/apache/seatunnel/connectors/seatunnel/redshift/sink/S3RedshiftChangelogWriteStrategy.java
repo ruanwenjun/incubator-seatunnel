@@ -56,7 +56,7 @@ public class S3RedshiftChangelogWriteStrategy extends AbstractWriteStrategy {
 
     @Override
     public void finishAndCloseFile() {
-        delegate.finishAndCloseFile();
+        throw new UnsupportedOperationException();
     }
 
     private static FileSinkConfig validation(FileSinkConfig fileSinkConfig) {

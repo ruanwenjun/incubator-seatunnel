@@ -39,12 +39,10 @@ public class S3RedshiftSaveModeHandler implements AutoCloseable {
 
     public void handle(DataSaveMode saveMode) throws SQLException {
         if (conf.notAppendOnlyMode()) {
-            if (conf.isCopyS3FileToTemporaryTableMode()) {
-                redshiftJdbcClient.execute(sqlGenerator.getDropTemporaryTableSql());
-                log.info("Drop temporary table: {}", sqlGenerator.getDropTemporaryTableSql());
-                redshiftJdbcClient.execute(sqlGenerator.getCreateTemporaryTableSQL());
-                log.info("Create temporary table: {}", sqlGenerator.getCreateTemporaryTableSQL());
-            }
+            redshiftJdbcClient.execute(sqlGenerator.getDropTemporaryTableSql());
+            log.info("Drop temporary table: {}", sqlGenerator.getDropTemporaryTableSql());
+            redshiftJdbcClient.execute(sqlGenerator.getCreateTemporaryTableSQL());
+            log.info("Create temporary table: {}", sqlGenerator.getCreateTemporaryTableSQL());
         }
 
         switch (saveMode) {
@@ -76,9 +74,9 @@ public class S3RedshiftSaveModeHandler implements AutoCloseable {
     }
 
     private void keepSchemaDropData() throws SQLException {
-        if (redshiftJdbcClient.existDataForSql(sqlGenerator.generateIsExistTableSql())) {
-            redshiftJdbcClient.execute(sqlGenerator.generateCleanTableSql());
-            log.info("Clean table: {}", sqlGenerator.generateCleanTableSql());
+        if (redshiftJdbcClient.existDataForSql(sqlGenerator.getIsExistTableSql())) {
+            redshiftJdbcClient.execute(sqlGenerator.getCleanTableSql());
+            log.info("Clean table: {}", sqlGenerator.getCleanTableSql());
         }
     }
 
@@ -96,7 +94,7 @@ public class S3RedshiftSaveModeHandler implements AutoCloseable {
 
     private void errorWhenExists() throws SQLException {
         if (redshiftJdbcClient.executeQueryCount(sqlGenerator.getIsExistTableSql()) > 0) {
-            if (redshiftJdbcClient.executeQueryCount(sqlGenerator.getIsExistDataSql()) > 0) {
+            if (redshiftJdbcClient.existDataForSql(sqlGenerator.getIsExistDataSql())) {
                 throw new IllegalStateException("The target data source already has data");
             }
         }

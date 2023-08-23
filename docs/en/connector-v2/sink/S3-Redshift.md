@@ -87,10 +87,8 @@ hadoop_s3_properties {
 
 The changelog mode of the sink writer, support:
 `APPEND_ONLY`: Only append data to the target table.
-`APPEND_ON_DUPLICATE_UPDATE`: If the primary key exists, update the data, otherwise insert the data.
-`APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC`: If the primary key exists, update the data, otherwise insert the data. Automatically switch copy/merge mode between snapshot sync and incremental sync.
-`APPEND_ON_DUPLICATE_DELETE`: If the primary key exists, delete the data, otherwise insert the data.
-`APPEND_ON_DUPLICATE_DELETE_AUTOMATIC`: If the primary key exists, delete the data, otherwise insert the data. Automatically switch copy/merge mode between snapshot sync and incremental sync.
+`APPEND_ON_DUPLICATE_UPDATE`: If the primary key exists, update(update/delete) the data, otherwise insert the data.
+`APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC`: If the primary key exists, update(update/delete) the data, otherwise insert the data. Automatically switch copy/merge mode between snapshot sync and incremental sync.
 
 ### changelog_buffer_flush_size [int]
 
@@ -156,11 +154,12 @@ For append only
 
 ```
 
-Support write cdc changelog event(APPEND_ON_DUPLICATE_UPDATE/APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC/APPEND_ON_DUPLICATE_DELETE/APPEND_ON_DUPLICATE_DELETE_AUTOMATIC).
+Support write cdc changelog event(APPEND_ON_DUPLICATE_UPDATE/APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC).
 
-*Using Redshift COPY sql import s3 file into tmp table, and use Redshift MERGE sql merge tmp table data into target table.*
+*Using Redshift COPY sql import s3 file into tmp table, and use Redshift DELETE/MERGE sql merge tmp table data into target table.*
 - [Redshift TEMPORARY Table](https://docs.aws.amazon.com/redshift/latest/dg/r_CREATE_TABLE_NEW.html)
 - [Redshift COPY SQL](https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html)
+- [Redshift DELETE USING SQL](https://docs.aws.amazon.com/redshift/latest/dg/r_DELETE.html)
 - [Redshift MERGE SQL](https://docs.aws.amazon.com/redshift/latest/dg/r_MERGE.html)
 
 Config example:

@@ -31,8 +31,6 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.resource.WriterResourc
 import org.apache.seatunnel.connectors.seatunnel.redshift.resource.WriterResourceManager;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileCommitInfo;
 
-import org.apache.commons.collections4.CollectionUtils;
-
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
@@ -66,6 +64,7 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
     private int flushBufferInterval;
     private ScheduledExecutorService executorService;
     private Optional<Integer> partitionField;
+    private volatile TableSchemaEnhancer schemaEnhancer;
 
     public S3RedshiftChangelogWriter(
             WriteStrategy writeStrategy,
@@ -78,19 +77,22 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
         super(writeStrategy, hadoopConf, context, jobId, fileSinkStates);
         this.s3RedshiftConf = s3RedshiftConf;
         this.resource = WriterResource.createSingleTableResource(s3RedshiftConf);
-        this.partitionField =
-                CollectionUtils.isEmpty(s3RedshiftConf.getRedshiftTablePrimaryKeys())
-                        ? Optional.empty()
-                        : Optional.of(
-                                seaTunnelRowType.indexOf(
-                                        s3RedshiftConf.getRedshiftTablePrimaryKeys().get(0)));
         if (s3RedshiftConf.isAppendOnlyMode()) {
             this.appendOnly = true;
+            this.partitionField = Optional.empty();
         } else {
             this.appendOnly =
                     s3RedshiftConf.isAllowAppend()
                             ? (fileSinkStates == null || fileSinkStates.isEmpty())
                             : false;
+            if (!appendOnly) {
+                seaTunnelRowType = enhanceRowType(seaTunnelRowType);
+                writeStrategy.setSeaTunnelRowTypeInfo(seaTunnelRowType);
+            }
+            this.partitionField =
+                    Optional.of(
+                            seaTunnelRowType.indexOf(
+                                    s3RedshiftConf.getRedshiftTablePrimaryKeys().get(0)));
             this.changelogStrategy = createChangelogStrategy(writeStrategy);
             this.keyExtractor =
                     createKeyExtractor(
@@ -143,12 +145,20 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
         this.resource = multiTableResourceManager.get().getSharedResource().get();
     }
 
+    private synchronized SeaTunnelRowType enhanceRowType(SeaTunnelRowType rowType) {
+        schemaEnhancer = new TableSchemaEnhancer(rowType);
+        return schemaEnhancer.getEnhanceRowType();
+    }
+
     @Override
     public void applySchemaChange(SchemaChangeEvent event) {
         log.info("received schema change event: " + event);
         schemaChanged = true;
         dataTypeChangeEventDispatcher.reset(writeStrategy.getSeaTunnelRowTypeInfo());
         SeaTunnelRowType newRowType = dataTypeChangeEventDispatcher.handle(event);
+        if (!appendOnly) {
+            newRowType = enhanceRowType(newRowType);
+        }
         writeStrategy.setSeaTunnelRowTypeInfo(newRowType);
         try {
             updateRedshiftTableSchema(event);
@@ -168,17 +178,11 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
             for (String sql : sqlList) {
                 resource.getRedshiftJdbcClient().execute(sql);
             }
-        } else if (s3RedshiftConf.isCopyS3FileToTemporaryTableMode()) {
+        } else {
             List<String> sqlList =
                     getSQLFromSchemaChangeEvent(s3RedshiftConf.getRedshiftTable(), event);
             String temporaryTable = s3RedshiftConf.getTemporaryTableName();
             sqlList.addAll(getSQLFromSchemaChangeEvent(temporaryTable, event));
-            for (String sql : sqlList) {
-                resource.getRedshiftJdbcClient().execute(sql);
-            }
-        } else {
-            List<String> sqlList =
-                    getSQLFromSchemaChangeEvent(s3RedshiftConf.getRedshiftTable(), event);
             for (String sql : sqlList) {
                 resource.getRedshiftJdbcClient().execute(sql);
             }
@@ -246,37 +250,22 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
             writeStrategy.write(element);
         } else {
             if (appendOnly) {
-                log.info("Received update record, change to merge mode");
+                log.info("Change to merge mode from beginning: {}", element);
+                appendOnly = false;
+                SeaTunnelRowType ehanceRowType =
+                        enhanceRowType(writeStrategy.getSeaTunnelRowTypeInfo());
+                writeStrategy.setSeaTunnelRowTypeInfo(ehanceRowType);
             }
-            appendOnly = false;
-            writeMemoryTable(element);
+            writeMemoryTable(schemaEnhancer.enhanceRow(element));
         }
     }
 
     private void writeMemoryTable(SeaTunnelRow element) throws IOException {
         switch (element.getRowKind()) {
             case INSERT:
-                memoryTable.put(keyExtractor.apply(element), element);
-                break;
             case UPDATE_AFTER:
-                if (s3RedshiftConf.isAllowUpdate()) {
-                    memoryTable.put(keyExtractor.apply(element), element);
-                } else {
-                    log.warn(
-                            "ignore row-kind:{} for changelog-mode: {}",
-                            element.getRowKind(),
-                            s3RedshiftConf.getChangelogMode());
-                }
-                break;
             case DELETE:
-                if (s3RedshiftConf.isAllowDelete()) {
-                    memoryTable.put(keyExtractor.apply(element), element);
-                } else {
-                    log.warn(
-                            "ignore row-kind: {} for changelog-mode: {}",
-                            element.getRowKind(),
-                            s3RedshiftConf.getChangelogMode());
-                }
+                memoryTable.put(keyExtractor.apply(element), element);
                 break;
             case UPDATE_BEFORE:
             default:
@@ -308,7 +297,8 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
                                                                 .getPartitionDirAndValuesMap(),
                                                         fileCommitInfo.getTransactionDir(),
                                                         writeStrategy.getSeaTunnelRowTypeInfo(),
-                                                        appendOnly)))
+                                                        appendOnly,
+                                                        schemaChanged)))
                         .orElseGet(
                                 () ->
                                         Optional.of(
@@ -317,7 +307,8 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
                                                         null,
                                                         null,
                                                         writeStrategy.getSeaTunnelRowTypeInfo(),
-                                                        appendOnly)));
+                                                        appendOnly,
+                                                        schemaChanged)));
         schemaChanged = false;
         return result;
     }

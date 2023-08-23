@@ -18,7 +18,6 @@ import org.apache.seatunnel.connectors.seatunnel.file.sink.writer.WriteStrategy;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.writer.WriteStrategyFactory;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogWriter;
-import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftTemporaryTableMode;
 
 import org.junit.jupiter.api.Test;
 
@@ -56,8 +55,6 @@ public class DDLTest {
                                 "jdbc:redshift://redshift-cluster-1.c4bak5qvmy8r.cn-north-1.redshift.amazonaws.com.cn:5439/dev")
                         .s3Bucket("s3a://ws-package")
                         .redshiftTemporaryTableName("st_temporary_${redshift_table}")
-                        .redshiftTemporaryTableMode(
-                                S3RedshiftTemporaryTableMode.S3_FILE_COPY_TEMPORARY_TABLE)
                         .redshiftTablePrimaryKeys(Collections.singletonList("f1"))
                         .redshiftTable("public.test")
                         .accessKey("AKIAYYUV5DMXNWIDLUEB")

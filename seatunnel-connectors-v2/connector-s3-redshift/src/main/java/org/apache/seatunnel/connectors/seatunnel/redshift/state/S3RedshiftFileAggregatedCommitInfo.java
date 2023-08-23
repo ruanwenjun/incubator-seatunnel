@@ -10,6 +10,7 @@ import java.util.List;
 
 @Getter
 public class S3RedshiftFileAggregatedCommitInfo extends FileAggregatedCommitInfo {
+    private static final long serialVersionUID = 1L;
 
     private final SeaTunnelRowType rowType;
     private final boolean appendOnly;

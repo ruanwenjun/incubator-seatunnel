@@ -48,7 +48,7 @@ public class ToRedshiftTypeConverter implements Serializable {
                 if (column.getLongColumnLength() != null && column.getLongColumnLength() >= 65535) {
                     return SUPER;
                 }
-                if (column.getLongColumnLength() != null && column.getLongColumnLength() != 0) {
+                if (column.getLongColumnLength() != null && column.getLongColumnLength() > 0) {
                     return VARCHAR + "(" + column.getLongColumnLength() + ")";
                 }
                 return MAX_LENGTH_VARCHAR;

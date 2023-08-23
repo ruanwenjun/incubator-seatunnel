@@ -25,7 +25,6 @@ import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
-import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftTemporaryTableMode;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -37,9 +36,6 @@ import java.util.List;
 
 import static org.apache.seatunnel.connectors.seatunnel.file.config.BaseSourceConfig.FILE_FORMAT_TYPE;
 import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ONLY;
-import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE;
-import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE_AUTOMATIC;
-import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE;
 import static org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC;
 
 @Builder
@@ -62,9 +58,7 @@ public class S3RedshiftConf implements Serializable {
     private final int changelogBufferFlushInterval;
     @Setter private String redshiftTable;
     @Setter private List<String> redshiftTablePrimaryKeys;
-    private final S3RedshiftTemporaryTableMode redshiftTemporaryTableMode;
     private final String redshiftTemporaryTableName;
-    private final String redshiftExternalSchema;
     private final String redshiftS3IamRole;
     private final int redshiftS3FileCommitWorkerSize;
     private final String customSql;
@@ -78,27 +72,7 @@ public class S3RedshiftConf implements Serializable {
     }
 
     public boolean isAllowAppend() {
-        return APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC.equals(changelogMode)
-                || APPEND_ON_DUPLICATE_DELETE_AUTOMATIC.equals(changelogMode);
-    }
-
-    public boolean isAllowUpdate() {
-        return APPEND_ON_DUPLICATE_UPDATE.equals(changelogMode)
-                || APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC.equals(changelogMode);
-    }
-
-    public boolean isAllowDelete() {
-        return APPEND_ON_DUPLICATE_DELETE.equals(changelogMode)
-                || APPEND_ON_DUPLICATE_DELETE_AUTOMATIC.equals(changelogMode);
-    }
-
-    public boolean isCopyS3FileToTemporaryTableMode() {
-        return S3RedshiftTemporaryTableMode.S3_FILE_COPY_TEMPORARY_TABLE.equals(
-                redshiftTemporaryTableMode);
-    }
-
-    public boolean isS3ExternalTableMode() {
-        return S3RedshiftTemporaryTableMode.S3_EXTERNAL_TABLE.equals(redshiftTemporaryTableMode);
+        return APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC.equals(changelogMode);
     }
 
     public static S3RedshiftConf valueOf(Config config) {
@@ -123,8 +97,6 @@ public class S3RedshiftConf implements Serializable {
 
         builder.saveMode(readonlyConfig.get(S3RedshiftConfig.SAVE_MODE));
         builder.changelogMode(readonlyConfig.get(S3RedshiftConfig.CHANGELOG_MODE));
-        builder.redshiftTemporaryTableMode(
-                readonlyConfig.get(S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_MODE));
         builder.redshiftTable(readonlyConfig.get(S3RedshiftConfig.REDSHIFT_TABLE));
         builder.redshiftTablePrimaryKeys(
                 readonlyConfig.get(S3RedshiftConfig.REDSHIFT_TABLE_PRIMARY_KEYS));
@@ -132,12 +104,8 @@ public class S3RedshiftConf implements Serializable {
                 readonlyConfig.get(S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE));
         builder.changelogBufferFlushInterval(
                 readonlyConfig.get(S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL));
-        builder.redshiftTemporaryTableMode(
-                readonlyConfig.get(S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_MODE));
         builder.redshiftTemporaryTableName(
                 readonlyConfig.get(S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME));
-        builder.redshiftExternalSchema(
-                readonlyConfig.get(S3RedshiftConfig.REDSHIFT_EXTERNAL_SCHEMA));
         builder.redshiftS3IamRole(readonlyConfig.get(S3RedshiftConfig.REDSHIFT_S3_IAM_ROLE));
         builder.redshiftS3FileCommitWorkerSize(
                 readonlyConfig.get(S3RedshiftConfig.REDSHIFT_S3_FILE_COMMIT_WORKER_SIZE));
