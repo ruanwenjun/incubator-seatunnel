@@ -34,6 +34,7 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalo
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -159,7 +160,10 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                 ps.execute();
             } catch (Exception e) {
                 throw new CatalogException(
-                        String.format("Failed creating table %s", tablePath.getFullName()), e);
+                        String.format(
+                                "Failed creating table %s.%s",
+                                tablePath.getSchemaName(), tablePath.getTableName()),
+                        e);
             }
         }
         return true;
@@ -167,7 +171,34 @@ public class OracleCatalog extends AbstractJdbcCatalog {
 
     @Override
     protected boolean dropTableInternal(TablePath tablePath) throws CatalogException {
-        return false;
+        Connection connection = defaultConnection;
+        try (PreparedStatement ps =
+                connection.prepareStatement(
+                        String.format(
+                                "DROP TABLE %s.%s",
+                                tablePath.getSchemaName(), tablePath.getTableName()))) {
+            // Will there exist concurrent truncate for one table?
+            return ps.execute();
+        } catch (SQLException e) {
+            throw new CatalogException(
+                    String.format("Failed truncating table %s", tablePath.getFullName()), e);
+        }
+    }
+
+    @Override
+    protected boolean truncateTableInternal(TablePath tablePath) throws CatalogException {
+        Connection connection = defaultConnection;
+        try (PreparedStatement ps =
+                connection.prepareStatement(
+                        String.format(
+                                "TRUNCATE TABLE %s.%s",
+                                tablePath.getSchemaName(), tablePath.getTableName()))) {
+            // Will there exist concurrent truncate for one table?
+            return ps.execute();
+        } catch (SQLException e) {
+            throw new CatalogException(
+                    String.format("Failed truncating table %s", tablePath.getFullName()), e);
+        }
     }
 
     @Override
@@ -178,6 +209,11 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     @Override
     protected boolean dropDatabaseInternal(String databaseName) throws CatalogException {
         return false;
+    }
+
+    public String getCountSql(TablePath tablePath) {
+        return String.format(
+                "select count(*) from %s.%s", tablePath.getSchemaName(), tablePath.getTableName());
     }
 
     @Override

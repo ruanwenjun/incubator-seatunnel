@@ -19,6 +19,8 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dialectenum.FieldIdeEnum;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -47,6 +49,15 @@ public interface JdbcOptions {
 
     Option<String> QUERY =
             Options.key("query").stringType().noDefaultValue().withDescription("query");
+
+    Option<DataSaveMode> SAVE_MODE =
+            Options.key("save_mode")
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
+                    .withDescription("save_mode");
+
+    Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
 
     Option<Boolean> AUTO_COMMIT =
             Options.key("auto_commit")
@@ -150,9 +161,9 @@ public interface JdbcOptions {
                     .noDefaultValue()
                     .withDescription("partition num");
 
-    Option<String> FIELD_IDE =
+    Option<FieldIdeEnum> FIELD_IDE =
             Options.key("field_ide")
-                    .stringType()
+                    .enumType(FieldIdeEnum.class)
                     .noDefaultValue()
                     .withDescription("Whether case conversion is required");
 }

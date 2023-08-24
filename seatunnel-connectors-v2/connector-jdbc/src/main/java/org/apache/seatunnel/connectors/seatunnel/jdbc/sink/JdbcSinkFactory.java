@@ -33,6 +33,7 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialectLoader;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dialectenum.FieldIdeEnum;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -48,6 +49,7 @@ import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.BATCH_INTERVAL_MS;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.BATCH_SIZE;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.CONNECTION_CHECK_TIMEOUT_SEC;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.CUSTOM_SQL;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.DATABASE;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.DRIVER;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.ENABLE_UPSERT;
@@ -59,6 +61,7 @@ import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.PASSWORD;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.PRIMARY_KEYS;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.QUERY;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.SAVE_MODE;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.SUPPORT_UPSERT_BY_INSERT_ONLY;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.TABLE;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcOptions.TRANSACTION_TIMEOUT_SEC;
@@ -128,23 +131,27 @@ public class JdbcSinkFactory implements TableSinkFactory {
         }
         final ReadonlyConfig options = config;
         JdbcSinkConfig sinkConfig = JdbcSinkConfig.of(config);
-        String fieldIde = config.get(JdbcOptions.FIELD_IDE);
+        String fieldIde =
+                config.get(JdbcOptions.FIELD_IDE) == null
+                        ? FieldIdeEnum.ORIGINAL.getValue()
+                        : config.get(JdbcOptions.FIELD_IDE).getValue();
         JdbcDialect dialect =
                 JdbcDialectLoader.load(sinkConfig.getJdbcConnectionConfig().getUrl(), fieldIde);
         CatalogTable finalCatalogTable = catalogTable;
+        // get saveMode
+        DataSaveMode dataSaveMode = DataSaveMode.ERROR_WHEN_EXISTS;
+        if (config.get(JdbcOptions.SAVE_MODE) != null) {
+            dataSaveMode = config.get(JdbcOptions.SAVE_MODE);
+        }
+        DataSaveMode finalDataSaveMode = dataSaveMode;
         return () ->
-                new JdbcSink(
-                        options,
-                        sinkConfig,
-                        dialect,
-                        DataSaveMode.KEEP_SCHEMA_AND_DATA,
-                        finalCatalogTable);
+                new JdbcSink(options, sinkConfig, dialect, finalDataSaveMode, finalCatalogTable);
     }
-
+    // todo
     @Override
     public OptionRule optionRule() {
         return OptionRule.builder()
-                .required(URL, DRIVER)
+                .required(URL, DRIVER, SAVE_MODE)
                 .optional(
                         USER,
                         PASSWORD,
@@ -168,6 +175,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
                 .conditional(IS_EXACTLY_ONCE, false, MAX_RETRIES)
                 .conditional(GENERATE_SINK_SQL, true, DATABASE)
                 .conditional(GENERATE_SINK_SQL, false, QUERY)
+                .conditional(SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
                 .build();
     }
 }

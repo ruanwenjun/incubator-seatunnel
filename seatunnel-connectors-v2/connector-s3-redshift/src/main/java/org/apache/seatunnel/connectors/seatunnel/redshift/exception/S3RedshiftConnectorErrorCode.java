@@ -21,7 +21,12 @@ import org.apache.seatunnel.common.exception.SeaTunnelErrorCode;
 
 public enum S3RedshiftConnectorErrorCode implements SeaTunnelErrorCode {
     AGGREGATE_COMMIT_ERROR("S3RedShift-01", "Aggregate committer error"),
-    UPDATE_REDSHIFT_SCHEMA_FAILED("S3RedShift-02", "Update redshift schema error");
+    UPDATE_REDSHIFT_SCHEMA_FAILED("S3RedShift-02", "Update redshift schema error"),
+    UNSUPPORTED_MERGE_CONDITION_FIELD("S3RedShift-03", "Unsupported merge condition field"),
+    UNSUPPORTED_COMPARE_FIELD("S3RedShift-04", "Unsupported compare field"),
+    COMPARE_FIELD_IS_NULL("S3RedShift-05", "Compare field is null"),
+    MERGE_MUST_HAVE_PRIMARY_KEY("S3RedShift-06", "Merge must have primary key"),
+    CLOSE_CONNECTION_ERROR("S3RedShift-07", "Close redshift connection error");
 
     private final String code;
 

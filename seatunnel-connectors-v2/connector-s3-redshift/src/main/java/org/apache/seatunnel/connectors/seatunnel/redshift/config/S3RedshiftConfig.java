@@ -19,6 +19,7 @@ package org.apache.seatunnel.connectors.seatunnel.redshift.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftTemporaryTableMode;
@@ -48,11 +49,20 @@ public class S3RedshiftConfig extends S3Config {
                     .noDefaultValue()
                     .withDescription("Redshift JDBC password");
 
-    public static final Option<String> EXECUTE_SQL =
-            Options.key("execute_sql")
+    public static final Option<String> SCHEMA_NAME =
+            Options.key("schema_name")
                     .stringType()
-                    .noDefaultValue()
-                    .withDescription("Redshift execute sql");
+                    .defaultValue("public")
+                    .withDescription("Redshift JDBC schema");
+
+    public static final Option<DataSaveMode> SAVE_MODE =
+            Options.key("save_mode")
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
+                    .withDescription("save_mode");
+
+    public static final Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
 
     public static final Option<S3RedshiftChangelogMode> CHANGELOG_MODE =
             Options.key("changelog_mode")
@@ -107,4 +117,10 @@ public class S3RedshiftConfig extends S3Config {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Redshift connect S3 iam role");
+
+    public static final Option<Integer> REDSHIFT_S3_FILE_COMMIT_WORKER_SIZE =
+            Options.key("redshift_s3_file_commit_worker_size")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription("Redshift s3 file commit worker size");
 }

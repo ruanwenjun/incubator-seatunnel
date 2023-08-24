@@ -32,6 +32,14 @@ import java.util.List;
  */
 public interface SinkAggregatedCommitter<CommitInfoT, AggregatedCommitInfoT> extends Serializable {
 
+    /** init sink aggregated committer */
+    default void init() {};
+
+    default List<AggregatedCommitInfoT> restoreCommit(
+            List<AggregatedCommitInfoT> aggregatedCommitInfo) throws IOException {
+        return commit(aggregatedCommitInfo);
+    }
+
     /**
      * Commit message to third party data receiver, The method need to achieve idempotency.
      *

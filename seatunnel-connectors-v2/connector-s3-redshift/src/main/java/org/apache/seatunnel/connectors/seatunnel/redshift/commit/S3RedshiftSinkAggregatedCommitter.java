@@ -17,40 +17,49 @@
 
 package org.apache.seatunnel.connectors.seatunnel.redshift.commit;
 
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkAggregatedCommitter;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
-import org.apache.seatunnel.common.exception.CommonErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileSinkAggregatedCommitter;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.util.FileSystemUtils;
-import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorErrorCode;
-import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftJdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.redshift.resource.CommitterResource;
+import org.apache.seatunnel.connectors.seatunnel.redshift.resource.CommitterResourceManager;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftSQLGenerator;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.redshift.state.S3RedshiftFileCommitInfo;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.google.common.base.Stopwatch;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitter {
+public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitter
+        implements SupportMultiTableSinkAggregatedCommitter<CommitterResource> {
     private final S3RedshiftConf conf;
     private S3RedshiftSQLGenerator sqlGenerator;
     private SeaTunnelRowType defaultRowType;
+    private volatile boolean appendOnly = true;
+    private transient CommitterResource resource;
 
     public S3RedshiftSinkAggregatedCommitter(
             FileSystemUtils fileSystemUtils, S3RedshiftConf conf, SeaTunnelRowType rowType) {
@@ -61,11 +70,48 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
     }
 
     @Override
+    public void init() {
+        resource = CommitterResource.createSingleTableResource(conf);
+    }
+
+    @Override
+    public Optional<MultiTableResourceManager<CommitterResource>> initMultiTableResourceManager(
+            int tableSize, int queueSize) {
+        CommitterResource resource = CommitterResource.createResource(conf);
+        return Optional.of(new CommitterResourceManager(resource));
+    }
+
+    @Override
+    public void setMultiTableResourceManager(
+            Optional<MultiTableResourceManager<CommitterResource>> multiTableResourceManager,
+            int queueIndex) {
+        if (resource != null) {
+            resource.closeSingleTableResource();
+        }
+        this.resource = multiTableResourceManager.get().getSharedResource().get();
+    }
+
+    @Override
+    public List<FileAggregatedCommitInfo> restoreCommit(
+            List<FileAggregatedCommitInfo> aggregatedCommitInfo) {
+        if (aggregatedCommitInfo == null || aggregatedCommitInfo.isEmpty()) {
+            log.info("Skip to restore empty commit info");
+            this.appendOnly = true;
+            return Collections.emptyList();
+        }
+
+        try {
+            log.info("Start to restore commit info");
+            this.appendOnly = conf.isAppendOnlyMode();
+            return commit(aggregatedCommitInfo);
+        } finally {
+            log.info("Finish to restore commit info");
+        }
+    }
+
+    @Override
     public List<FileAggregatedCommitInfo> commit(
             List<FileAggregatedCommitInfo> aggregatedCommitInfos) {
-        if (conf.isAppendOnlyMode()) {
-            return copyS3FilesToRedshiftTable(aggregatedCommitInfos);
-        }
         if (!aggregatedCommitInfos.isEmpty()) {
             SeaTunnelRowType rowType =
                     aggregatedCommitInfos.stream()
@@ -76,7 +122,7 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
             defaultRowType = rowType;
             this.sqlGenerator = new S3RedshiftSQLGenerator(conf, rowType);
         }
-        return mergeS3FilesToRedshiftTable(aggregatedCommitInfos);
+        return commitS3FilesToRedshiftTable(aggregatedCommitInfos);
     }
 
     @Override
@@ -103,11 +149,8 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
     @Override
     public void close() throws IOException {
         super.close();
-        try {
-            RedshiftJdbcClient.getInstance(conf).close();
-        } catch (SQLException e) {
-            throw new S3RedshiftJdbcConnectorException(
-                    CommonErrorCode.SQL_OPERATION_FAILED, "close redshift jdbc client failed", e);
+        if (resource != null) {
+            resource.closeSingleTableResource();
         }
     }
 
@@ -116,122 +159,168 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
         if (commitInfos == null || commitInfos.size() == 0) {
             return null;
         }
+
+        sortByAppendOnly(commitInfos);
+
         LinkedHashMap<String, LinkedHashMap<String, String>> aggregateCommitInfo =
                 new LinkedHashMap<>();
         LinkedHashMap<String, List<String>> partitionDirAndValuesMap = new LinkedHashMap<>();
-        commitInfos.stream()
-                .filter(f -> f.getPartitionDirAndValuesMap() != null)
+        SeaTunnelRowType rowType = null;
+        boolean appendOnly = true;
+        for (FileCommitInfo commitInfo : commitInfos) {
+            if (commitInfo.getPartitionDirAndValuesMap() != null) {
+                LinkedHashMap<String, String> needMoveFileMap =
+                        aggregateCommitInfo.computeIfAbsent(
+                                commitInfo.getTransactionDir(), k -> new LinkedHashMap<>());
+                needMoveFileMap.putAll(commitInfo.getNeedMoveFiles());
+                if (commitInfo.getPartitionDirAndValuesMap() != null
+                        && !commitInfo.getPartitionDirAndValuesMap().isEmpty()) {
+                    partitionDirAndValuesMap.putAll(commitInfo.getPartitionDirAndValuesMap());
+                }
+            }
+
+            S3RedshiftFileCommitInfo s3RedshiftCommitInfo = (S3RedshiftFileCommitInfo) commitInfo;
+            if (rowType == null && s3RedshiftCommitInfo.getRowType() != null) {
+                rowType = s3RedshiftCommitInfo.getRowType();
+            }
+            if (!s3RedshiftCommitInfo.isAppendOnly() && appendOnly) {
+                appendOnly = false;
+            }
+        }
+
+        return new S3RedshiftFileAggregatedCommitInfo(
+                aggregateCommitInfo, partitionDirAndValuesMap, rowType, appendOnly);
+    }
+
+    private synchronized List<FileAggregatedCommitInfo> commitS3FilesToRedshiftTable(
+            List<FileAggregatedCommitInfo> commitInfos) {
+        if (conf.notAppendOnlyMode() && appendOnly) {
+            appendOnly =
+                    commitInfos.stream()
+                            .map(f -> ((S3RedshiftFileAggregatedCommitInfo) f).isAppendOnly())
+                            .allMatch(isAppendOnly -> isAppendOnly);
+            if (!appendOnly) {
+                log.info("Append-only phase end, change to merge phase");
+            }
+        }
+        boolean appendOnlyCommit = conf.isAppendOnlyMode() || appendOnly;
+
+        List<FileAggregatedCommitInfo> errorCommitInfos = new ArrayList<>();
+        for (FileAggregatedCommitInfo commitInfo : commitInfos) {
+            try {
+                commitS3FilesToRedshiftTable(commitInfo, appendOnlyCommit);
+            } catch (Exception e) {
+                log.error("commit aggregatedCommitInfo error ", e);
+                errorCommitInfos.add(commitInfo);
+                throw new S3RedshiftConnectorException(
+                        S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
+            }
+        }
+        return errorCommitInfos;
+    }
+
+    private void commitS3FilesToRedshiftTable(
+            FileAggregatedCommitInfo commitInfo, boolean appendOnlyCommit) throws Exception {
+        LinkedHashMap<String, LinkedHashMap<String, String>> transactionGroup =
+                commitInfo.getTransactionMap();
+
+        Map<String, Future<Throwable>> taskFutures = new HashMap<>();
+        CountDownLatch taskAwaits = new CountDownLatch(transactionGroup.size());
+        for (Map.Entry<String, LinkedHashMap<String, String>> transaction :
+                transactionGroup.entrySet()) {
+            Future<Throwable> future =
+                    resource.getCommitWorker()
+                            .submit(
+                                    () -> {
+                                        try {
+                                            commitS3FilesToRedshiftTable(
+                                                    transaction.getKey(),
+                                                    transaction.getValue(),
+                                                    appendOnlyCommit);
+                                            return null;
+                                        } catch (Throwable e) {
+                                            log.error(
+                                                    "commit file error: {}",
+                                                    transaction.getKey(),
+                                                    e);
+                                            return e;
+                                        } finally {
+                                            taskAwaits.countDown();
+                                        }
+                                    });
+            taskFutures.put(transaction.getKey(), future);
+        }
+        taskAwaits.await();
+
+        taskFutures.entrySet().stream()
                 .forEach(
-                        commitInfo -> {
-                            LinkedHashMap<String, String> needMoveFileMap =
-                                    aggregateCommitInfo.computeIfAbsent(
-                                            commitInfo.getTransactionDir(),
-                                            k -> new LinkedHashMap<>());
-                            needMoveFileMap.putAll(commitInfo.getNeedMoveFiles());
-                            if (commitInfo.getPartitionDirAndValuesMap() != null
-                                    && !commitInfo.getPartitionDirAndValuesMap().isEmpty()) {
-                                partitionDirAndValuesMap.putAll(
-                                        commitInfo.getPartitionDirAndValuesMap());
+                        committer -> {
+                            try {
+                                Throwable ex = committer.getValue().get();
+                                if (ex != null) {
+                                    throw new RuntimeException(
+                                            "commit transaction dir error: " + committer.getKey(),
+                                            ex);
+                                }
+                            } catch (Exception e) {
+                                String message =
+                                        String.format(
+                                                "commit transaction dir error: %s",
+                                                committer.getKey());
+                                throw new RuntimeException(message, e);
                             }
                         });
-        Optional<SeaTunnelRowType> rowType =
-                commitInfos.stream()
-                        .filter(c -> c instanceof S3RedshiftFileCommitInfo)
-                        .filter(c -> ((S3RedshiftFileCommitInfo) c).getRowType() != null)
-                        .map(c -> ((S3RedshiftFileCommitInfo) c).getRowType())
-                        .findFirst();
-        return new S3RedshiftFileAggregatedCommitInfo(
-                aggregateCommitInfo, partitionDirAndValuesMap, rowType.orElse(null));
     }
 
-    private List<FileAggregatedCommitInfo> copyS3FilesToRedshiftTable(
-            List<FileAggregatedCommitInfo> aggregatedCommitInfos) {
-        List<FileAggregatedCommitInfo> errorAggregatedCommitInfoList = new ArrayList<>();
-        for (FileAggregatedCommitInfo aggregatedCommitInfo : aggregatedCommitInfos) {
-            try {
-                for (Map.Entry<String, LinkedHashMap<String, String>> entry :
-                        aggregatedCommitInfo.getTransactionMap().entrySet()) {
-                    for (Map.Entry<String, String> mvFileEntry : entry.getValue().entrySet()) {
-                        // first rename temp file
-                        fileSystemUtils.renameFile(
-                                mvFileEntry.getKey(), mvFileEntry.getValue(), true);
-                        log.info(
-                                "rename file {} to {} ",
-                                mvFileEntry.getKey(),
-                                mvFileEntry.getValue());
-
-                        String sql =
-                                formatCopyS3FileSql(conf.getExecuteSql(), mvFileEntry.getValue());
-                        RedshiftJdbcClient.getInstance(conf).execute(sql);
-                        log.info("execute redshift sql is:" + sql);
-
-                        fileSystemUtils.deleteFile(mvFileEntry.getValue());
-                        log.info("delete file {} ", mvFileEntry.getValue());
-                    }
-                    // second delete transaction directory
-                    fileSystemUtils.deleteFile(entry.getKey());
-                    log.info("delete transaction directory {} on commit", entry.getKey());
-                }
-            } catch (Exception e) {
-                log.error("commit aggregatedCommitInfo error ", e);
-                errorAggregatedCommitInfoList.add(aggregatedCommitInfo);
-                throw new S3RedshiftJdbcConnectorException(
-                        S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
-            }
-        }
-        return errorAggregatedCommitInfoList;
-    }
-
-    private synchronized List<FileAggregatedCommitInfo> mergeS3FilesToRedshiftTable(
-            List<FileAggregatedCommitInfo> aggregatedCommitInfos) {
-        List<FileAggregatedCommitInfo> errorAggregatedCommitInfoList = new ArrayList<>();
-        for (FileAggregatedCommitInfo aggregatedCommitInfo : aggregatedCommitInfos) {
-            try {
-                for (Map.Entry<String, LinkedHashMap<String, String>> entry :
-                        aggregatedCommitInfo.getTransactionMap().entrySet()) {
-                    for (Map.Entry<String, String> mvFileEntry : entry.getValue().entrySet()) {
-                        String tempFilePath = mvFileEntry.getKey();
-                        String filepath = mvFileEntry.getValue();
-
-                        if (!fileSystemUtils.fileExist(tempFilePath)) {
-                            log.warn("skip not exist file {}", tempFilePath);
-                        } else if (conf.isCopyS3FileToTemporaryTableMode()) {
-                            copyS3FileToRedshiftTemporaryTable(tempFilePath, filepath);
-                        } else {
-                            loadS3FileToRedshiftExternalTable(tempFilePath, filepath);
-                        }
-
-                        fileSystemUtils.deleteFile(filepath);
-                        log.info("delete file {} ", filepath);
-                    }
-                    // second delete transaction directory
-                    fileSystemUtils.deleteFile(entry.getKey());
-                    log.info("delete transaction directory {} on merge commit", entry.getKey());
-                }
-            } catch (Exception e) {
-                log.error("commit aggregatedCommitInfo error ", e);
-                errorAggregatedCommitInfoList.add(aggregatedCommitInfo);
-                throw new S3RedshiftJdbcConnectorException(
-                        S3RedshiftConnectorErrorCode.AGGREGATE_COMMIT_ERROR, e);
-            }
-        }
-        // TODO errorAggregatedCommitInfoList Always empty, So return is no use
-        return errorAggregatedCommitInfoList;
-    }
-
-    private void copyS3FileToRedshiftTemporaryTable(String tempFilePath, String filepath)
+    private void commitS3FilesToRedshiftTable(
+            String transactionDir, LinkedHashMap<String, String> files, boolean appendOnlyCommit)
             throws Exception {
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        stopwatch.reset().start();
-        fileSystemUtils.renameFile(tempFilePath, filepath, true);
-        log.info(
-                "Copy table mode, rename temporary file {} to {}, cost: {}ms",
-                tempFilePath,
-                filepath,
-                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        for (Map.Entry<String, String> mvFileEntry : files.entrySet()) {
+            String tempFilePath = mvFileEntry.getKey();
+            String filepath = null;
 
+            if (!fileSystemUtils.fileExist(tempFilePath)) {
+                log.warn("skip not exist file {}", tempFilePath);
+                continue;
+            }
+
+            if (appendOnlyCommit) {
+                filepath = tempFilePath;
+                copyS3FileToRedshiftTable(filepath);
+            } else if (conf.isCopyS3FileToTemporaryTableMode()) {
+                filepath = tempFilePath;
+                mergeS3FileToRedshiftWithTemporaryTable(filepath);
+            } else {
+                filepath = mvFileEntry.getValue();
+                mergeS3FileToRedshiftWithExternalTable(tempFilePath, filepath);
+            }
+
+            if (filepath != null) {
+                fileSystemUtils.deleteFile(filepath);
+            }
+            log.info("delete file {} ", filepath);
+        }
+
+        // second delete transaction directory
+        fileSystemUtils.deleteFile(transactionDir);
+        log.info("delete transaction directory {} on merge commit", transactionDir);
+    }
+
+    private void copyS3FileToRedshiftTable(String filepath) throws Exception {
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        String copySql =
+                formatCopyS3FileSql(sqlGenerator.generateCopyS3FileToTargetTableSql(), filepath);
+        resource.getRedshiftJdbcClient().execute(copySql);
+        log.info(
+                "Append-only mode, load s3 file sql: {}, cost: {}ms",
+                copySql,
+                stopwatch.stop().elapsed(TimeUnit.MILLISECONDS));
+    }
+
+    private void mergeS3FileToRedshiftWithTemporaryTable(String filepath) throws Exception {
+        Stopwatch stopwatch = Stopwatch.createStarted();
         String truncateTemporaryTableSql = sqlGenerator.generateCleanTemporaryTableSql();
-        RedshiftJdbcClient.getInstance(conf).execute(truncateTemporaryTableSql);
+        resource.getRedshiftJdbcClient().execute(truncateTemporaryTableSql);
         log.info(
                 "Copy mode, truncate temporary table sql: {}, cost: {}ms",
                 truncateTemporaryTableSql,
@@ -240,26 +329,47 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
         stopwatch.reset().start();
         String copySql =
                 formatCopyS3FileSql(sqlGenerator.generateCopyS3FileToTemporaryTableSql(), filepath);
-        RedshiftJdbcClient.getInstance(conf).execute(copySql);
+        resource.getRedshiftJdbcClient().execute(copySql);
         log.info(
                 "Copy mode, load temporary table sql: {}, cost: {}ms",
                 copySql,
                 stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
         stopwatch.reset().start();
-        String mergeTemporaryTableSql = sqlGenerator.generateMergeSql();
-        RedshiftJdbcClient.getInstance(conf).execute(mergeTemporaryTableSql);
+        ImmutablePair<String[], String> sortKeyValueQuerySql =
+                sqlGenerator.generateSortKeyValueQuerySql();
+        Map<String, ImmutablePair<Object, Object>> realSortValues =
+                resource.getRedshiftJdbcClient()
+                        .querySortValues(sortKeyValueQuerySql.right, sortKeyValueQuerySql.left);
+        log.info(
+                "Copy mode, get min max value from tmp table sql: {}, sort key range: {}, cost: {}ms",
+                sortKeyValueQuerySql.right,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+        stopwatch.reset().start();
+        String mergeTemporaryTableSql = sqlGenerator.generateMergeSql(realSortValues);
+        resource.getRedshiftJdbcClient().execute(mergeTemporaryTableSql);
         log.info(
                 "Copy mode, merge temporary table to target table sql: {}, cost: {}ms",
                 mergeTemporaryTableSql,
                 stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+        stopwatch.reset().start();
+        String analyseSql = sqlGenerator.generateAnalyseSql(sortKeyValueQuerySql.left);
+        resource.getRedshiftJdbcClient().execute(analyseSql);
+        log.info(
+                "Copy mode, analyse table sql: {}, sort key range: {}, cost: {}ms",
+                analyseSql,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
 
-    private void loadS3FileToRedshiftExternalTable(String tempFilePath, String filepath)
+    private void mergeS3FileToRedshiftWithExternalTable(String tempFilePath, String filepath)
             throws Exception {
         Stopwatch stopwatch = Stopwatch.createStarted();
         String dropExternalTableSql = sqlGenerator.generateDropExternalTableSql();
-        RedshiftJdbcClient.getInstance(conf).execute(dropExternalTableSql);
+        resource.getRedshiftJdbcClient().execute(dropExternalTableSql);
         log.info(
                 "External table mode, drop external table sql: {}, cost: {}ms",
                 dropExternalTableSql,
@@ -269,7 +379,7 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
         String createExternalTableSql =
                 formatCreateExternalTableSql(
                         sqlGenerator.generateCreateExternalTableSql(), filepath);
-        RedshiftJdbcClient.getInstance(conf).execute(createExternalTableSql);
+        resource.getRedshiftJdbcClient().execute(createExternalTableSql);
         log.info(
                 "External table mode, create external table sql: {}, cost: {}ms",
                 createExternalTableSql,
@@ -284,11 +394,32 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                 stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
         stopwatch.reset().start();
-        String mergeExternalTableSql = sqlGenerator.generateMergeSql();
-        RedshiftJdbcClient.getInstance(conf).execute(mergeExternalTableSql);
+        ImmutablePair<String[], String> sortKeyValueQuerySql =
+                sqlGenerator.generateSortKeyValueQuerySql();
+        Map<String, ImmutablePair<Object, Object>> realSortValues =
+                resource.getRedshiftJdbcClient()
+                        .querySortValues(sortKeyValueQuerySql.right, sortKeyValueQuerySql.left);
+        log.info(
+                "External table mode, get min max value from external table sql: {}, sort key range: {}, cost: {}ms",
+                sortKeyValueQuerySql.right,
+                realSortValues,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+        stopwatch.reset().start();
+        String mergeExternalTableSql = sqlGenerator.generateMergeSql(realSortValues);
+        resource.getRedshiftJdbcClient().execute(mergeExternalTableSql);
         log.info(
                 "External table mode, merge external table to target table sql: {}, cost: {}ms",
                 mergeExternalTableSql,
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+        stopwatch.reset().start();
+        String analyseSql = sqlGenerator.generateAnalyseSql(sortKeyValueQuerySql.left);
+        resource.getRedshiftJdbcClient().execute(analyseSql);
+        log.info(
+                "External table mode, analyse table sql: {}, sort key range: {}, cost: {}ms",
+                analyseSql,
+                realSortValues,
                 stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
 
@@ -306,5 +437,22 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
             dir = dir.substring(1);
         }
         return StringUtils.replace(sql, "${dir}", dir);
+    }
+
+    private static void sortByAppendOnly(List<FileCommitInfo> commitInfos) {
+        // sort result: appendOnly first, then non-appendOnly
+        Collections.sort(
+                commitInfos,
+                (a, b) -> {
+                    S3RedshiftFileCommitInfo x = (S3RedshiftFileCommitInfo) a;
+                    S3RedshiftFileCommitInfo y = (S3RedshiftFileCommitInfo) b;
+                    if (x.isAppendOnly() && !y.isAppendOnly()) {
+                        return -1;
+                    }
+                    if (!x.isAppendOnly() && y.isAppendOnly()) {
+                        return 1;
+                    }
+                    return 0;
+                });
     }
 }

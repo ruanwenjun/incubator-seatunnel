@@ -56,7 +56,7 @@ public class DamengChunkSplitter extends AbstractJdbcSourceChunkSplitter {
     public Object[] sampleDataFromColumn(
             JdbcConnection jdbc, TableId tableId, String columnName, int inverseSamplingRate)
             throws SQLException {
-        return DamengConncetionUtils.sampleDataFromColumn(
+        return DamengConncetionUtils.skipReadAndSortSampleData(
                 jdbc, tableId, columnName, inverseSamplingRate);
     }
 

@@ -17,11 +17,11 @@
 
 package org.apache.seatunnel.connectors.seatunnel.iceberg.sink.writer;
 
+import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.data.GenericOrcWriter;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.data.GenericParquetWriter;
-import org.apache.seatunnel.connectors.seatunnel.iceberg.util.SeaTunnelSchemaUtil;
 
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.MetricsConfig;
@@ -42,6 +42,7 @@ import org.apache.iceberg.parquet.Parquet;
 import java.io.IOException;
 import java.io.Serializable;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Map;
 
 import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkNotNull;
@@ -82,8 +83,8 @@ public class SeaTunnelAppenderFactory implements FileAppenderFactory<SeaTunnelRo
 
     private SeaTunnelRowType lazyEqDeleteSeaTunnelSchema() {
         if (eqDeleteSeaTunnelSchema == null) {
-            checkNotNull(eqDeleteRowSchema, "Equality delete row schema shouldn't be null");
-            this.eqDeleteSeaTunnelSchema = SeaTunnelSchemaUtil.convert(eqDeleteRowSchema);
+            this.eqDeleteSeaTunnelSchema =
+                    deleteSeaTunnelSchema(seaTunnelRowType, eqDeleteRowSchema);
         }
         return eqDeleteSeaTunnelSchema;
     }
@@ -91,7 +92,8 @@ public class SeaTunnelAppenderFactory implements FileAppenderFactory<SeaTunnelRo
     private SeaTunnelRowType lazyPosDeleteFlinkSchema() {
         if (posDeleteSeaTunnelSchema == null) {
             checkNotNull(posDeleteRowSchema, "Pos-delete row schema shouldn't be null");
-            this.posDeleteSeaTunnelSchema = SeaTunnelSchemaUtil.convert(posDeleteRowSchema);
+            this.posDeleteSeaTunnelSchema =
+                    deleteSeaTunnelSchema(seaTunnelRowType, posDeleteRowSchema);
         }
         return this.posDeleteSeaTunnelSchema;
     }
@@ -245,5 +247,22 @@ public class SeaTunnelAppenderFactory implements FileAppenderFactory<SeaTunnelRo
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private SeaTunnelRowType deleteSeaTunnelSchema(
+            SeaTunnelRowType seaTunnelRowType, Schema deleteRowSchema) {
+        ArrayList<SeaTunnelDataType<?>> seaTunnelDataTypes = new ArrayList<>();
+        ArrayList<String> fieldNames = new ArrayList<>();
+        deleteRowSchema
+                .columns()
+                .forEach(
+                        c -> {
+                            int i = seaTunnelRowType.indexOf(c.name());
+                            seaTunnelDataTypes.add(seaTunnelRowType.getFieldType(i));
+                            fieldNames.add(c.name());
+                        });
+        return new SeaTunnelRowType(
+                fieldNames.toArray(new String[0]),
+                seaTunnelDataTypes.toArray(new SeaTunnelDataType[0]));
     }
 }

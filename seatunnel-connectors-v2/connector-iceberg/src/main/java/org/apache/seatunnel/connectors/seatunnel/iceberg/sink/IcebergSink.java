@@ -24,14 +24,24 @@ import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.serialization.DefaultSerializer;
 import org.apache.seatunnel.api.serialization.Serializer;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
+import org.apache.seatunnel.api.sink.SinkCommonOptions;
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.ConstraintKey;
+import org.apache.seatunnel.api.table.catalog.PhysicalColumn;
+import org.apache.seatunnel.api.table.catalog.PrimaryKey;
+import org.apache.seatunnel.api.table.catalog.TablePath;
+import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
+import org.apache.seatunnel.connectors.seatunnel.iceberg.IcebergCatalogFactory;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.IcebergTableLoader;
+import org.apache.seatunnel.connectors.seatunnel.iceberg.catalog.IcebergCatalog;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.config.SinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.sink.commiter.IcebergAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.sink.commiter.IcebergCommitInfo;
@@ -48,10 +58,13 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkNotNull;
 
@@ -59,7 +72,11 @@ import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.ch
 @AutoService(SeaTunnelSink.class)
 public class IcebergSink
         implements SeaTunnelSink<
-                SeaTunnelRow, IcebergSinkState, IcebergCommitInfo, IcebergAggregatedCommitInfo> {
+                        SeaTunnelRow,
+                        IcebergSinkState,
+                        IcebergCommitInfo,
+                        IcebergAggregatedCommitInfo>,
+                SupportDataSaveMode {
 
     private SeaTunnelRowType seaTunnelRowType;
 
@@ -75,30 +92,37 @@ public class IcebergSink
 
     private List<String> equalityFieldColumns;
 
+    private DataSaveMode dataSaveModel;
+
     public IcebergSink() {}
 
     @SneakyThrows
     public IcebergSink(CatalogTable catalogTable, ReadonlyConfig readonlyConfig) {
         this.sinkConfig = new SinkConfig(readonlyConfig);
-        this.catalogTable = catalogTable;
-        this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
-        if (null != catalogTable.getTableSchema().getPrimaryKey()) {
+        this.catalogTable = convertLowerCaseCatalogTable(catalogTable);
+        this.seaTunnelRowType = this.catalogTable.getTableSchema().toPhysicalRowDataType();
+        this.dataSaveModel = sinkConfig.getSaveMode();
+        if (null != this.catalogTable.getTableSchema().getPrimaryKey()) {
             this.equalityFieldColumns =
-                    catalogTable.getTableSchema().getPrimaryKey().getColumnNames();
+                    this.catalogTable.getTableSchema().getPrimaryKey().getColumnNames();
         }
-        try (IcebergTableLoader icebergTableLoader = IcebergTableLoader.create(sinkConfig)) {
+        if (sinkConfig.getPrimaryKeys() != null && sinkConfig.getPrimaryKeys().size() > 0) {
+            this.equalityFieldColumns = sinkConfig.getPrimaryKeys();
+        }
+        try (IcebergTableLoader icebergTableLoader =
+                IcebergTableLoader.create(sinkConfig, this.catalogTable)) {
             icebergTableLoader.open();
             this.table = icebergTableLoader.loadTable();
         }
         this.seaTunnelRowDataTaskWriterFactory =
                 new SeaTunnelRowDataTaskWriterFactory(
-                        IcebergTableLoader.create(sinkConfig),
+                        IcebergTableLoader.create(sinkConfig, this.catalogTable),
                         seaTunnelRowType,
                         sinkConfig.getTargetFileSizeBytes(),
                         sinkConfig.getFileFormat(),
                         new HashMap<>(),
                         checkAndGetEqualityFieldIds(),
-                        true);
+                        sinkConfig.isEnableUpsert());
     }
 
     @Override
@@ -109,41 +133,54 @@ public class IcebergSink
     @Override
     @SneakyThrows
     public void prepare(Config pluginConfig) throws PrepareFailException {
+        if (pluginConfig.hasPath(SinkCommonOptions.DATA_SAVE_MODE)) {
+            this.dataSaveModel =
+                    DataSaveMode.valueOf(
+                            pluginConfig
+                                    .getString(SinkCommonOptions.DATA_SAVE_MODE)
+                                    .toUpperCase(Locale.ROOT));
+        } else {
+            log.warn("data save mode is not set, use default value: KEEP_SCHEMA_AND_DATA");
+            this.dataSaveModel = DataSaveMode.KEEP_SCHEMA_AND_DATA;
+        }
         this.sinkConfig = new SinkConfig(ReadonlyConfig.fromConfig(pluginConfig));
-        try (IcebergTableLoader icebergTableLoader = IcebergTableLoader.create(sinkConfig)) {
-            icebergTableLoader.open();
-            this.table = icebergTableLoader.loadTable();
+        if (null == table) {
+            try (IcebergTableLoader icebergTableLoader =
+                    IcebergTableLoader.create(sinkConfig, catalogTable)) {
+                icebergTableLoader.open();
+                this.table = icebergTableLoader.loadTable();
+            }
         }
         if (null == seaTunnelRowDataTaskWriterFactory) {
             seaTunnelRowDataTaskWriterFactory =
                     new SeaTunnelRowDataTaskWriterFactory(
-                            IcebergTableLoader.create(sinkConfig),
+                            IcebergTableLoader.create(sinkConfig, catalogTable),
                             seaTunnelRowType,
                             sinkConfig.getTargetFileSizeBytes(),
                             sinkConfig.getFileFormat(),
                             new HashMap<>(),
                             checkAndGetEqualityFieldIds(),
-                            true);
+                            sinkConfig.isEnableUpsert());
         }
     }
 
     @Override
     public void setTypeInfo(SeaTunnelRowType seaTunnelRowType) {
         if (null == this.seaTunnelRowType) {
-            this.seaTunnelRowType = seaTunnelRowType;
+            this.seaTunnelRowType = convertLowerCaseSeaTunnelRowType(seaTunnelRowType);
             this.equalityFieldColumns = sinkConfig.getPrimaryKeys();
         }
 
         if (null == seaTunnelRowDataTaskWriterFactory) {
             seaTunnelRowDataTaskWriterFactory =
                     new SeaTunnelRowDataTaskWriterFactory(
-                            IcebergTableLoader.create(sinkConfig),
+                            IcebergTableLoader.create(sinkConfig, catalogTable),
                             seaTunnelRowType,
                             sinkConfig.getTargetFileSizeBytes(),
                             sinkConfig.getFileFormat(),
                             new HashMap<>(),
                             checkAndGetEqualityFieldIds(),
-                            true);
+                            sinkConfig.isEnableUpsert());
         }
     }
 
@@ -163,12 +200,85 @@ public class IcebergSink
             createAggregatedCommitter() {
         return Optional.of(
                 new IcebregSinkAggregatedCommitter(
-                        new HashMap<>(), IcebergTableLoader.create(sinkConfig)));
+                        new HashMap<>(), IcebergTableLoader.create(sinkConfig, catalogTable)));
     }
 
     @Override
     public Optional<Serializer<IcebergAggregatedCommitInfo>> getAggregatedCommitInfoSerializer() {
         return Optional.of(new DefaultSerializer<>());
+    }
+
+    private SeaTunnelRowType convertLowerCaseSeaTunnelRowType(SeaTunnelRowType seaTunnelRowType) {
+        return new SeaTunnelRowType(
+                Arrays.stream(seaTunnelRowType.getFieldNames())
+                        .map(String::toLowerCase)
+                        .toArray(String[]::new),
+                seaTunnelRowType.getFieldTypes());
+    }
+
+    private CatalogTable convertLowerCaseCatalogTable(CatalogTable catalogTable) {
+        TableSchema tableSchema = catalogTable.getTableSchema();
+        TableSchema.Builder builder = TableSchema.builder();
+        tableSchema
+                .getColumns()
+                .forEach(
+                        column -> {
+                            PhysicalColumn physicalColumn =
+                                    PhysicalColumn.of(
+                                            column.getName().toLowerCase(),
+                                            column.getDataType(),
+                                            column.getColumnLength(),
+                                            column.isNullable(),
+                                            column.getDefaultValue(),
+                                            column.getComment());
+                            builder.column(physicalColumn);
+                        });
+        PrimaryKey newPrimaryKey =
+                PrimaryKey.of(
+                        tableSchema.getPrimaryKey().getPrimaryKey(),
+                        tableSchema.getPrimaryKey().getColumnNames().stream()
+                                .map(String::toLowerCase)
+                                .collect(Collectors.toList()));
+        builder.primaryKey(newPrimaryKey);
+
+        if (tableSchema.getConstraintKeys() != null) {
+            tableSchema
+                    .getConstraintKeys()
+                    .forEach(
+                            constraintKey -> {
+                                ConstraintKey newConstraintKey =
+                                        ConstraintKey.of(
+                                                constraintKey.getConstraintType(),
+                                                constraintKey.getConstraintName(),
+                                                constraintKey.getColumnNames() != null
+                                                        ? constraintKey.getColumnNames().stream()
+                                                                .map(
+                                                                        constraintKeyColumn ->
+                                                                                ConstraintKey
+                                                                                        .ConstraintKeyColumn
+                                                                                        .of(
+                                                                                                constraintKeyColumn
+                                                                                                                        .getColumnName()
+                                                                                                                != null
+                                                                                                        ? constraintKeyColumn
+                                                                                                                .getColumnName()
+                                                                                                                .toLowerCase()
+                                                                                                        : null,
+                                                                                                constraintKeyColumn
+                                                                                                        .getSortType()))
+                                                                .collect(Collectors.toList())
+                                                        : null);
+                                builder.constraintKey(newConstraintKey);
+                            });
+        }
+
+        return CatalogTable.of(
+                catalogTable.getTableId(),
+                builder.build(),
+                catalogTable.getOptions(),
+                catalogTable.getPartitionKeys(),
+                catalogTable.getComment(),
+                catalogTable.getCatalogName());
     }
 
     private List<Integer> checkAndGetEqualityFieldIds() {
@@ -196,5 +306,61 @@ public class IcebergSink
             equalityFieldIds = Lists.newArrayList(equalityFieldSet);
         }
         return equalityFieldIds;
+    }
+
+    @Override
+    public Optional<Serializer<IcebergCommitInfo>> getCommitInfoSerializer() {
+        return Optional.of(new DefaultSerializer<>());
+    }
+
+    @Override
+    public void setJobContext(JobContext jobContext) {
+        this.jobContext = jobContext;
+    }
+
+    @Override
+    public DataSaveMode getUserConfigSaveMode() {
+        return dataSaveModel;
+    }
+
+    @Override
+    public void handleSaveMode(DataSaveMode saveMode) {
+        if (catalogTable != null) {
+            IcebergCatalogFactory catalogFactory =
+                    new IcebergCatalogFactory(
+                            sinkConfig.getCatalogName(),
+                            sinkConfig.getCatalogType(),
+                            sinkConfig.getWarehouse(),
+                            sinkConfig.getUri(),
+                            sinkConfig.getKerberosPrincipal(),
+                            sinkConfig.getKerberosKrb5ConfPath(),
+                            sinkConfig.getKerberosKeytabPath(),
+                            sinkConfig.getHdfsSitePath(),
+                            sinkConfig.getHiveSitePath());
+
+            try (IcebergCatalog icebergCatalog = new IcebergCatalog(catalogFactory, "iceberg")) {
+                TablePath tablePath = catalogTable.getTableId().toTablePath();
+                icebergCatalog.open();
+                switch (saveMode) {
+                    case DROP_SCHEMA:
+                        icebergCatalog.dropTable(tablePath, true);
+                        icebergCatalog.createTable(tablePath, catalogTable, false);
+                        break;
+                    case KEEP_SCHEMA_DROP_DATA:
+                        icebergCatalog.truncateTable(tablePath);
+                        break;
+                    case ERROR_WHEN_EXISTS:
+                        if (icebergCatalog.tableExists(tablePath)) {
+                            throw new UnsupportedOperationException(
+                                    "Table already exists: " + tablePath);
+                        }
+                    case KEEP_SCHEMA_AND_DATA:
+                        break;
+                    default:
+                        throw new UnsupportedOperationException(
+                                "Unsupported data save mode: " + saveMode);
+                }
+            }
+        }
     }
 }

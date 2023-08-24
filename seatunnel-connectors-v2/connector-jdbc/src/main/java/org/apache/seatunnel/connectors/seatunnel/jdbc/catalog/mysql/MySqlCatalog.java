@@ -151,6 +151,16 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
     }
 
     @Override
+    public boolean tableExists(TablePath tablePath) throws CatalogException {
+        try {
+            return databaseExists(tablePath.getDatabaseName())
+                    && listTables(tablePath.getDatabaseName()).contains(tablePath.getTableName());
+        } catch (DatabaseNotExistException e) {
+            return false;
+        }
+    }
+
+    @Override
     public CatalogTable getTable(TablePath tablePath)
             throws CatalogException, TableNotExistException {
         if (!tableExists(tablePath)) {
@@ -307,12 +317,31 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         Connection connection = getConnection(dbUrl);
         try (PreparedStatement ps =
                 connection.prepareStatement(
-                        String.format("DROP TABLE IF EXISTS %s;", tablePath.getFullName()))) {
+                        String.format(
+                                "DROP TABLE IF EXISTS %s.%s;",
+                                tablePath.getDatabaseName(), tablePath.getTableName()))) {
             // Will there exist concurrent drop for one table?
             return ps.execute();
         } catch (SQLException e) {
             throw new CatalogException(
                     String.format("Failed dropping table %s", tablePath.getFullName()), e);
+        }
+    }
+
+    @Override
+    protected boolean truncateTableInternal(TablePath tablePath) throws CatalogException {
+        String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
+        Connection connection = getConnection(dbUrl);
+        try (PreparedStatement ps =
+                connection.prepareStatement(
+                        String.format(
+                                "TRUNCATE TABLE %s.%s;",
+                                tablePath.getDatabaseName(), tablePath.getTableName()))) {
+            // Will there exist concurrent truncate for one table?
+            return ps.execute();
+        } catch (SQLException e) {
+            throw new CatalogException(
+                    String.format("Failed truncating table %s", tablePath.getFullName()), e);
         }
     }
 
@@ -344,6 +373,12 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
                             databaseName, this.catalogName),
                     e);
         }
+    }
+
+    public String getCountSql(TablePath tablePath) {
+        return String.format(
+                "select count(*) from %s.%s;",
+                tablePath.getDatabaseName(), tablePath.getTableName());
     }
 
     /**

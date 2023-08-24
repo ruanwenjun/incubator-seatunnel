@@ -110,6 +110,19 @@ public abstract class AbstractJdbcSourceChunkSplitter implements JdbcSourceChunk
         final int chunkSize = sourceConfig.getSplitSize();
         final double distributionFactorUpper = sourceConfig.getDistributionFactorUpper();
         final double distributionFactorLower = sourceConfig.getDistributionFactorLower();
+        final int sampleShardingThreshold = sourceConfig.getSampleShardingThreshold();
+
+        log.info(
+                "Splitting table {} into chunks, split column: {}, min: {}, max: {}, chunk size: {}, "
+                        + "distribution factor upper: {}, distribution factor lower: {}, sample sharding threshold: {}",
+                tableId,
+                splitColumnName,
+                min,
+                max,
+                chunkSize,
+                distributionFactorUpper,
+                distributionFactorLower,
+                sampleShardingThreshold);
 
         if (isEvenlySplitColumn(splitColumn)) {
             long approximateRowCnt = queryApproximateRowCnt(jdbc, tableId);
@@ -128,7 +141,7 @@ public abstract class AbstractJdbcSourceChunkSplitter implements JdbcSourceChunk
             } else {
                 int shardCount = (int) (approximateRowCnt / chunkSize);
                 int inverseSamplingRate = sourceConfig.getInverseSamplingRate();
-                if (sourceConfig.getSampleShardingThreshold() < shardCount) {
+                if (sampleShardingThreshold < shardCount) {
                     // It is necessary to ensure that the number of data rows sampled by the
                     // sampling rate is greater than the number of shards.
                     // Otherwise, if the sampling rate is too low, it may result in an insufficient
@@ -142,9 +155,17 @@ public abstract class AbstractJdbcSourceChunkSplitter implements JdbcSourceChunk
                                 chunkSize);
                         inverseSamplingRate = chunkSize;
                     }
+                    log.info(
+                            "Use sampling sharding for table {}, the sampling rate is {}",
+                            tableId,
+                            inverseSamplingRate);
                     Object[] sample =
                             sampleDataFromColumn(
                                     jdbc, tableId, splitColumnName, inverseSamplingRate);
+                    log.info(
+                            "Sample data from table {} end, the sample size is {}",
+                            tableId,
+                            sample.length);
                     return efficientShardingThroughSampling(
                             tableId, sample, approximateRowCnt, shardCount);
                 }

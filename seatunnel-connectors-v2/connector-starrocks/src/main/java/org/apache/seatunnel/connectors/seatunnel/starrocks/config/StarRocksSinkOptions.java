@@ -19,6 +19,7 @@ package org.apache.seatunnel.connectors.seatunnel.starrocks.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig.StreamLoadFormat;
 
 import java.util.List;
@@ -133,4 +134,19 @@ public interface StarRocksSinkOptions {
                     .enumType(StreamLoadFormat.class)
                     .defaultValue(StreamLoadFormat.JSON)
                     .withDescription("");
+
+    Option<String> FIELD_IDE =
+            Options.key("field_ide")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Whether case conversion is required");
+
+    Option<DataSaveMode> SAVE_MODE =
+            Options.key("save_mode")
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
+                    .withDescription("save_mode");
+
+    Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
 }

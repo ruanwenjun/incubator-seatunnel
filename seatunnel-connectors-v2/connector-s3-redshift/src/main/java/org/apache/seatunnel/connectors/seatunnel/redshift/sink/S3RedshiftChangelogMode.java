@@ -20,5 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 public enum S3RedshiftChangelogMode {
     APPEND_ONLY,
     APPEND_ON_DUPLICATE_UPDATE,
-    APPEND_ON_DUPLICATE_DELETE;
+    APPEND_ON_DUPLICATE_UPDATE_AUTOMATIC,
+    APPEND_ON_DUPLICATE_DELETE,
+    APPEND_ON_DUPLICATE_DELETE_AUTOMATIC;
 }

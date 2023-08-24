@@ -45,6 +45,7 @@ public class StarRocksSinkFactory implements TableSinkFactory {
                 .required(StarRocksOptions.USERNAME, StarRocksOptions.PASSWORD)
                 .required(StarRocksSinkOptions.DATABASE, StarRocksOptions.BASE_URL)
                 .required(StarRocksSinkOptions.NODE_URLS)
+                .required(StarRocksSinkOptions.SAVE_MODE)
                 .optional(
                         StarRocksSinkOptions.TABLE,
                         StarRocksSinkOptions.LABEL_PREFIX,
@@ -57,6 +58,10 @@ public class StarRocksSinkFactory implements TableSinkFactory {
                         StarRocksSinkOptions.STARROCKS_CONFIG,
                         StarRocksSinkOptions.ENABLE_UPSERT_DELETE,
                         StarRocksSinkOptions.SAVE_MODE_CREATE_TEMPLATE)
+                .conditional(
+                        StarRocksSinkOptions.SAVE_MODE,
+                        DataSaveMode.CUSTOM_PROCESSING,
+                        StarRocksSinkOptions.CUSTOM_SQL)
                 .build();
     }
 
@@ -67,6 +72,6 @@ public class StarRocksSinkFactory implements TableSinkFactory {
         if (StringUtils.isBlank(sinkConfig.getTable())) {
             sinkConfig.setTable(catalogTable.getTableId().getTableName());
         }
-        return () -> new StarRocksSink(DataSaveMode.KEEP_SCHEMA_AND_DATA, sinkConfig, catalogTable);
+        return () -> new StarRocksSink(sinkConfig, catalogTable, context.getOptions());
     }
 }
