@@ -58,13 +58,18 @@ public class StarRocksSaveModeHandler {
             case CUSTOM_PROCESSING:
                 String sql = readonlyConfig.get(CUSTOM_SQL);
                 ((StarRocksCatalog) catalog).executeSql(sql);
+                if (!catalog.tableExists(tablePath)) {
+                    autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
+                }
                 break;
             case ERROR_WHEN_EXISTS:
                 if (catalog.tableExists(tablePath)) {
-                    if (((StarRocksCatalog) catalog).isExistsData(tablePath.getTableName())) {
+                    if (((StarRocksCatalog) catalog).isExistsData(tablePath.getFullName())) {
                         throw new StarRocksConnectorException(
                                 SOURCE_ALREADY_HAS_DATA, "The target data source already has data");
                     }
+                } else {
+                    autoCreateTable(sinkConfig.getSaveModeCreateTemplate());
                 }
                 break;
         }

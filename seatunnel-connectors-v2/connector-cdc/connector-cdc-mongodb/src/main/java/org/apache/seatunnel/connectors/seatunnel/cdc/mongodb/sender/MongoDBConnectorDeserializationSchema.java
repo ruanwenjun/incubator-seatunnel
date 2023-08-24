@@ -85,9 +85,7 @@ public class MongoDBConnectorDeserializationSchema
     }
 
     @Override
-    public void deserialize(@Nonnull SourceRecord record, Collector<SeaTunnelRow> out)
-            throws Exception {
-        super.deserialize(record, out);
+    public void deserialize(@Nonnull SourceRecord record, Collector<SeaTunnelRow> out) {
         Struct value = (Struct) record.value();
         Schema valueSchema = record.valueSchema();
 

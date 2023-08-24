@@ -32,13 +32,13 @@ import org.apache.seatunnel.connectors.seatunnel.redshift.exception.S3RedshiftCo
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -52,17 +52,22 @@ public class S3RedshiftSQLGenerator implements Serializable {
     private final S3RedshiftConf conf;
     private final CatalogTable table;
     private final SeaTunnelRowType rowType;
+    private final CatalogTable temporaryTable;
+    private final SeaTunnelRowType temporaryRowType;
     private final String createTableSQL;
     private final String cleanTableSql;
     private final String dropTableSql;
     private final String isExistTableSql;
     private final String isExistDataSql;
+    private Pair<String[], String> sortKeyValueQuerySql;
+    private String copyS3FileToTableSql;
     private String createTemporaryTableSQL;
     private String copyS3FileToTemporaryTableSql;
     private String cleanTemporaryTableSql;
     private String dropTemporaryTableSql;
-    private String createExternalTableSql;
-    private String dropExternalTableSql;
+    private String queryDeleteRowCountSql;
+    private String deleteTargetTableRowSql;
+    private String cleanDeleteRowCountSql;
 
     public S3RedshiftSQLGenerator(S3RedshiftConf conf, CatalogTable table) {
         this(conf, table, table.getTableSchema().toPhysicalRowDataType());
@@ -72,32 +77,55 @@ public class S3RedshiftSQLGenerator implements Serializable {
         this(conf, null, rowType);
     }
 
-    public S3RedshiftSQLGenerator(
+    private S3RedshiftSQLGenerator(
             S3RedshiftConf conf, CatalogTable table, SeaTunnelRowType rowType) {
         this.conf = conf;
-        this.table = table;
-        this.rowType = rowType;
+
+        if (table != null) {
+            TableSchemaEnhancer schemaEnhancer = new TableSchemaEnhancer(table);
+            this.table = schemaEnhancer.getPrimitiveTable();
+            this.temporaryTable = schemaEnhancer.getEnhanceTable();
+            this.rowType = schemaEnhancer.getPrimitiveRowType();
+            this.temporaryRowType = schemaEnhancer.getEnhanceRowType();
+        } else {
+            TableSchemaEnhancer schemaEnhancer = new TableSchemaEnhancer(rowType);
+            this.table = null;
+            this.temporaryTable = null;
+            this.rowType = schemaEnhancer.getPrimitiveRowType();
+            this.temporaryRowType = schemaEnhancer.getEnhanceRowType();
+        }
+
         this.createTableSQL = generateCreateTableSQL();
         this.cleanTableSql = generateCleanTableSql();
         this.isExistTableSql = generateIsExistTableSql();
         this.isExistDataSql = generateIsExistDataSql();
         this.dropTableSql = generateDropTableSQL();
-        if (conf.isCopyS3FileToTemporaryTableMode()) {
+        this.copyS3FileToTableSql = generateCopyS3FileToTargetTableSql();
+
+        if (conf.notAppendOnlyMode()) {
+            this.sortKeyValueQuerySql = generateTemporaryTableSortKeyValueQuerySql();
             this.createTemporaryTableSQL = generateCreateTemporaryTableSQL();
             this.copyS3FileToTemporaryTableSql = generateCopyS3FileToTemporaryTableSql();
             this.cleanTemporaryTableSql = generateCleanTemporaryTableSql();
             this.dropTemporaryTableSql = generateDropTemporaryTableSql();
-        } else if (conf.isS3ExternalTableMode()) {
-            this.createExternalTableSql = generateCreateExternalTableSql();
-            this.dropExternalTableSql = generateDropExternalTableSql();
+            this.queryDeleteRowCountSql = generateQueryDeleteRowCountSql();
+            this.deleteTargetTableRowSql = generateDeleteTargetTableRowSql();
+            this.cleanDeleteRowCountSql = generateCleanDeleteRowSql();
         }
     }
 
-    public String generateCreateTableSQL() {
+    private String generateCreateTableSQL() {
+        String columnDefinition;
+        if (table != null) {
+            columnDefinition = generateColumnDefinition(table);
+        } else {
+            columnDefinition =
+                    generateColumnDefinition(rowType, conf.getRedshiftTablePrimaryKeys());
+        }
         String ddl =
                 String.format(
                         "CREATE TABLE IF NOT EXISTS %s.%s (%s)",
-                        conf.getSchema(), conf.getRedshiftTable(), generateTableColumnDefinition());
+                        conf.getSchema(), conf.getRedshiftTable(), columnDefinition);
         List<String> sortKey = getTableSortKey();
         if (!sortKey.isEmpty()) {
             ddl = ddl + String.format(" SORTKEY(%s)", String.join(",", sortKey));
@@ -105,34 +133,40 @@ public class S3RedshiftSQLGenerator implements Serializable {
         return ddl;
     }
 
-    public String generateDropTableSQL() {
+    private String generateDropTableSQL() {
         return String.format(
                 "DROP TABLE IF EXISTS %s.%s ;", conf.getSchema(), conf.getRedshiftTable());
     }
 
-    public String generateCreateTemporaryTableSQL() {
+    private String generateCreateTemporaryTableSQL() {
+        String columnDefinition;
+        if (temporaryTable != null) {
+            columnDefinition = generateColumnDefinition(temporaryTable);
+        } else {
+            columnDefinition =
+                    generateColumnDefinition(temporaryRowType, conf.getRedshiftTablePrimaryKeys());
+        }
+
         String ddl =
                 String.format(
                         "CREATE TABLE IF NOT EXISTS %s.%s (%s)",
-                        conf.getSchema(),
-                        conf.getTemporaryTableName(),
-                        generateTableColumnDefinition());
-        List<String> sortKey = getTableSortKey();
+                        conf.getSchema(), conf.getTemporaryTableName(), columnDefinition);
+        List<String> sortKey = getTemporaryTableSortKey();
         if (!sortKey.isEmpty()) {
             ddl = ddl + String.format(" SORTKEY(%s)", String.join(",", sortKey));
         }
         return ddl;
     }
 
-    public String generateCopyS3FileToTemporaryTableSql() {
-        return generateCopyS3FileToTableSql(conf.getTemporaryTableName());
+    private String generateCopyS3FileToTemporaryTableSql() {
+        return generateCopyS3FileToTableSql(conf.getTemporaryTableName(), temporaryRowType);
     }
 
-    public String generateCopyS3FileToTargetTableSql() {
-        return generateCopyS3FileToTableSql(conf.getRedshiftTable());
+    private String generateCopyS3FileToTargetTableSql() {
+        return generateCopyS3FileToTableSql(conf.getRedshiftTable(), rowType);
     }
 
-    private String generateCopyS3FileToTableSql(String table) {
+    private String generateCopyS3FileToTableSql(String table, SeaTunnelRowType rowType) {
         String bucket = getBucket(conf.getS3Bucket());
         if (bucket.endsWith("/")) {
             bucket = bucket.substring(0, bucket.lastIndexOf("/"));
@@ -141,7 +175,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
         if (!Strings.isNullOrEmpty(conf.getAccessKey())
                 && !Strings.isNullOrEmpty(conf.getSecretKey())) {
             return String.format(
-                    "COPY %s.%s(%s) FROM '%s/${path}' ACCESS_KEY_ID '%s' SECRET_ACCESS_KEY '%s' FORMAT ORC SERIALIZETOJSON",
+                    "COPY %s.%s(%s) FROM '%s/${path}' ACCESS_KEY_ID '%s' SECRET_ACCESS_KEY '%s' FILLRECORD FORMAT ORC SERIALIZETOJSON",
                     conf.getSchema(),
                     table,
                     columns,
@@ -151,54 +185,70 @@ public class S3RedshiftSQLGenerator implements Serializable {
         }
         if (!Strings.isNullOrEmpty(conf.getRedshiftS3IamRole())) {
             return String.format(
-                    "COPY %s.%s(%s) FROM '%s/${path}' IAM_ROLE '%s' FORMAT ORC SERIALIZETOJSON",
+                    "COPY %s.%s(%s) FROM '%s/${path}' IAM_ROLE '%s' FILLRECORD FORMAT ORC SERIALIZETOJSON",
                     conf.getSchema(), table, columns, bucket, conf.getRedshiftS3IamRole());
         }
         throw new IllegalArgumentException("Either accessKey/secretKey or iamRole must be set");
     }
 
-    public String generateCleanTemporaryTableSql() {
+    private String generateCleanTemporaryTableSql() {
         return String.format(
                 "TRUNCATE TABLE %s.%s;", conf.getSchema(), conf.getTemporaryTableName());
     }
 
-    public String generateCleanTableSql() {
+    private String generateCleanTableSql() {
         return String.format("TRUNCATE TABLE %s.%s;", conf.getSchema(), conf.getRedshiftTable());
     }
 
-    public String generateIsExistTableSql() {
+    private String generateIsExistTableSql() {
         return String.format(
                 "SELECT count(1) FROM information_schema.tables where table_schema = '%s' and  table_name = '%s';",
                 conf.getSchema(), conf.getRedshiftTable().toLowerCase());
     }
 
-    public String generateIsExistDataSql() {
+    private String generateIsExistDataSql() {
         return String.format(
-                "select count(1) from %s.%s;", conf.getSchema(), conf.getRedshiftTable());
+                "select 1 from %s.%s limit 1;", conf.getSchema(), conf.getRedshiftTable());
     }
 
-    public String generateDropTemporaryTableSql() {
+    private String generateDropTemporaryTableSql() {
         return String.format(
                 "DROP TABLE IF EXISTS %s.%s", conf.getSchema(), conf.getTemporaryTableName());
     }
 
-    public String generateCreateExternalTableSql() {
-        String bucket = getBucket(conf.getS3Bucket());
-        if (bucket.endsWith("/")) {
-            bucket = bucket.substring(0, bucket.lastIndexOf("/"));
-        }
+    private String generateQueryDeleteRowCountSql() {
         return String.format(
-                "CREATE EXTERNAL TABLE %s.%s(%s) STORED AS orc LOCATION '%s/${dir}'",
-                conf.getRedshiftExternalSchema(),
+                "SELECT COUNT(1) FROM %s.%s WHERE %s = true",
+                conf.getSchema(),
                 conf.getTemporaryTableName(),
-                generateColumnDefinition(),
-                bucket);
+                TableSchemaEnhancer.METADATA_DELETE_FIELD);
     }
 
-    public String generateDropExternalTableSql() {
+    private String generateDeleteTargetTableRowSql() {
+        String targetTable = conf.getSchema() + "." + conf.getRedshiftTable();
+        String temporaryTable = conf.getSchema() + "." + conf.getTemporaryTableName();
+        String conditionClause =
+                getPrimaryKeys().stream()
+                        .map(
+                                field ->
+                                        String.format(
+                                                "%s.%s = %s.%s",
+                                                targetTable, field, temporaryTable, field))
+                        .collect(Collectors.joining(" AND "));
+        String deleteRowFilter =
+                String.format(
+                        "%s.%s = true", temporaryTable, TableSchemaEnhancer.METADATA_DELETE_FIELD);
         return String.format(
-                "DROP TABLE IF EXISTS %s.%s",
-                conf.getRedshiftExternalSchema(), conf.getRedshiftTable());
+                "DELETE FROM %s USING %s WHERE %s AND %s",
+                targetTable, temporaryTable, deleteRowFilter, conditionClause);
+    }
+
+    public String generateCleanDeleteRowSql() {
+        return String.format(
+                "DELETE FROM %s.%s WHERE %s = true",
+                conf.getSchema(),
+                conf.getTemporaryTableName(),
+                TableSchemaEnhancer.METADATA_DELETE_FIELD);
     }
 
     public String generateMergeSql(
@@ -211,7 +261,6 @@ public class S3RedshiftSQLGenerator implements Serializable {
                                                 "%s.%s = source.%s",
                                                 conf.getRedshiftTable(), field, field))
                         .collect(Collectors.joining(" AND "));
-
         String sortKeyCondition =
                 sortKeyValues.entrySet().stream()
                         .map(
@@ -252,30 +301,24 @@ public class S3RedshiftSQLGenerator implements Serializable {
                                                             sortColumn, fieldType.getSqlType()));
                                     }
                                 })
-                        .collect(Collectors.joining(" AND "));
+                        .collect(Collectors.joining(" OR "));
 
         if (!StringUtils.isEmpty(sortKeyCondition)) {
-            conditionClause = conditionClause + " AND " + sortKeyCondition;
+            conditionClause = conditionClause + " AND (" + sortKeyCondition + ")";
         }
 
-        String matchedClause = "DELETE";
-        if (conf.isAllowUpdate()) {
-            matchedClause =
-                    Stream.of(rowType.getFieldNames())
-                            .filter(field -> !conf.getRedshiftTablePrimaryKeys().contains(field))
-                            .map(field -> String.format("%s = source.%s", field, field))
-                            .collect(Collectors.joining(", ", "UPDATE SET ", ""));
-        }
+        String matchedClause =
+                Stream.of(rowType.getFieldNames())
+                        .filter(field -> !conf.getRedshiftTablePrimaryKeys().contains(field))
+                        .map(field -> String.format("%s = source.%s", field, field))
+                        .collect(Collectors.joining(", ", "UPDATE SET ", ""));
         String sinkFieldsClause = String.join(",", rowType.getFieldNames());
         String selectSourceFieldsClause =
                 Stream.of(rowType.getFieldNames())
                         .map(field -> String.format("source.%s", field))
                         .collect(Collectors.joining(","));
 
-        String sourceTable =
-                conf.isCopyS3FileToTemporaryTableMode()
-                        ? conf.getSchema() + "." + conf.getTemporaryTableName()
-                        : conf.getRedshiftExternalSchema() + "." + conf.getTemporaryTableName();
+        String sourceTable = conf.getSchema() + "." + conf.getTemporaryTableName();
         return String.format(
                 "MERGE INTO %s.%s "
                         + "USING %s AS source "
@@ -291,91 +334,110 @@ public class S3RedshiftSQLGenerator implements Serializable {
                 selectSourceFieldsClause);
     }
 
-    public ImmutablePair<String[], String> generateSortKeyValueQuerySql() {
-        if (CollectionUtils.isEmpty(getTableSortKey())) {
+    private ImmutablePair<String[], String> generateTemporaryTableSortKeyValueQuerySql() {
+        List<String> sortKey = getTemporaryTableSortKey();
+        if (CollectionUtils.isEmpty(sortKey)) {
             throw new S3RedshiftConnectorException(
                     S3RedshiftConnectorErrorCode.MERGE_MUST_HAVE_PRIMARY_KEY,
                     ", table: " + conf.getRedshiftTable());
         }
+
         String conditionClause =
-                getTableSortKey().stream()
+                sortKey.stream()
                         .map(field -> String.format("min(%s),max(%s)", field, field))
-                        .collect(Collectors.joining(" AND "));
+                        .collect(Collectors.joining(","));
 
-        String sourceTable =
-                conf.isCopyS3FileToTemporaryTableMode()
-                        ? conf.getSchema() + "." + conf.getTemporaryTableName()
-                        : conf.getRedshiftExternalSchema() + "." + conf.getTemporaryTableName();
+        String sourceTable = conf.getSchema() + "." + conf.getTemporaryTableName();
 
-        String[] sortKeys = getTableSortKey().toArray(new String[0]);
+        String[] sortKeys = sortKey.toArray(new String[0]);
         return new ImmutablePair<>(
                 sortKeys, String.format("select %s from %s", conditionClause, sourceTable));
     }
 
     public String generateAnalyseSql(@NonNull String[] sortKeys) {
-        String columns = Arrays.stream(sortKeys).collect(Collectors.joining(" , "));
+        String columns = String.join(", ", sortKeys);
         return String.format(
                 "ANALYZE %s.%s(%s)", conf.getSchema(), conf.getRedshiftTable(), columns);
     }
 
-    private List<String> getTableSortKey() {
+    private List<String> getPrimaryKeys() {
         if (table != null) {
-            TableSchema tableSchema = table.getTableSchema();
-            PrimaryKey primaryKey = tableSchema.getPrimaryKey();
-            if (primaryKey != null && !primaryKey.getColumnNames().isEmpty()) {
-                return primaryKey.getColumnNames();
-            }
+            return getPrimaryKeys(table);
+        }
+        if (conf.getRedshiftTablePrimaryKeys() != null) {
+            return conf.getRedshiftTablePrimaryKeys();
+        }
+        return Collections.emptyList();
+    }
+
+    private List<String> getPrimaryKeys(CatalogTable table) {
+        TableSchema tableSchema = table.getTableSchema();
+        PrimaryKey primaryKey = tableSchema.getPrimaryKey();
+        if (primaryKey != null && !primaryKey.getColumnNames().isEmpty()) {
+            return primaryKey.getColumnNames();
+        }
+        return Collections.emptyList();
+    }
+
+    private List<String> getTemporaryTableSortKey() {
+        if (temporaryTable != null) {
+            return getPrimaryKeys(temporaryTable);
         } else if (conf.getRedshiftTablePrimaryKeys() != null) {
             return conf.getRedshiftTablePrimaryKeys();
         }
         return Collections.emptyList();
     }
 
-    private String generateTableColumnDefinition() {
-        String tableColumnDefinition = generateColumnDefinition();
+    private List<String> getTableSortKey() {
         if (table != null) {
-            TableSchema tableSchema = table.getTableSchema();
-            PrimaryKey primaryKey = tableSchema.getPrimaryKey();
-            if (primaryKey != null && !primaryKey.getColumnNames().isEmpty()) {
-                String primaryKeyDefinition =
-                        String.format(
-                                "PRIMARY KEY (%s)",
-                                String.join(",", tableSchema.getPrimaryKey().getColumnNames()));
-                tableColumnDefinition =
-                        String.join(", ", tableColumnDefinition, primaryKeyDefinition);
-            }
-        } else if (conf.getRedshiftTablePrimaryKeys() != null
-                && !conf.getRedshiftTablePrimaryKeys().isEmpty()) {
+            return getPrimaryKeys(table);
+        } else if (conf.getRedshiftTablePrimaryKeys() != null) {
+            return conf.getRedshiftTablePrimaryKeys();
+        }
+        return Collections.emptyList();
+    }
+
+    private String generateColumnDefinition(CatalogTable table) {
+        TableSchema tableSchema = table.getTableSchema();
+        String tableColumnDefinition =
+                tableSchema.getColumns().stream()
+                        .map(
+                                column ->
+                                        String.format(
+                                                "%s %s",
+                                                column.getName(),
+                                                ToRedshiftTypeConverter.INSTANCE.convert(column)))
+                        .collect(Collectors.joining(", "));
+
+        PrimaryKey primaryKey = tableSchema.getPrimaryKey();
+        if (primaryKey != null && !primaryKey.getColumnNames().isEmpty()) {
             String primaryKeyDefinition =
                     String.format(
                             "PRIMARY KEY (%s)",
-                            String.join(",", conf.getRedshiftTablePrimaryKeys()));
+                            String.join(",", tableSchema.getPrimaryKey().getColumnNames()));
             tableColumnDefinition = String.join(", ", tableColumnDefinition, primaryKeyDefinition);
         }
         return tableColumnDefinition;
     }
 
-    private String generateColumnDefinition() {
-        if (table != null) {
-            TableSchema tableSchema = table.getTableSchema();
-            return tableSchema.getColumns().stream()
-                    .map(
-                            column ->
-                                    String.format(
-                                            "%s %s",
-                                            column.getName(),
-                                            ToRedshiftTypeConverter.INSTANCE.convert(column)))
-                    .collect(Collectors.joining(", "));
+    private String generateColumnDefinition(SeaTunnelRowType rowType, List<String> primaryKeys) {
+        String tableColumnDefinition =
+                IntStream.range(0, rowType.getTotalFields())
+                        .mapToObj(
+                                i ->
+                                        String.format(
+                                                "%s %s",
+                                                rowType.getFieldName(i),
+                                                ToRedshiftTypeConverter.INSTANCE.convert(
+                                                        rowType.getFieldType(i))))
+                        .collect(Collectors.joining(", "));
+
+        if (primaryKeys != null && !primaryKeys.isEmpty()) {
+            String primaryKeyDefinition =
+                    String.format("PRIMARY KEY (%s)", String.join(",", primaryKeys));
+            tableColumnDefinition = String.join(", ", tableColumnDefinition, primaryKeyDefinition);
         }
-        return IntStream.range(0, rowType.getTotalFields())
-                .mapToObj(
-                        i ->
-                                String.format(
-                                        "%s %s",
-                                        rowType.getFieldName(i),
-                                        ToRedshiftTypeConverter.INSTANCE.convert(
-                                                rowType.getFieldType(i))))
-                .collect(Collectors.joining(", "));
+        return tableColumnDefinition;
     }
 
     private String getBucket(String bucket) {

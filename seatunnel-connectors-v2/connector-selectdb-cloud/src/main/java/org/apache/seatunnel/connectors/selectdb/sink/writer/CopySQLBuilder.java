@@ -17,6 +17,8 @@
 
 package org.apache.seatunnel.connectors.selectdb.sink.writer;
 
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig;
 
 import java.util.List;
@@ -28,19 +30,28 @@ public class CopySQLBuilder {
     private static final String COPY_SYNC = "copy.async";
     private static final String COPY_DELETE = "copy.use_delete_sign";
     private final SelectDBConfig selectdbConfig;
+    private final CatalogTable table;
     private final List<String> fileList;
     private Properties properties;
+    private final TablePath tablePath;
 
-    public CopySQLBuilder(SelectDBConfig selectdbConfig, List<String> fileList) {
+    public CopySQLBuilder(
+            SelectDBConfig selectdbConfig, CatalogTable table, List<String> fileList) {
         this.selectdbConfig = selectdbConfig;
         this.fileList = fileList;
+        this.table = table;
+        if (selectdbConfig.getTableIdentifier() != null) {
+            tablePath = TablePath.of(selectdbConfig.getTableIdentifier());
+        } else {
+            tablePath = table.getTableId().toTablePath();
+        }
         this.properties = selectdbConfig.getStageLoadProps();
     }
 
     public String buildCopySQL() {
         StringBuilder sb = new StringBuilder();
         sb.append("COPY INTO ")
-                .append(selectdbConfig.getTableIdentifier())
+                .append(tablePath)
                 .append(" FROM @~('{")
                 .append(String.join(",", fileList))
                 .append("}') ")

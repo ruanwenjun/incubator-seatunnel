@@ -17,24 +17,23 @@
 
 package org.apache.seatunnel.connectors.selectdb.config;
 
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
-
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
-import org.apache.seatunnel.common.config.CheckConfigUtil;
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.io.Serializable;
 import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
 
 @Setter
 @Getter
 @ToString
-public class SelectDBConfig {
+public class SelectDBConfig implements Serializable {
     private static final int DEFAULT_SINK_MAX_RETRIES = 3;
     private static final int DEFAULT_SINK_BUFFER_SIZE = 10 * 1024 * 1024;
     private static final int DEFAULT_SINK_BUFFER_COUNT = 10000;
@@ -44,8 +43,8 @@ public class SelectDBConfig {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("SelectDB load http address.");
-    public static final Option<String> JDBC_URL =
-            Options.key("jdbc-url")
+    public static final Option<String> BASE_URL =
+            Options.key("base-url")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("SelectDB jdbc query address.");
@@ -90,13 +89,32 @@ public class SelectDBConfig {
     public static final Option<String> SINK_LABEL_PREFIX =
             Options.key("sink.label-prefix")
                     .stringType()
-                    .defaultValue(UUID.randomUUID().toString())
+                    .defaultValue("seatunnel")
                     .withDescription("the unique label prefix.");
     public static final Option<Boolean> SINK_ENABLE_DELETE =
             Options.key("sink.enable-delete")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("whether to enable the delete function");
+    public static final Option<DataSaveMode> SAVE_MODE =
+            Options.key("save_mode")
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
+                    .withDescription("save_mode");
+
+    public static final Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
+    public static final Option<String> SAVE_MODE_CREATE_TEMPLATE =
+            Options.key("save_mode_create_template")
+                    .stringType()
+                    .defaultValue(
+                            "CREATE TABLE IF NOT EXISTS `${database}`.`${table_name}` (\n"
+                                    + "${rowtype_fields}\n"
+                                    + ") ENGINE=OLAP\n"
+                                    + " UNIQUE KEY (${rowtype_primary_key})\n"
+                                    + "DISTRIBUTED BY HASH (${rowtype_primary_key})")
+                    .withDescription(
+                            "Create table statement template, used to create StarRocks table");
 
     public static final Option<Integer> SINK_FLUSH_QUEUE_SIZE =
             Options.key("sink.flush.queue-size")
@@ -125,61 +143,42 @@ public class SelectDBConfig {
     private Integer bufferCount;
     private Integer flushQueueSize;
     private Properties StageLoadProps;
+    private DataSaveMode saveMode;
+    private String customSql;
+    private String saveModeCreateTemplate;
 
-    public static SelectDBConfig loadConfig(Config pluginConfig) {
+    public static SelectDBConfig loadConfig(ReadonlyConfig pluginConfig) {
         SelectDBConfig selectdbConfig = new SelectDBConfig();
-        selectdbConfig.setLoadUrl(pluginConfig.getString(LOAD_URL.key()));
-        selectdbConfig.setJdbcUrl(pluginConfig.getString(JDBC_URL.key()));
-        selectdbConfig.setClusterName(pluginConfig.getString(CLUSTER_NAME.key()));
-        selectdbConfig.setUsername(pluginConfig.getString(USERNAME.key()));
-        selectdbConfig.setPassword(pluginConfig.getString(PASSWORD.key()));
-        selectdbConfig.setTableIdentifier(pluginConfig.getString(TABLE_IDENTIFIER.key()));
+        selectdbConfig.setLoadUrl(pluginConfig.get(LOAD_URL));
+        selectdbConfig.setJdbcUrl(pluginConfig.get(BASE_URL));
+        selectdbConfig.setClusterName(pluginConfig.get(CLUSTER_NAME));
+        selectdbConfig.setUsername(pluginConfig.get(USERNAME));
+        selectdbConfig.setCustomSql(pluginConfig.get(CUSTOM_SQL));
+        selectdbConfig.setPassword(pluginConfig.get(PASSWORD));
+        selectdbConfig.setTableIdentifier(pluginConfig.get(TABLE_IDENTIFIER));
         selectdbConfig.setStageLoadProps(parseCopyIntoProperties(pluginConfig));
-
-        if (pluginConfig.hasPath(SINK_LABEL_PREFIX.key())) {
-            selectdbConfig.setLabelPrefix(pluginConfig.getString(SINK_LABEL_PREFIX.key()));
-        } else {
-            selectdbConfig.setLabelPrefix(SINK_LABEL_PREFIX.defaultValue());
-        }
-        if (pluginConfig.hasPath(SINK_MAX_RETRIES.key())) {
-            selectdbConfig.setMaxRetries(pluginConfig.getInt(SINK_MAX_RETRIES.key()));
-        } else {
-            selectdbConfig.setMaxRetries(SINK_MAX_RETRIES.defaultValue());
-        }
-        if (pluginConfig.hasPath(SINK_BUFFER_SIZE.key())) {
-            selectdbConfig.setBufferSize(pluginConfig.getInt(SINK_BUFFER_SIZE.key()));
-        } else {
-            selectdbConfig.setBufferSize(SINK_BUFFER_SIZE.defaultValue());
-        }
-        if (pluginConfig.hasPath(SINK_BUFFER_COUNT.key())) {
-            selectdbConfig.setBufferCount(pluginConfig.getInt(SINK_BUFFER_COUNT.key()));
-        } else {
-            selectdbConfig.setBufferCount(SINK_BUFFER_COUNT.defaultValue());
-        }
-        if (pluginConfig.hasPath(SINK_ENABLE_DELETE.key())) {
-            selectdbConfig.setEnableDelete(pluginConfig.getBoolean(SINK_ENABLE_DELETE.key()));
-        } else {
-            selectdbConfig.setEnableDelete(SINK_ENABLE_DELETE.defaultValue());
-        }
-        if (pluginConfig.hasPath(SINK_FLUSH_QUEUE_SIZE.key())) {
-            selectdbConfig.setFlushQueueSize(pluginConfig.getInt(SINK_FLUSH_QUEUE_SIZE.key()));
-        } else {
-            selectdbConfig.setFlushQueueSize(SINK_FLUSH_QUEUE_SIZE.defaultValue());
-        }
+        selectdbConfig.setLabelPrefix(pluginConfig.get(SINK_LABEL_PREFIX));
+        selectdbConfig.setMaxRetries(pluginConfig.get(SINK_MAX_RETRIES));
+        selectdbConfig.setBufferSize(pluginConfig.get(SINK_BUFFER_SIZE));
+        selectdbConfig.setBufferCount(pluginConfig.get(SINK_BUFFER_COUNT));
+        selectdbConfig.setEnableDelete(pluginConfig.get(SINK_ENABLE_DELETE));
+        selectdbConfig.setFlushQueueSize(pluginConfig.get(SINK_FLUSH_QUEUE_SIZE));
+        selectdbConfig.setSaveMode(pluginConfig.get(SAVE_MODE));
+        selectdbConfig.setSaveModeCreateTemplate(pluginConfig.get(SAVE_MODE_CREATE_TEMPLATE));
         return selectdbConfig;
     }
 
-    private static Properties parseCopyIntoProperties(Config pluginConfig) {
+    private static Properties parseCopyIntoProperties(ReadonlyConfig pluginConfig) {
         Properties stageLoadProps = new Properties();
-        if (CheckConfigUtil.isValidParam(pluginConfig, SELECTDB_SINK_CONFIG_PREFIX.key())) {
-            pluginConfig
-                    .getObject(SELECTDB_SINK_CONFIG_PREFIX.key())
-                    .forEach(
-                            (key, value) -> {
-                                final String configKey = key.toLowerCase();
-                                stageLoadProps.put(configKey, value.unwrapped().toString());
-                            });
-        }
+        pluginConfig
+                .getOptional(SELECTDB_SINK_CONFIG_PREFIX)
+                .ifPresent(
+                        stringStringMap ->
+                                stringStringMap.forEach(
+                                        (key, value) -> {
+                                            final String configKey = key.toLowerCase();
+                                            stageLoadProps.put(configKey, value);
+                                        }));
         return stageLoadProps;
     }
 }

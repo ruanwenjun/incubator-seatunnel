@@ -17,6 +17,8 @@
 
 package org.apache.seatunnel.connectors.cdc.base.source.enumerator.splitter;
 
+import org.apache.seatunnel.api.table.catalog.ConstraintKey;
+import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.dialect.JdbcDataSourceDialect;
@@ -36,6 +38,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static java.math.BigDecimal.ROUND_CEILING;
 import static org.apache.seatunnel.connectors.cdc.base.utils.ObjectUtils.doubleCompare;
@@ -58,8 +61,7 @@ public abstract class AbstractJdbcSourceChunkSplitter implements JdbcSourceChunk
             log.info("Start splitting table {} into chunks...", tableId);
             long start = System.currentTimeMillis();
 
-            Table table = dialect.queryTableSchema(jdbc, tableId).getTable();
-            Column splitColumn = getSplitColumn(table);
+            Column splitColumn = getSplitColumn(jdbc, dialect, tableId);
             final List<ChunkRange> chunks;
             try {
                 chunks = splitTableIntoChunks(jdbc, tableId, splitColumn);
@@ -348,6 +350,44 @@ public abstract class AbstractJdbcSourceChunkSplitter implements JdbcSourceChunk
         Object[] splitEnd = chunkEnd == null ? null : new Object[] {chunkEnd};
         return new SnapshotSplit(
                 splitId(tableId, chunkId), tableId, splitKeyType, splitStart, splitEnd);
+    }
+
+    protected Column getSplitColumn(
+            JdbcConnection jdbc, JdbcDataSourceDialect dialect, TableId tableId)
+            throws SQLException {
+        Optional<PrimaryKey> primaryKey = dialect.getPrimaryKey(jdbc, tableId);
+        if (primaryKey.isPresent()) {
+            List<String> pkColumns = primaryKey.get().getColumnNames();
+
+            Table table = dialect.queryTableSchema(jdbc, tableId).getTable();
+            for (String pkColumn : pkColumns) {
+                Column column = table.columnWithName(pkColumn);
+                if (isEvenlySplitColumn(column)) {
+                    return column;
+                }
+            }
+        }
+
+        List<ConstraintKey> uniqueKeys = dialect.getUniqueKeys(jdbc, tableId);
+        if (!uniqueKeys.isEmpty()) {
+            Table table = dialect.queryTableSchema(jdbc, tableId).getTable();
+            for (ConstraintKey uniqueKey : uniqueKeys) {
+                List<ConstraintKey.ConstraintKeyColumn> uniqueKeyColumns =
+                        uniqueKey.getColumnNames();
+                for (ConstraintKey.ConstraintKeyColumn uniqueKeyColumn : uniqueKeyColumns) {
+                    Column column = table.columnWithName(uniqueKeyColumn.getColumnName());
+                    if (isEvenlySplitColumn(column)) {
+                        return column;
+                    }
+                }
+            }
+        }
+
+        throw new UnsupportedOperationException(
+                String.format(
+                        "Incremental snapshot for tables requires primary key/unique key,"
+                                + " but table %s doesn't have primary key.",
+                        tableId));
     }
 
     protected String splitId(TableId tableId, int chunkId) {

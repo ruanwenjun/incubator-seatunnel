@@ -26,6 +26,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -35,6 +36,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RequiredArgsConstructor
 public class RedshiftJdbcClient implements AutoCloseable {
     private final String jdbcUrl;
@@ -70,6 +72,18 @@ public class RedshiftJdbcClient implements AutoCloseable {
     public boolean execute(String sql) throws SQLException {
         try (Connection connection = getConnection()) {
             return connection.createStatement().execute(sql);
+        } catch (SQLException e) {
+            log.error("Execute sql failed, sql is {}", sql, e);
+            throw e;
+        }
+    }
+
+    public int executeUpdate(String sql) throws SQLException {
+        try (Connection connection = getConnection()) {
+            return connection.createStatement().executeUpdate(sql);
+        } catch (SQLException e) {
+            log.error("Execute sql failed, sql is {}", sql, e);
+            throw e;
         }
     }
 
@@ -81,7 +95,10 @@ public class RedshiftJdbcClient implements AutoCloseable {
     }
 
     public boolean existDataForSql(String sql) throws SQLException {
-        return executeQueryCount(sql) > 0;
+        try (Connection connection = getConnection()) {
+            ResultSet resultSet = connection.createStatement().executeQuery(sql);
+            return resultSet.next();
+        }
     }
 
     public Integer executeQueryCount(String sql) throws SQLException {
@@ -103,10 +120,14 @@ public class RedshiftJdbcClient implements AutoCloseable {
             while (resultSet.next()) {
                 for (int i = 1; i < sortKeys.length + 1; i++) {
                     int j = i * 2;
-                    result.put(
-                            sortKeys[i - 1],
-                            new ImmutablePair<>(
-                                    resultSet.getObject(j - 1), resultSet.getObject(j)));
+
+                    String key = sortKeys[i - 1];
+                    Object min = resultSet.getObject(j - 1);
+                    Object max = resultSet.getObject(j);
+                    if (min == null || max == null) {
+                        continue;
+                    }
+                    result.put(key, new ImmutablePair<>(min, max));
                 }
             }
             return result;

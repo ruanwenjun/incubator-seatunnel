@@ -44,6 +44,7 @@ import org.apache.seatunnel.connectors.seatunnel.kafka.kingbase.KingbaseJsonDese
 import org.apache.seatunnel.connectors.seatunnel.kafka.state.KafkaSourceState;
 import org.apache.seatunnel.format.json.JsonDeserializationSchema;
 import org.apache.seatunnel.format.json.canal.CanalJsonDeserializationSchema;
+import org.apache.seatunnel.format.json.debezium.DebeziumJsonDeserializationSchema;
 import org.apache.seatunnel.format.json.exception.SeaTunnelJsonFormatException;
 import org.apache.seatunnel.format.text.TextDeserializationSchema;
 
@@ -59,6 +60,7 @@ import java.util.Properties;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.BOOTSTRAP_SERVERS;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.COMMIT_ON_CHECKPOINT;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.CONSUMER_GROUP;
+import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.DEBEZIUM_RECORD_INCLUDE_SCHEMA;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.FIELD_DELIMITER;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.FORMAT;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.KAFKA_CONFIG;
@@ -251,6 +253,16 @@ public class KafkaSource
                             "Unsupported table format: " + format);
                 } else {
                     return new KingbaseJsonDeserializationSchema((MultipleRowType) typeInfo);
+                }
+            case DEBEZIUM_JSON:
+                if (typeInfo instanceof SeaTunnelRowType) {
+                    boolean includeSchema = option.get(DEBEZIUM_RECORD_INCLUDE_SCHEMA);
+                    return new DebeziumJsonDeserializationSchema(
+                            (SeaTunnelRowType) typeInfo, true, includeSchema);
+                } else {
+                    throw new KafkaConnectorException(
+                            CommonErrorCode.UNSUPPORTED_DATA_TYPE,
+                            "Unsupported multi-table format: " + format);
                 }
             default:
                 throw new SeaTunnelJsonFormatException(

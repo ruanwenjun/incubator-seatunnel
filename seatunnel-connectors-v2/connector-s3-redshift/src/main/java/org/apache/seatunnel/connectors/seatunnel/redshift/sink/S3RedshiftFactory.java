@@ -93,18 +93,6 @@ public class S3RedshiftFactory implements TableSinkFactory {
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
                         S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
                         S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME)
-                .conditional(
-                        S3RedshiftConfig.CHANGELOG_MODE,
-                        S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE,
-                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
-                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
-                        S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME)
-                .conditional(
-                        S3RedshiftConfig.CHANGELOG_MODE,
-                        S3RedshiftChangelogMode.APPEND_ON_DUPLICATE_DELETE_AUTOMATIC,
-                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_SIZE,
-                        S3RedshiftConfig.CHANGELOG_BUFFER_FLUSH_INTERVAL,
-                        S3RedshiftConfig.REDSHIFT_TEMPORARY_TABLE_NAME)
                 .build();
     }
 

@@ -32,7 +32,6 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,7 +56,6 @@ import static org.apache.seatunnel.connectors.selectdb.sink.writer.LoadConstants
 
 @Slf4j
 public class SelectDBStageLoad implements Serializable {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final LabelGenerator labelGenerator;
     private final String lineDelimiter;
     private static final String UPLOAD_URL_PATTERN = "http://%s/copy/upload";
@@ -67,8 +65,6 @@ public class SelectDBStageLoad implements Serializable {
     private String hostPort;
     private final String username;
     private final String password;
-    private final String db;
-    private final String table;
     private final Properties stageLoadProps;
     private List<String> fileList = new CopyOnWriteArrayList();
     private RecordBuffer buffer;
@@ -84,9 +80,6 @@ public class SelectDBStageLoad implements Serializable {
     public SelectDBStageLoad(SelectDBConfig selectdbConfig, LabelGenerator labelGenerator) {
         this.selectdbConfig = selectdbConfig;
         this.hostPort = selectdbConfig.getLoadUrl();
-        String[] tableInfo = selectdbConfig.getTableIdentifier().split("\\.");
-        this.db = tableInfo[0];
-        this.table = tableInfo[1];
         this.username = selectdbConfig.getUsername();
         this.password = selectdbConfig.getPassword();
         this.labelGenerator = labelGenerator;

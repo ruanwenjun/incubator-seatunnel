@@ -23,6 +23,7 @@ import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SupportParallelism;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.connectors.cdc.base.config.SourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.dialect.DataSourceDialect;
 import org.apache.seatunnel.connectors.cdc.base.option.StartupMode;
@@ -38,13 +39,21 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.mongodb.sender.MongoDBConne
 import org.apache.seatunnel.connectors.seatunnel.cdc.mongodb.source.dialect.MongodbDialect;
 import org.apache.seatunnel.connectors.seatunnel.cdc.mongodb.source.offset.ChangeStreamOffsetFactory;
 
+import org.apache.kafka.connect.data.Struct;
+
 import com.google.auto.service.AutoService;
+import io.debezium.relational.TableId;
+import io.debezium.relational.history.ConnectTableChangeSerializer;
+import io.debezium.relational.history.TableChanges;
 import lombok.NoArgsConstructor;
 
 import javax.annotation.Nonnull;
 
-import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor
 @AutoService(SeaTunnelSource.class)
@@ -110,15 +119,17 @@ public class MongodbIncrementalSource<T> extends IncrementalSource<T, MongodbSou
     public DebeziumDeserializationSchema<T> createDebeziumDeserializationSchema(
             ReadonlyConfig config) {
         SeaTunnelDataType<SeaTunnelRow> physicalRowType;
+        Map<TableId, Struct> tableIdTableChangeMap = tableChanges();
         if (dataType == null) {
             return (DebeziumDeserializationSchema<T>)
                     new DebeziumJsonDeserializeSchema(
-                            config.get(MongodbSourceOptions.DEBEZIUM_PROPERTIES), new HashMap<>());
+                            config.get(MongodbSourceOptions.DEBEZIUM_PROPERTIES),
+                            tableIdTableChangeMap);
         } else {
             physicalRowType = dataType;
             return (DebeziumDeserializationSchema<T>)
                     new MongoDBConnectorDeserializationSchema(
-                            physicalRowType, physicalRowType, new HashMap<>());
+                            physicalRowType, physicalRowType, tableIdTableChangeMap);
         }
     }
 
@@ -130,5 +141,32 @@ public class MongodbIncrementalSource<T> extends IncrementalSource<T, MongodbSou
     @Override
     public OffsetFactory createOffsetFactory(ReadonlyConfig config) {
         return new ChangeStreamOffsetFactory();
+    }
+
+    private Map<TableId, Struct> tableChanges() {
+        MongodbSourceConfig mongodbSourceConfig = configFactory.create(0);
+        MongodbDialect dialect = new MongodbDialect();
+        List<TableId> discoverTables = dialect.discoverDataCollections(mongodbSourceConfig);
+        ConnectTableChangeSerializer connectTableChangeSerializer =
+                new ConnectTableChangeSerializer();
+        try {
+            return discoverTables.stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Function.identity(),
+                                    (tableId) -> {
+                                        TableChanges tableChanges = new TableChanges();
+                                        // TODO Adaptation is required
+                                        //                            tableChanges.create(
+                                        //
+                                        // dialect.queryTableSchema(jdbcConnection, tableId)
+                                        //                                    .getTable());
+                                        return connectTableChangeSerializer
+                                                .serialize(tableChanges)
+                                                .get(0);
+                                    }));
+        } catch (Exception e) {
+            throw new SeaTunnelException(e);
+        }
     }
 }

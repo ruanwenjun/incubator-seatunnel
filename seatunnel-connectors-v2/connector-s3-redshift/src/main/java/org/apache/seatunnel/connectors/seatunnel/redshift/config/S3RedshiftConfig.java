@@ -22,7 +22,6 @@ import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
-import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftTemporaryTableMode;
 
 import lombok.Builder;
 
@@ -94,23 +93,11 @@ public class S3RedshiftConfig extends S3Config {
                     .defaultValue(20000)
                     .withDescription("Flush connector memory buffer to s3 interval");
 
-    public static final Option<S3RedshiftTemporaryTableMode> REDSHIFT_TEMPORARY_TABLE_MODE =
-            Options.key("redshift_temporary_table_mode")
-                    .enumType(S3RedshiftTemporaryTableMode.class)
-                    .defaultValue(S3RedshiftTemporaryTableMode.S3_FILE_COPY_TEMPORARY_TABLE)
-                    .withDescription("Redshift temporary table mode");
-
     public static final Option<String> REDSHIFT_TEMPORARY_TABLE_NAME =
             Options.key("redshift_temporary_table_name")
                     .stringType()
                     .defaultValue("st_temporary_${redshift_table}")
                     .withDescription("Redshift temporary table name");
-
-    public static final Option<String> REDSHIFT_EXTERNAL_SCHEMA =
-            Options.key("redshift_external_schema")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Redshift external schema");
 
     public static final Option<String> REDSHIFT_S3_IAM_ROLE =
             Options.key("redshift_s3_iam_role")

@@ -135,14 +135,13 @@ public class MultiTableSink
 
     @Override
     public Optional<SinkCommitter<MultiTableCommitInfo>> createCommitter() throws IOException {
-        Map<SinkIdentifier, SinkCommitter<?>> committers = new HashMap<>();
+        Map<String, SinkCommitter<?>> committers = new HashMap<>();
         for (String tableIdentifier : sinks.keySet()) {
             SeaTunnelSink sink = sinks.get(tableIdentifier);
-            SinkIdentifier sinkIdentifier = SinkIdentifier.of(tableIdentifier, 1);
             sink.createCommitter()
                     .ifPresent(
                             committer ->
-                                    committers.put(sinkIdentifier, (SinkCommitter<?>) committer));
+                                    committers.put(tableIdentifier, (SinkCommitter<?>) committer));
         }
         return Optional.of(new MultiTableSinkCommitter(committers));
     }

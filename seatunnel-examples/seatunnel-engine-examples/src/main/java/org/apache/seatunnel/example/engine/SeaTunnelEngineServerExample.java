@@ -24,6 +24,7 @@ import org.apache.seatunnel.core.starter.seatunnel.args.ServerCommandArgs;
 public class SeaTunnelEngineServerExample {
     public static void main(String[] args) throws CommandException {
         ServerCommandArgs serverCommandArgs = new ServerCommandArgs();
+        serverCommandArgs.setClusterName("seatunnel");
         SeaTunnel.run(serverCommandArgs.buildCommand());
     }
 }

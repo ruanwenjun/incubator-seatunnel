@@ -70,9 +70,9 @@ public class S3RedshiftSink extends BaseHdfsFileSink
             ReadonlyConfig readonlyConfig) {
         this.readonlyConfig = readonlyConfig;
         this.pluginConfig = S3RedshiftConf.enhanceS3RedshiftConfig(pluginConfig);
-        this.catalogTable = catalogTable;
         this.hadoopConf = S3Conf.buildWithConfig(this.pluginConfig);
         this.s3RedshiftConf = s3RedshiftConf;
+        this.catalogTable = catalogTable;
         this.setTypeInfo(catalogTable.getTableSchema().toPhysicalRowDataType());
     }
 

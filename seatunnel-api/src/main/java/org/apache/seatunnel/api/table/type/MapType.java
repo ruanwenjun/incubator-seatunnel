@@ -19,13 +19,12 @@ package org.apache.seatunnel.api.table.type;
 
 import org.apache.seatunnel.shade.com.google.common.collect.Lists;
 
+import com.google.common.base.Preconditions;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkNotNull;
 
 public class MapType<K, V> implements CompositeType<Map<K, V>> {
 
@@ -49,9 +48,9 @@ public class MapType<K, V> implements CompositeType<Map<K, V>> {
     private final SeaTunnelDataType<V> valueType;
 
     public MapType(SeaTunnelDataType<K> keyType, SeaTunnelDataType<V> valueType) {
-        checkNotNull(keyType, "The key type is required.");
-        checkNotNull(valueType, "The value type is required.");
-        checkArgument(
+        Preconditions.checkNotNull(keyType, "The key type is required.");
+        Preconditions.checkNotNull(valueType, "The value type is required.");
+        Preconditions.checkArgument(
                 SUPPORTED_KEY_TYPES.contains(keyType.getSqlType()),
                 "Unsupported key types: %s",
                 keyType);

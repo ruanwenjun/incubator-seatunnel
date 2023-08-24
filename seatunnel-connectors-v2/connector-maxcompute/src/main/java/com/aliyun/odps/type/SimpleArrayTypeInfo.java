@@ -25,7 +25,7 @@ import com.aliyun.odps.OdpsType;
 public class SimpleArrayTypeInfo implements ArrayTypeInfo {
     private final TypeInfo valueType;
 
-    SimpleArrayTypeInfo(TypeInfo typeInfo) {
+    public SimpleArrayTypeInfo(TypeInfo typeInfo) {
         if (typeInfo == null) {
             throw new MaxcomputeConnectorException(
                     CommonErrorCode.UNSUPPORTED_DATA_TYPE, "Invalid element type.");

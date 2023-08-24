@@ -15,9 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
+package io.debezium.connector.informix;
 
-public enum S3RedshiftTemporaryTableMode {
-    S3_FILE_COPY_TEMPORARY_TABLE,
-    S3_EXTERNAL_TABLE,
+import io.debezium.util.IoUtil;
+
+import java.util.Properties;
+
+public final class Module {
+    private static final Properties INFO =
+            IoUtil.loadProperties(Module.class, "io/debezium/connector/informix/build.version");
+
+    public static String version() {
+        return INFO.getProperty("version");
+    }
+
+    public static String name() {
+        return "informix";
+    }
+
+    public static String contextName() {
+        return "Dameng";
+    }
 }

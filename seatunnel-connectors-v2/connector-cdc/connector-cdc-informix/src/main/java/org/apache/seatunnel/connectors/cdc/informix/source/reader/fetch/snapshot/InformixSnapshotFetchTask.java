@@ -1,0 +1,177 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.seatunnel.connectors.cdc.informix.source.reader.fetch.snapshot;
+
+import org.apache.seatunnel.connectors.cdc.base.relational.JdbcSourceEventDispatcher;
+import org.apache.seatunnel.connectors.cdc.base.source.reader.external.FetchTask;
+import org.apache.seatunnel.connectors.cdc.base.source.split.IncrementalSplit;
+import org.apache.seatunnel.connectors.cdc.base.source.split.SnapshotSplit;
+import org.apache.seatunnel.connectors.cdc.base.source.split.SourceSplitBase;
+import org.apache.seatunnel.connectors.cdc.base.source.split.wartermark.WatermarkKind;
+import org.apache.seatunnel.connectors.cdc.informix.source.InformixDialect;
+import org.apache.seatunnel.connectors.cdc.informix.source.reader.fetch.InformixSourceFetchTaskContext;
+import org.apache.seatunnel.connectors.cdc.informix.source.reader.fetch.cdc.InformixCDCLogSplitReadTask;
+
+import io.debezium.connector.informix.InformixOffsetContext;
+import io.debezium.pipeline.source.spi.ChangeEventSource;
+import io.debezium.pipeline.spi.SnapshotResult;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Map;
+
+@Slf4j
+@RequiredArgsConstructor
+public class InformixSnapshotFetchTask implements FetchTask<SourceSplitBase> {
+    private final SnapshotSplit split;
+    private volatile boolean taskRunning = false;
+    private InformixSnapshotSplitReadTask snapshotSplitReadTask;
+    private final InformixDialect dialect;
+
+    @Override
+    public void execute(Context context) throws Exception {
+        taskRunning = true;
+
+        InformixSourceFetchTaskContext sourceFetchContext =
+                (InformixSourceFetchTaskContext) context;
+        snapshotSplitReadTask =
+                new InformixSnapshotSplitReadTask(
+                        sourceFetchContext.getDbzConnectorConfig(),
+                        sourceFetchContext.getOffsetContext(),
+                        sourceFetchContext.getSnapshotChangeEventSourceMetrics(),
+                        sourceFetchContext.getDatabaseSchema(),
+                        sourceFetchContext.getConnection(),
+                        sourceFetchContext.getDispatcher(),
+                        split,
+                        dialect);
+        InformixSnapshotSplitChangeEventSourceContext changeEventSourceContext =
+                new InformixSnapshotSplitChangeEventSourceContext();
+        SnapshotResult snapshotResult =
+                snapshotSplitReadTask.execute(
+                        changeEventSourceContext, sourceFetchContext.getOffsetContext());
+        if (!snapshotResult.isCompletedOrSkipped()) {
+            taskRunning = false;
+            throw new IllegalStateException(
+                    String.format("Read snapshot for split %s fail", split));
+        }
+
+        boolean changed =
+                changeEventSourceContext
+                        .getHighWatermark()
+                        .isAfter(changeEventSourceContext.getLowWatermark());
+
+        if (!context.isExactlyOnce()) {
+            taskRunning = false;
+            if (changed) {
+                log.debug("Skip merge changelog(exactly-once) for snapshot split {}", split);
+            }
+            return;
+        }
+
+        IncrementalSplit backfillLogMinerSplit = createBackfillCDCSplit(changeEventSourceContext);
+        // optimization that skip the cdc read when the low watermark equals high watermark
+        if (!changed) {
+            dispatchCDCEndEvent(
+                    backfillLogMinerSplit,
+                    ((InformixSourceFetchTaskContext) context).getOffsetContext().getPartition(),
+                    ((InformixSourceFetchTaskContext) context).getDispatcher());
+            taskRunning = false;
+            return;
+        }
+        // execute cdc read task
+        InformixCDCLogSplitReadTask backfillCDCReadTask =
+                createBackfillCDCReadTask(backfillLogMinerSplit, sourceFetchContext);
+
+        log.info(
+                "start execute backfillReadTask, start offset : {}, stop offset : {}",
+                backfillLogMinerSplit.getStartupOffset(),
+                backfillLogMinerSplit.getStopOffset());
+        backfillCDCReadTask.execute(
+                new SnapshotScnSplitChangeEventSourceContext(),
+                sourceFetchContext.getOffsetContext());
+        log.info("backfillReadTask execute end");
+    }
+
+    @Override
+    public boolean isRunning() {
+        return taskRunning;
+    }
+
+    @Override
+    public void shutdown() {
+        taskRunning = false;
+    }
+
+    @Override
+    public SnapshotSplit getSplit() {
+        return split;
+    }
+
+    private InformixCDCLogSplitReadTask createBackfillCDCReadTask(
+            IncrementalSplit backfillLogMinerSplit, InformixSourceFetchTaskContext context) {
+        InformixOffsetContext.Loader loader =
+                new InformixOffsetContext.Loader(context.getSourceConfig().getDbzConnectorConfig());
+        InformixOffsetContext informixOffsetContext =
+                loader.load(backfillLogMinerSplit.getStartupOffset().getOffset());
+        return new InformixCDCLogSplitReadTask(
+                informixOffsetContext,
+                context.getSourceConfig(),
+                context.getConnection(),
+                context.getDispatcher(),
+                context.getErrorHandler(),
+                context.getDatabaseSchema(),
+                backfillLogMinerSplit);
+    }
+
+    private IncrementalSplit createBackfillCDCSplit(
+            InformixSnapshotSplitChangeEventSourceContext sourceContext) {
+        return new IncrementalSplit(
+                split.splitId(),
+                Collections.singletonList(split.getTableId()),
+                sourceContext.getLowWatermark(),
+                sourceContext.getHighWatermark(),
+                new ArrayList<>());
+    }
+
+    private void dispatchCDCEndEvent(
+            IncrementalSplit backFillLogMinerSplit,
+            Map<String, ?> sourcePartition,
+            JdbcSourceEventDispatcher eventDispatcher)
+            throws InterruptedException {
+        eventDispatcher.dispatchWatermarkEvent(
+                sourcePartition,
+                backFillLogMinerSplit,
+                backFillLogMinerSplit.getStopOffset(),
+                WatermarkKind.END);
+    }
+
+    public class SnapshotScnSplitChangeEventSourceContext
+            implements ChangeEventSource.ChangeEventSourceContext {
+
+        public void finished() {
+            taskRunning = false;
+        }
+
+        @Override
+        public boolean isRunning() {
+            return taskRunning;
+        }
+    }
+}
