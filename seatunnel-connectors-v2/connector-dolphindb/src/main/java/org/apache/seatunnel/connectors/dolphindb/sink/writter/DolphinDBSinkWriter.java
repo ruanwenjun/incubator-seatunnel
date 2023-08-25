@@ -1,7 +1,6 @@
 package org.apache.seatunnel.connectors.dolphindb.sink.writter;
 
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
-
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.dolphindb.exception.DolphinDBConnectorException;
@@ -23,7 +22,7 @@ public class DolphinDBSinkWriter extends AbstractSinkWriter<SeaTunnelRow, Void> 
 
     private final MultithreadedTableWriter multithreadedTableWriter;
 
-    public DolphinDBSinkWriter(Config pluginConfig, SeaTunnelRowType seaTunnelRowType)
+    public DolphinDBSinkWriter(ReadonlyConfig pluginConfig, SeaTunnelRowType seaTunnelRowType)
             throws Exception {
         this.multithreadedTableWriter =
                 MultithreadedTableWriterFactory.createMultithreadedTableWriter(pluginConfig);

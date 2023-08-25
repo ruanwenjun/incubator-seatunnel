@@ -2,6 +2,7 @@ package org.apache.seatunnel.connectors.dolphindb.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 
 import com.xxdb.multithreadedtablewriter.MultithreadedTableWriter;
 import lombok.experimental.UtilityClass;
@@ -64,4 +65,25 @@ public class DolphinDBConfig {
                     .listType(Integer.class)
                     .noDefaultValue()
                     .withDescription("compress type of each column. 1: LZ4, 2: DELTAOFDELTA");
+
+    public static final Option<DataSaveMode> SAVE_MODE =
+            Options.key("save_mode")
+                    .enumType(DataSaveMode.class)
+                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
+                    .withDescription("save_mode");
+
+    public static final Option<String> SAVE_MODE_CREATE_TEMPLATE =
+            Options.key("save_mode_create_template")
+                    .stringType()
+                    .defaultValue(
+                            "CREATE TABLE IF NOT EXISTS `${database}`.`${table_name}` (\n"
+                                    + "${rowtype_fields}\n"
+                                    + ") ENGINE=OLAP\n"
+                                    + " UNIQUE KEY (${rowtype_primary_key})\n"
+                                    + "DISTRIBUTED BY HASH (${rowtype_primary_key})")
+                    .withDescription(
+                            "Create table statement template, used to create StarRocks table");
+
+    public static final Option<String> CUSTOM_SQL =
+            Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
 }

@@ -4,6 +4,9 @@ import org.apache.seatunnel.common.exception.SeaTunnelErrorCode;
 
 public enum DolphinDBErrorCode implements SeaTunnelErrorCode {
     WRITE_DATA_ERROR("DolphinDB-0001", "Write data error"),
+    SOURCE_ALREADY_HAS_DATA("DolphinDB-0002", "SaveMode error"),
+    EXECUTE_CUSTOMER_SCRIPT_ERROR("DolphinDB-0003", "Execute customer sql error"),
+    CHECK_DATA_ERROR("DolphinDB-0004", "Check data exist error"),
     ;
     private final String code;
     private final String description;
