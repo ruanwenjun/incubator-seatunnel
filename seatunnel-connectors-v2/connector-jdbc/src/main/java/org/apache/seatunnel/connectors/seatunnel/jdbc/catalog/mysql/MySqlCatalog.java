@@ -405,14 +405,6 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         return new MysqlDataTypeConvertor().toSeaTunnelType(mysqlType, dataTypeProperties);
     }
 
-    private SeaTunnelDataType<?> fromJdbcType(String typeName, int precision, int scale) {
-        MysqlType mysqlType = MysqlType.getByName(typeName);
-        Map<String, Object> dataTypeProperties = new HashMap<>();
-        dataTypeProperties.put(MysqlDataTypeConvertor.PRECISION, precision);
-        dataTypeProperties.put(MysqlDataTypeConvertor.SCALE, scale);
-        return new MysqlDataTypeConvertor().toSeaTunnelType(mysqlType, dataTypeProperties);
-    }
-
     @SuppressWarnings("MagicNumber")
     private Map<String, String> buildConnectorOptions(TablePath tablePath) {
         Map<String, String> options = new HashMap<>(8);

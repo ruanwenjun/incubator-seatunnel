@@ -18,7 +18,6 @@
 package org.apache.seatunnel.format.compatible.kafka.connect.json;
 
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
@@ -74,11 +73,11 @@ public class CompatibleKafkaConnectDeserializationSchema
 
     public CompatibleKafkaConnectDeserializationSchema(
             @NonNull SeaTunnelRowType seaTunnelRowType,
-            @NonNull Config config,
+            @NonNull ReadonlyConfig config,
             boolean failOnMissingField,
             boolean ignoreParseErrors) {
 
-        Map<String, String> configMap = ReadonlyConfig.fromConfig(config).toMap();
+        Map<String, String> configMap = config.toMap();
         this.seaTunnelRowType = seaTunnelRowType;
         this.keySchemaEnable =
                 KafkaConnectJsonFormatOptions.getKeyConverterSchemaEnabled(configMap);

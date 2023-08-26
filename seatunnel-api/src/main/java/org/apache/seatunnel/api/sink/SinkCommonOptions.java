@@ -15,28 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.mysql;
+package org.apache.seatunnel.api.sink;
 
-import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialectFactory;
+import org.apache.seatunnel.api.annotation.Experimental;
+import org.apache.seatunnel.api.configuration.Option;
+import org.apache.seatunnel.api.configuration.Options;
 
-import com.google.auto.service.AutoService;
+public class SinkCommonOptions {
 
-/** Factory for {@link MysqlDialect}. */
-@AutoService(JdbcDialectFactory.class)
-public class MySqlDialectFactory implements JdbcDialectFactory {
-    @Override
-    public boolean acceptsURL(String url) {
-        return url.startsWith("jdbc:mysql:");
-    }
+    public static final String DATA_SAVE_MODE = "save_mode";
 
-    @Override
-    public JdbcDialect create() {
-        return new MysqlDialect();
-    }
-
-    @Override
-    public JdbcDialect createWithFieldIde(String fieldIde) {
-        return new MysqlDialect(fieldIde);
-    }
+    @Experimental
+    public static Option<Integer> MULTI_TABLE_SINK_REPLICA =
+            Options.key("multi_table_sink_replica")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription("The replica number of multi table sink");
 }

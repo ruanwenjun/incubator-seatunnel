@@ -38,6 +38,14 @@ public interface JdbcDialectFactory {
     /** @return Creates a new instance of the {@link JdbcDialect}. */
     JdbcDialect create();
 
+    default JdbcDialect createWithFieldIde(String fieldIde) {
+        return create();
+    }
+
+    default JdbcDialect createWithCompatible(String compatibleMode) {
+        return create();
+    }
+
     /**
      * Create a {@link JdbcDialect} instance based on the driver type and compatible mode.
      *

@@ -200,6 +200,8 @@ public class JdbcOutputFormat<I, E extends JdbcBatchStatementExecutor<I>> implem
                                     "Writing records to JDBC failed.",
                                     e);
                 }
+            }
+            try {
                 if (jdbcStatementExecutor != null) {
                     jdbcStatementExecutor.closeStatements();
                 }

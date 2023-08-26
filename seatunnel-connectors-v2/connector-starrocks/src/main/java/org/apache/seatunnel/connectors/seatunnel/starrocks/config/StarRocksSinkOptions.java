@@ -19,9 +19,9 @@ package org.apache.seatunnel.connectors.seatunnel.starrocks.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig.StreamLoadFormat;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -145,7 +145,8 @@ public interface StarRocksSinkOptions {
             Options.key("save_mode")
                     .enumType(DataSaveMode.class)
                     .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
-                    .withDescription("Table structure and data processing methods that already exist on the target end");
+                    .withDescription(
+                            "Table structure and data processing methods that already exist on the target end");
 
     Option<String> CUSTOM_SQL =
             Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");

@@ -154,8 +154,10 @@ public class JdbcSinkFactory implements TableSinkFactory {
                         ? FieldIdeEnum.ORIGINAL.getValue()
                         : config.get(JdbcOptions.FIELD_IDE).getValue();
         JdbcDialect dialect =
-                JdbcDialectLoader.load(sinkConfig.getJdbcConnectionConfig().getUrl(),
-                    sinkConfig.getJdbcConnectionConfig().getCompatibleMode(), fieldIde);
+                JdbcDialectLoader.load(
+                        sinkConfig.getJdbcConnectionConfig().getUrl(),
+                        sinkConfig.getJdbcConnectionConfig().getCompatibleMode(),
+                        fieldIde);
         CatalogTable finalCatalogTable = catalogTable;
         // get saveMode
         DataSaveMode dataSaveMode = DataSaveMode.ERROR_WHEN_EXISTS;
@@ -180,7 +182,6 @@ public class JdbcSinkFactory implements TableSinkFactory {
                         GENERATE_SINK_SQL,
                         AUTO_COMMIT,
                         ENABLE_UPSERT,
-                        SUPPORT_UPSERT_BY_QUERY_PRIMARY_KEY_EXIST,
                         PRIMARY_KEYS,
                         COMPATIBLE_MODE,
                         SUPPORT_UPSERT_BY_INSERT_ONLY,

@@ -64,10 +64,6 @@ public class JobExecutionEnvironment extends AbstractJobEnvironment {
                 jobFilePath, idGenerator, jobConfig, commonPluginJars, isStartWithSavePoint);
     }
 
-    private LogicalDagGenerator getLogicalDagGenerator() {
-        return new LogicalDagGenerator(actions, jobConfig, idGenerator);
-    }
-
     public ClientJobProxy execute() throws ExecutionException, InterruptedException {
         JobImmutableInformation jobImmutableInformation =
                 new JobImmutableInformation(
