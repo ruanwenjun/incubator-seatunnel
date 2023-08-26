@@ -2,7 +2,6 @@ package org.apache.seatunnel.connectors.dolphindb.sink;
 
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
-import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
@@ -51,7 +50,6 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
                         WRITE_MODE,
                         COMPRESS_TYPE,
                         SAVE_MODE,
-                        CUSTOM_SQL,
                         SAVE_MODE_CREATE_TEMPLATE)
                 .conditional(WRITE_MODE, MultithreadedTableWriter.Mode.M_Upsert, KEY_COL_NAMES)
                 .conditional(SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
@@ -61,9 +59,5 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
     @Override
     public TableSink<SeaTunnelRow, Void, Void, Void> createSink(TableFactoryContext context) {
         return () -> new DolphinDBSink(context.getCatalogTable(), context.getOptions());
-    }
-
-    public Class<? extends SeaTunnelSink<SeaTunnelRow, Void, Void, Void>> getSinkClass() {
-        return DolphinDBSink.class;
     }
 }

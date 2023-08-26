@@ -7,7 +7,6 @@ import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkWriter;
-import org.apache.seatunnel.api.sink.SupportAutoCreateTable;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
@@ -27,7 +26,7 @@ import java.io.IOException;
 
 @AutoService(SeaTunnelSink.class)
 public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void>
-        implements SupportDataSaveMode, SupportAutoCreateTable {
+        implements SupportDataSaveMode {
 
     private final ReadonlyConfig readonlyConfig;
 
@@ -94,11 +93,5 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void>
     public void handleSaveMode(DataSaveMode dataSaveMode) {
         new DolphinDBSaveModeHandler(catalogTable, readonlyConfig, seaTunnelRowType, dataSaveMode)
                 .handleSaveMode();
-    }
-
-    @Override
-    public void handleAutoCreateTable() {
-        new DolphinDBAutoCreateTableHandler(catalogTable, readonlyConfig, seaTunnelRowType)
-                .createTable();
     }
 }

@@ -76,11 +76,14 @@ public class DolphinDBConfig {
             Options.key("save_mode_create_template")
                     .stringType()
                     .defaultValue(
-                            "CREATE TABLE IF NOT EXISTS `${database}`.`${table_name}` (\n"
-                                    + "${rowtype_fields}\n"
-                                    + ") ENGINE=OLAP\n"
-                                    + " UNIQUE KEY (${rowtype_primary_key})\n"
-                                    + "DISTRIBUTED BY HASH (${rowtype_primary_key})")
+                            "create table \"${database}\".\"${table_name}\"(\n"
+                                    + "     id INT,\n"
+                                    + "     user_name STRING,\n"
+                                    + "     user_password STRING,\n"
+                                    + "     create_time TIMESTAMP,\n"
+                                    + "     update_time TIMESTAMP\n"
+                                    + " )\n"
+                                    + " partitioned by ID;")
                     .withDescription(
                             "Create table statement template, used to create StarRocks table");
 
