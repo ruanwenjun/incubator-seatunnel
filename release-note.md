@@ -7,6 +7,8 @@
 - [Core] [API] Fix parse nested row data type key changed upper (#4459)
 - [Starter][Flink]Support transform-v2 for flink #3396
 - [Flink] Support flink 1.14.x #3963
+- [Core][Translation][Spark] Fix SeaTunnelRowConvertor fail to convert when schema contains row type (#5170)
+
 ### Transformer
 - [Spark] Support transform-v2 for spark (#3409)
 - [ALL]Add FieldMapper Transform #3781
@@ -45,6 +47,7 @@
 - [Connector-v2] [File] Fix configuration file format and error comments (#4762)
 - [Connector-v2] [Jdbc] Fix oracle sql table identifier (#4754)
 - [Connector-v2] [Clickhouse] fix get clickhouse local table name with closing bracket from distributed table engineFull (#4710)
+- [Connector-v2] [CDC] Fix jdbc connection leak for mysql (#5037)
 
 ### Zeta(ST-Engine)
 
@@ -80,6 +83,8 @@
 - [E2e] [Mysql-cdc] Removing the excess MySqlIncrementalSourceIT e2e reduces the CI time (#4738)
 
 ## Improve
+
+- [Improve][Connector-V2][Jdbc-Source] Support for Decimal types as splict keys (#4634)
 
 ### Core
 
@@ -180,8 +185,10 @@
 - [Docs] Fix markdown syntax (#4426)
 - [Docs] Fix Kafka Doc Error Config Key "kafka." (#4427)
 - [Docs] Add Transform to Quick Start v2 (#4436)
+- [Docs] Fix Dockerfile and seatunnel-flink.yaml in Set Up with Kubernetes (#4788)
 - [Docs] Fix Mysql sink format doc (#4800)
 - [Docs] Add the generate sink sql parameter for the jdbc sink document (#4797)
 - [Docs] Add the generate sink sql parameter And example (#4769)
 - [Docs] Redshift add defaultRowFetchSize (#4616)
 - [Docs] Refactor connector-v2 docs using unified format Mysql (#4590)
+- [Docs] Add Value types in Java to Schema features (#5087)

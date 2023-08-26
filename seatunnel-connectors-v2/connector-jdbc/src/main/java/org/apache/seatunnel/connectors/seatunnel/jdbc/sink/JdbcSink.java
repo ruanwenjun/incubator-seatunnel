@@ -34,7 +34,7 @@ import org.apache.seatunnel.api.sink.SupportMultiTableSink;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
-import org.apache.seatunnel.api.table.factory.CatalogFactory;
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -110,6 +110,7 @@ public class JdbcSink
         this.dialect =
                 JdbcDialectLoader.load(
                         jdbcSinkConfig.getJdbcConnectionConfig().getUrl(),
+                        jdbcSinkConfig.getJdbcConnectionConfig().getCompatibleMode(),
                         config.get(JdbcOptions.FIELD_IDE) == null
                                 ? FieldIdeEnum.ORIGINAL.getValue()
                                 : config.get(JdbcOptions.FIELD_IDE).getValue());

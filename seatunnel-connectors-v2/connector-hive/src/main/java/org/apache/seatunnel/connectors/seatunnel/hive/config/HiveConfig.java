@@ -40,6 +40,13 @@ public class HiveConfig {
                     .noDefaultValue()
                     .withDescription("Hive metastore uri");
 
+    public static final Option<Boolean> ABORT_DROP_PARTITION_METADATA =
+            Options.key("abort_drop_partition_metadata")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Flag to decide whether to drop partition metadata from Hive Metastore during an abort operation. Note: this only affects the metadata in the metastore, the data in the partition will always be deleted(data generated during the synchronization process).");
+
     public static final Option<String> HIVE_SITE_PATH =
             Options.key("hive_site_path")
                     .stringType()
@@ -47,18 +54,18 @@ public class HiveConfig {
                     .withDescription("The path of hive-site.xml");
 
     public static final Option<List<String>> READ_PARTITIONS =
-            Options.key("read_partitions")
-                    .listType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "The target partitions that user want to read from hive table, if user does not set this parameter, it will read all the data from hive table");
+        Options.key("read_partitions")
+            .listType()
+            .noDefaultValue()
+            .withDescription(
+                "The target partitions that user want to read from hive table, if user does not set this parameter, it will read all the data from hive table");
 
     public static final Option<List<String>> READ_COLUMNS =
-            Options.key("read_columns")
-                    .listType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "The read column list of the data source, user can use it to implement field projection");
+        Options.key("read_columns")
+            .listType()
+            .noDefaultValue()
+            .withDescription(
+                "The read column list of the data source, user can use it to implement field projection");
 
     public static final String TEXT_INPUT_FORMAT_CLASSNAME =
             "org.apache.hadoop.mapred.TextInputFormat";

@@ -117,6 +117,11 @@ public class SelectDBSink
     }
 
     @Override
+    public void setJobContext(JobContext jobContext) {
+        this.jobId = jobContext.getJobId();
+    }
+
+    @Override
     public void setTypeInfo(SeaTunnelRowType seaTunnelRowType) {
         String[] table = selectDBConfig.getTableIdentifier().split("\\.");
         if (table.length != 2) {

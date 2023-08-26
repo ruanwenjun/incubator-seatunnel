@@ -15,20 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.api.sink;
+package org.apache.seatunnel.connectors.seatunnel.mongodb.sink.state;
 
-import org.apache.seatunnel.api.annotation.Experimental;
-import org.apache.seatunnel.api.configuration.Option;
-import org.apache.seatunnel.api.configuration.Options;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-public class SinkCommonOptions {
+import java.io.Serializable;
+import java.util.List;
 
-    public static final String DATA_SAVE_MODE = "save_mode";
-
-    @Experimental
-    public static Option<Integer> MULTI_TABLE_SINK_REPLICA =
-            Options.key("multi_table_sink_replica")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription("The replica number of multi table sink");
+@Data
+@AllArgsConstructor
+public class MongodbCommitInfo implements Serializable {
+    List<DocumentBulk> documentBulks;
 }
