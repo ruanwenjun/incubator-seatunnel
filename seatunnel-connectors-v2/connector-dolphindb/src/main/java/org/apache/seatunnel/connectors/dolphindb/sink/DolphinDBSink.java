@@ -40,6 +40,7 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void>
         this.catalogTable = catalogTable;
         this.readonlyConfig = readonlyConfig;
         this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
+        this.dataSaveMode = readonlyConfig.get(DolphinDBConfig.SAVE_MODE);
     }
 
     @Override
@@ -61,7 +62,6 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void>
         if (!result.isSuccess()) {
             throw new PrepareFailException(getPluginName(), PluginType.SINK, result.getMsg());
         }
-        dataSaveMode = readonlyConfig.get(DolphinDBConfig.SAVE_MODE);
     }
 
     @Override

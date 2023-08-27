@@ -22,6 +22,7 @@ import com.xxdb.data.BasicStringVector;
 import com.xxdb.data.BasicTable;
 import com.xxdb.data.Entity;
 import com.xxdb.data.Vector;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.seatunnel.connectors.dolphindb.exception.DolphinDBErrorCode.CHECK_DATA_ERROR;
 import static org.apache.seatunnel.connectors.dolphindb.exception.DolphinDBErrorCode.EXECUTE_CUSTOMER_SCRIPT_ERROR;
 
+@Slf4j
 public class DolphinDBCatalog implements Catalog {
 
     private final String catalogName;
@@ -56,7 +58,10 @@ public class DolphinDBCatalog implements Catalog {
             String databaseName,
             String tableName,
             boolean useSSL) {
-        this.catalogName = checkNotNull(catalogName);
+        if (catalogName == null) {
+            log.warn("The catalogName is null");
+        }
+        this.catalogName = catalogName;
         this.addresses = checkNotNull(addresses);
         this.user = checkNotNull(user);
         this.password = checkNotNull(password);
@@ -82,7 +87,9 @@ public class DolphinDBCatalog implements Catalog {
 
     @Override
     public void close() throws CatalogException {
-        dbConnection.close();
+        if (dbConnection != null) {
+            dbConnection.close();
+        }
     }
 
     @Override

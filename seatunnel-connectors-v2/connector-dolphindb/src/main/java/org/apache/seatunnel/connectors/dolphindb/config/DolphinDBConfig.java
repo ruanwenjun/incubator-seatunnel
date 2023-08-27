@@ -80,8 +80,8 @@ public class DolphinDBConfig {
                                     + "     id INT,\n"
                                     + "     user_name STRING,\n"
                                     + "     user_password STRING,\n"
-                                    + "     create_time TIMESTAMP,\n"
-                                    + "     update_time TIMESTAMP\n"
+                                    + "     create_time STRING,\n"
+                                    + "     update_time STRING\n"
                                     + " )\n"
                                     + " partitioned by ID;")
                     .withDescription(

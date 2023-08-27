@@ -1,6 +1,5 @@
 package org.apache.seatunnel.connectors.dolphindb.sink;
 
-import org.apache.seatunnel.api.common.CommonOptions;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.Catalog;
@@ -18,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.seatunnel.api.common.CommonOptions.FACTORY_ID;
+import static org.apache.seatunnel.api.common.CommonOptions.PLUGIN_NAME;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.SAVE_MODE_CREATE_TEMPLATE;
 import static org.apache.seatunnel.connectors.dolphindb.exception.DolphinDBErrorCode.SOURCE_ALREADY_HAS_DATA;
@@ -42,8 +43,19 @@ public class DolphinDBSaveModeHandler {
     }
 
     public void handleSaveMode() {
-        TablePath tablePath = catalogTable.getTableId().toTablePath();
+        TablePath tablePath;
+        if (readonlyConfig.get(DolphinDBConfig.DATABASE) != null
+                && readonlyConfig.get(DolphinDBConfig.TABLE) != null) {
+            tablePath =
+                    TablePath.of(
+                            readonlyConfig.get(DolphinDBConfig.DATABASE),
+                            readonlyConfig.get(DolphinDBConfig.TABLE));
+        } else {
+            tablePath = catalogTable.getTableId().toTablePath();
+        }
+
         try (DolphinDBCatalog catalog = createCatalog()) {
+            catalog.open();
             switch (dataSaveMode) {
                 case DROP_SCHEMA:
                     if (catalog.tableExists(tablePath)) {
@@ -91,8 +103,10 @@ public class DolphinDBSaveModeHandler {
     }
 
     private DolphinDBCatalog createCatalog() {
-        Map<String, String> catalogOptions = readonlyConfig.get(CatalogOptions.CATALOG_OPTIONS);
-        String factoryId = catalogOptions.get(CommonOptions.FACTORY_ID.key());
+        Map<String, String> catalogOptions =
+                readonlyConfig.getOptional(CatalogOptions.CATALOG_OPTIONS).orElse(new HashMap<>());
+        String factoryId =
+                catalogOptions.getOrDefault(FACTORY_ID.key(), readonlyConfig.get(PLUGIN_NAME));
         CatalogFactory catalogFactory =
                 discoverFactory(
                         Thread.currentThread().getContextClassLoader(),
@@ -103,9 +117,7 @@ public class DolphinDBSaveModeHandler {
         }
         // get catalog instance to operation database
         Catalog catalog =
-                catalogFactory.createCatalog(
-                        catalogFactory.factoryIdentifier(),
-                        ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)));
+                catalogFactory.createCatalog(catalogFactory.factoryIdentifier(), readonlyConfig);
         return (DolphinDBCatalog) catalog;
     }
 
@@ -116,8 +128,14 @@ public class DolphinDBSaveModeHandler {
         if (!catalog.databaseExists(database)) {
             catalog.createDatabase(TablePath.of(database, ""), true);
         }
-        if (!catalog.tableExists(TablePath.of(database, tableName))) {
-            catalog.executeScript(template);
+        if (!catalog.tableExists(tablePath)) {
+            String finalTemplate = injectValueInTemplate(tablePath, template);
+            catalog.executeScript(finalTemplate);
         }
+    }
+
+    private String injectValueInTemplate(TablePath tablePath, String template) {
+        return template.replaceAll("\\$\\{database\\}", tablePath.getDatabaseName())
+                .replaceAll("\\$\\{table_name\\}", tablePath.getTableName());
     }
 }
