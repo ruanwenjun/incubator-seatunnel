@@ -27,6 +27,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -59,6 +60,13 @@ public class SelectDBConfig implements Serializable {
                     .stringType()
                     .noDefaultValue()
                     .withDescription("the jdbc table name.");
+
+    public static final Option<String> DATABASE =
+            Options.key("database")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("the jdbc database name.");
+
     public static final Option<String> USERNAME =
             Options.key("username")
                     .stringType()
@@ -122,10 +130,17 @@ public class SelectDBConfig implements Serializable {
                     .defaultValue(1)
                     .withDescription("Queue length for async upload to object storage");
 
+    private static Map<String, String> createDefaultSelectdbConfigMap() {
+        Map<String, String> defaultMap = new HashMap<>();
+        defaultMap.put("file.type", "json");
+        defaultMap.put("file.strip_outer_array", "false");
+        return defaultMap;
+    }
+
     public static final Option<Map<String, String>> SELECTDB_SINK_CONFIG_PREFIX =
             Options.key("selectdb.config")
                     .mapType()
-                    .noDefaultValue()
+                    .defaultValue(createDefaultSelectdbConfigMap())
                     .withDescription(
                             "The parameter of the Copy Into data_desc. "
                                     + "The way to specify the parameter is to add the prefix `selectdb.config` to the original load parameter name ");
@@ -136,6 +151,7 @@ public class SelectDBConfig implements Serializable {
     private String username;
     private String password;
     private String tableIdentifier;
+    private String database;
     private Boolean enableDelete;
     private String labelPrefix;
     private Integer maxRetries;
@@ -156,6 +172,7 @@ public class SelectDBConfig implements Serializable {
         selectdbConfig.setCustomSql(pluginConfig.get(CUSTOM_SQL));
         selectdbConfig.setPassword(pluginConfig.get(PASSWORD));
         selectdbConfig.setTableIdentifier(pluginConfig.get(TABLE_IDENTIFIER));
+        selectdbConfig.setDatabase(pluginConfig.get(DATABASE));
         selectdbConfig.setStageLoadProps(parseCopyIntoProperties(pluginConfig));
         selectdbConfig.setLabelPrefix(pluginConfig.get(SINK_LABEL_PREFIX));
         selectdbConfig.setMaxRetries(pluginConfig.get(SINK_MAX_RETRIES));

@@ -27,8 +27,6 @@ import org.apache.seatunnel.connectors.selectdb.serialize.SeaTunnelRowSerializer
 import org.apache.seatunnel.connectors.selectdb.serialize.SelectDBSerializer;
 import org.apache.seatunnel.connectors.selectdb.sink.committer.SelectDBCommitInfo;
 
-import org.apache.commons.lang3.StringUtils;
-
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -69,25 +67,14 @@ public class SelectDBSinkWriter
         this.selectdbSinkState =
                 new SelectDBSinkState(selectdbConfig.getLabelPrefix(), lastCheckpointId);
 
-        if (StringUtils.isNotEmpty(selectdbConfig.getTableIdentifier())) {
-            this.labelPrefix =
-                    selectdbConfig.getLabelPrefix()
-                            + "_"
-                            + selectdbConfig.getTableIdentifier()
-                            + "_"
-                            + jobId
-                            + "_"
-                            + context.getIndexOfSubtask();
-        } else {
-            this.labelPrefix =
-                    selectdbConfig.getLabelPrefix()
-                            + "_"
-                            + catalogTable.getTableId().toTablePath()
-                            + "_"
-                            + jobId
-                            + "_"
-                            + context.getIndexOfSubtask();
-        }
+        this.labelPrefix =
+                selectdbConfig.getLabelPrefix()
+                        + "_"
+                        + catalogTable.getTableId().toTablePath()
+                        + "_"
+                        + jobId
+                        + "_"
+                        + context.getIndexOfSubtask();
 
         this.lineDelimiter =
                 selectdbConfig

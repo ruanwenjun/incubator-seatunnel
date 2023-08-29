@@ -34,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.auto.service.AutoService;
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_REPLICA;
 import static org.apache.seatunnel.connectors.seatunnel.iceberg.config.CommonConfig.HDFS_SITE_PATH;
 import static org.apache.seatunnel.connectors.seatunnel.iceberg.config.CommonConfig.HIVE_SITE_PATH;
 import static org.apache.seatunnel.connectors.seatunnel.iceberg.config.CommonConfig.KERBEROS_KEYTAB_PATH;
@@ -78,6 +79,7 @@ public class IcebergSinkFactory implements TableSinkFactory {
                 .optional(PRIMARY_KEYS)
                 .optional(TARGET_FILE_SIZE_BYTES)
                 .optional(TABLE_PREFIX, TABLE_SUFFIX)
+                .optional(MULTI_TABLE_SINK_REPLICA)
                 .build();
     }
 

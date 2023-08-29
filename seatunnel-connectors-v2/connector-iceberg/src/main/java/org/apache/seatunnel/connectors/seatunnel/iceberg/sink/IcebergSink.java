@@ -24,12 +24,6 @@ import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.serialization.DefaultSerializer;
 import org.apache.seatunnel.api.serialization.Serializer;
-import org.apache.seatunnel.api.sink.DataSaveMode;
-import org.apache.seatunnel.api.sink.SeaTunnelSink;
-import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
-import org.apache.seatunnel.api.sink.SinkCommonOptions;
-import org.apache.seatunnel.api.sink.SinkWriter;
-import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.ConstraintKey;
 import org.apache.seatunnel.api.table.catalog.PhysicalColumn;
@@ -76,7 +70,8 @@ public class IcebergSink
                         IcebergSinkState,
                         IcebergCommitInfo,
                         IcebergAggregatedCommitInfo>,
-                SupportDataSaveMode {
+                SupportDataSaveMode,
+                SupportMultiTableSink {
 
     private SeaTunnelRowType seaTunnelRowType;
 

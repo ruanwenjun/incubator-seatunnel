@@ -28,11 +28,7 @@ public class SelectDBSaveModeHandler {
         this.saveMode = saveMode;
         this.catalogTable = catalogTable;
         this.catalog = catalog;
-        if (selectDBConfig.getTableIdentifier() != null) {
-            tablePath = TablePath.of(selectDBConfig.getTableIdentifier());
-        } else {
-            tablePath = catalogTable.getTableId().toTablePath();
-        }
+        tablePath = catalogTable.getTableId().toTablePath();
     }
 
     public void doHandleSaveMode() {

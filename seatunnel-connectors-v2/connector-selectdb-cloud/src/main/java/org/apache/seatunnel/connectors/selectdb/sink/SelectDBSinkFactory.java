@@ -17,9 +17,11 @@
 
 package org.apache.seatunnel.connectors.selectdb.sink;
 
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
@@ -34,6 +36,7 @@ import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_R
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.BASE_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CLUSTER_NAME;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CUSTOM_SQL;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.DATABASE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.LOAD_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.PASSWORD;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SAVE_MODE;
@@ -62,6 +65,7 @@ public class SelectDBSinkFactory
         return OptionRule.builder()
                 .required(BASE_URL, LOAD_URL, CLUSTER_NAME, USERNAME, PASSWORD)
                 .optional(
+                        DATABASE,
                         TABLE_IDENTIFIER,
                         SINK_MAX_RETRIES,
                         SINK_LABEL_PREFIX,
@@ -81,14 +85,21 @@ public class SelectDBSinkFactory
     public TableSink<SeaTunnelRow, SelectDBSinkState, SelectDBCommitInfo, SelectDBCommitInfo>
             createSink(TableFactoryContext context) {
         CatalogTable catalogTable = context.getCatalogTables().get(0);
+        ReadonlyConfig options = context.getOptions();
+        String databaseName = catalogTable.getTableId().getDatabaseName();
+        String tableName = catalogTable.getTableId().getTableName();
+        if (options.getOptional(DATABASE).isPresent()) {
+            databaseName = options.get(DATABASE);
+        }
+        if (options.getOptional(TABLE_IDENTIFIER).isPresent()) {
+            TablePath tablePath = TablePath.of(options.getOptional(TABLE_IDENTIFIER).get());
+            databaseName = tablePath.getDatabaseName();
+            tableName = tablePath.getTableName();
+        }
         TableIdentifier newTableId =
                 TableIdentifier.of(
-                        catalogTable.getTableId().getCatalogName(),
-                        catalogTable.getTableId().getDatabaseName(),
-                        null,
-                        catalogTable.getTableId().getTableName());
+                        catalogTable.getTableId().getCatalogName(), databaseName, null, tableName);
 
-        return () ->
-                new SelectDBSink(CatalogTable.of(newTableId, catalogTable), context.getOptions());
+        return () -> new SelectDBSink(CatalogTable.of(newTableId, catalogTable), options);
     }
 }
