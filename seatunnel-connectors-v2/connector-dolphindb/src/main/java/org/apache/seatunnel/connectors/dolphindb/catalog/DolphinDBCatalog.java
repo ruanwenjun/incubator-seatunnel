@@ -66,7 +66,7 @@ public class DolphinDBCatalog implements Catalog {
         this.user = checkNotNull(user);
         this.password = checkNotNull(password);
         this.databaseName = checkNotNull(databaseName);
-        this.tableName = checkNotNull(tableName);
+        this.tableName = tableName;
         this.useSSL = useSSL;
     }
 

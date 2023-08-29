@@ -123,6 +123,8 @@ public class DolphinDBSaveModeHandler {
 
     private void autoCreateTableByTemplate(
             DolphinDBCatalog catalog, TablePath tablePath, String template) {
+        // todo: it's not a good idea to auto create database and table in dolphindb, since it's
+        // rely on many params
         String database = tablePath.getDatabaseName();
         String tableName = tablePath.getTableName();
         if (!catalog.databaseExists(database)) {
