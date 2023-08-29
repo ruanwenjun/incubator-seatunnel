@@ -19,6 +19,7 @@ package org.apache.seatunnel.connectors.selectdb.sink;
 
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
@@ -80,6 +81,14 @@ public class SelectDBSinkFactory
     public TableSink<SeaTunnelRow, SelectDBSinkState, SelectDBCommitInfo, SelectDBCommitInfo>
             createSink(TableFactoryContext context) {
         CatalogTable catalogTable = context.getCatalogTables().get(0);
-        return () -> new SelectDBSink(catalogTable, context.getOptions());
+        TableIdentifier newTableId =
+                TableIdentifier.of(
+                        catalogTable.getTableId().getCatalogName(),
+                        catalogTable.getTableId().getDatabaseName(),
+                        null,
+                        catalogTable.getTableId().getTableName());
+
+        return () ->
+                new SelectDBSink(CatalogTable.of(newTableId, catalogTable), context.getOptions());
     }
 }
