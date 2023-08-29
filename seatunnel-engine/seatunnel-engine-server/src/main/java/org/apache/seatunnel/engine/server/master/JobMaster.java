@@ -147,6 +147,12 @@ public class JobMaster {
 
     private CheckpointConfig jobCheckpointConfig;
 
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    private String errorMessage;
+
     public JobMaster(
             @NonNull Data jobImmutableInformationData,
             @NonNull NodeEngine nodeEngine,
@@ -157,6 +163,7 @@ public class JobMaster {
             @NonNull IMap runningJobStateTimestampsIMap,
             @NonNull IMap ownedSlotProfilesIMap,
             @NonNull IMap<Long, JobInfo> runningJobInfoIMap,
+            @NonNull IMap<Long, HashMap<TaskLocation, SeaTunnelMetricsContext>> metricsImap,
             EngineConfig engineConfig) {
         this.jobImmutableInformationData = jobImmutableInformationData;
         this.nodeEngine = nodeEngine;
@@ -172,8 +179,7 @@ public class JobMaster {
         this.runningJobStateTimestampsIMap = runningJobStateTimestampsIMap;
         this.runningJobInfoIMap = runningJobInfoIMap;
         this.engineConfig = engineConfig;
-        this.metricsImap =
-                nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_RUNNING_JOB_METRICS);
+        this.metricsImap = metricsImap;
     }
 
     public void init(long initializationTimestamp, boolean restart, boolean canRestoreAgain)
@@ -258,10 +264,6 @@ public class JobMaster {
         CheckpointConfig jobCheckpointConfig = new CheckpointConfig();
         jobCheckpointConfig.setCheckpointTimeout(defaultCheckpointConfig.getCheckpointTimeout());
         jobCheckpointConfig.setCheckpointInterval(defaultCheckpointConfig.getCheckpointInterval());
-        jobCheckpointConfig.setMaxConcurrentCheckpoints(
-                defaultCheckpointConfig.getMaxConcurrentCheckpoints());
-        jobCheckpointConfig.setTolerableFailureCheckpoints(
-                defaultCheckpointConfig.getTolerableFailureCheckpoints());
 
         CheckpointStorageConfig jobCheckpointStorageConfig = new CheckpointStorageConfig();
         jobCheckpointStorageConfig.setStorage(defaultCheckpointConfig.getStorage().getStorage());
@@ -290,6 +292,7 @@ public class JobMaster {
                             if (JobStatus.FAILING.equals(v.getStatus())) {
                                 physicalPlan.updateJobState(JobStatus.FAILING, JobStatus.FAILED);
                             }
+                            JobMaster.this.errorMessage = v.getError();
                             JobResult jobResult =
                                     new JobResult(physicalPlan.getJobStatus(), v.getError());
                             cleanJob();

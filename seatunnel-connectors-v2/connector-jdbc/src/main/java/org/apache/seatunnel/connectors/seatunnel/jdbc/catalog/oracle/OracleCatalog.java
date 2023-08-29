@@ -160,10 +160,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                 ps.execute();
             } catch (Exception e) {
                 throw new CatalogException(
-                        String.format(
-                                "Failed creating table %s.%s",
-                                tablePath.getSchemaName(), tablePath.getTableName()),
-                        e);
+                        String.format("Failed creating table %s", tablePath.getFullName()), e);
             }
         }
         return true;

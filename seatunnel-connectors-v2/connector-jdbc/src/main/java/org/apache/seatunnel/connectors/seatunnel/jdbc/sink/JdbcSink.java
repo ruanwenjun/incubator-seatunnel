@@ -110,6 +110,7 @@ public class JdbcSink
         this.dialect =
                 JdbcDialectLoader.load(
                         jdbcSinkConfig.getJdbcConnectionConfig().getUrl(),
+                        jdbcSinkConfig.getJdbcConnectionConfig().getCompatibleMode(),
                         config.get(JdbcOptions.FIELD_IDE) == null
                                 ? FieldIdeEnum.ORIGINAL.getValue()
                                 : config.get(JdbcOptions.FIELD_IDE).getValue());

@@ -21,6 +21,7 @@ import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.configuration.util.ConfigValidator;
 import org.apache.seatunnel.api.serialization.Serializer;
 import org.apache.seatunnel.api.source.Boundedness;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
@@ -94,12 +95,15 @@ public class JdbcSource
     @Override
     public void prepare(Config pluginConfig) throws PrepareFailException {
         ReadonlyConfig config = ReadonlyConfig.fromConfig(pluginConfig);
+        ConfigValidator.of(config).validate(new JdbcSourceFactory().optionRule());
         this.jdbcSourceConfig = JdbcSourceConfig.of(config);
         this.jdbcConnectionProvider =
                 new SimpleJdbcConnectionProvider(jdbcSourceConfig.getJdbcConnectionConfig());
         this.query = jdbcSourceConfig.getQuery();
         this.jdbcDialect =
-                JdbcDialectLoader.load(jdbcSourceConfig.getJdbcConnectionConfig().getUrl());
+                JdbcDialectLoader.load(
+                        jdbcSourceConfig.getJdbcConnectionConfig().getUrl(),
+                        jdbcSourceConfig.getJdbcConnectionConfig().getCompatibleMode());
         try (Connection connection = jdbcConnectionProvider.getOrEstablishConnection()) {
             this.typeInfo = initTableField(connection);
             this.partitionParameter =

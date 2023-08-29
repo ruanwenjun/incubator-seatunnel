@@ -42,6 +42,7 @@ import org.apache.seatunnel.connectors.seatunnel.kafka.config.StartMode;
 import org.apache.seatunnel.connectors.seatunnel.kafka.exception.KafkaConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.kafka.kingbase.KingbaseJsonDeserializationSchema;
 import org.apache.seatunnel.connectors.seatunnel.kafka.state.KafkaSourceState;
+import org.apache.seatunnel.format.compatible.kafka.connect.json.CompatibleKafkaConnectDeserializationSchema;
 import org.apache.seatunnel.format.json.JsonDeserializationSchema;
 import org.apache.seatunnel.format.json.canal.CanalJsonDeserializationSchema;
 import org.apache.seatunnel.format.json.debezium.DebeziumJsonDeserializationSchema;
@@ -253,6 +254,15 @@ public class KafkaSource
                             "Unsupported table format: " + format);
                 } else {
                     return new KingbaseJsonDeserializationSchema((MultipleRowType) typeInfo);
+                }
+            case COMPATIBLE_KAFKA_CONNECT_JSON:
+                if (typeInfo instanceof MultipleRowType) {
+                    throw new KafkaConnectorException(
+                            CommonErrorCode.UNSUPPORTED_DATA_TYPE,
+                            "Unsupported table format: " + format);
+                } else {
+                    return new CompatibleKafkaConnectDeserializationSchema(
+                            (SeaTunnelRowType) typeInfo, option, false, false);
                 }
             case DEBEZIUM_JSON:
                 if (typeInfo instanceof SeaTunnelRowType) {

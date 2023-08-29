@@ -87,6 +87,8 @@ public class PostgresTypeMapper implements JdbcDialectTypeMapper {
     private static final String PG_INTERVAL = "interval";
     private static final String PG_GEOMETRY = "geometry";
     private static final String PG_GEOGRAPHY = "geography";
+    private static final String PG_JSON = "json";
+    private static final String PG_JSONB = "jsonb";
 
     @SuppressWarnings("checkstyle:MagicNumber")
     @Override
@@ -141,6 +143,8 @@ public class PostgresTypeMapper implements JdbcDialectTypeMapper {
             case PG_INTERVAL:
             case PG_GEOMETRY:
             case PG_GEOGRAPHY:
+            case PG_JSON:
+            case PG_JSONB:
                 return BasicType.STRING_TYPE;
             case PG_CHAR_ARRAY:
             case PG_CHARACTER_ARRAY:
