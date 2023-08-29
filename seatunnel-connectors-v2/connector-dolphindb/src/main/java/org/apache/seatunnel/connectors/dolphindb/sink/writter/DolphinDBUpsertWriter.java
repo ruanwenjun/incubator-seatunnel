@@ -46,13 +46,6 @@ public class DolphinDBUpsertWriter implements DolphinDBWriter {
                 finalFields[i] = bigDecimal.doubleValue();
                 continue;
             }
-            if (fieldType.getSqlType().equals(SqlType.DATE)
-                    || fieldType.getSqlType().equals(SqlType.TIME)
-                    || fieldType.getSqlType().equals(SqlType.TIMESTAMP)) {
-                // todo: how to deal with date/time/timestamp
-                finalFields[i] = fields[i].toString();
-                continue;
-            }
             finalFields[i] = fields[i];
         }
         ErrorCodeInfo errorCodeInfo = multithreadedTableWriter.insert(finalFields);
