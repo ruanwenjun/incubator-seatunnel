@@ -18,6 +18,7 @@
 package org.apache.seatunnel.connectors.seatunnel.iceberg.sink.writer;
 
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.sink.IcebergSinkState;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.sink.commiter.IcebergCommitInfo;
@@ -32,7 +33,8 @@ import java.util.Optional;
 
 /** @Author: Liuli @Date: 2023/7/12 15:25 */
 public class IcebergSinkWriter
-        implements SinkWriter<SeaTunnelRow, IcebergCommitInfo, IcebergSinkState> {
+        implements SinkWriter<SeaTunnelRow, IcebergCommitInfo, IcebergSinkState>,
+                SupportMultiTableSinkWriter {
     SeaTunnelRowDataTaskWriterFactory seaTunnelRowDataTaskWriterFactory;
     TaskWriter<SeaTunnelRow> seaTunnelRowTaskWriter;
 

@@ -235,13 +235,15 @@ public class IcebergSink
                                             column.getComment());
                             builder.column(physicalColumn);
                         });
-        PrimaryKey newPrimaryKey =
-                PrimaryKey.of(
-                        tableSchema.getPrimaryKey().getPrimaryKey(),
-                        tableSchema.getPrimaryKey().getColumnNames().stream()
-                                .map(String::toLowerCase)
-                                .collect(Collectors.toList()));
-        builder.primaryKey(newPrimaryKey);
+        if (tableSchema.getPrimaryKey() != null) {
+            PrimaryKey newPrimaryKey =
+                    PrimaryKey.of(
+                            tableSchema.getPrimaryKey().getPrimaryKey(),
+                            tableSchema.getPrimaryKey().getColumnNames().stream()
+                                    .map(String::toLowerCase)
+                                    .collect(Collectors.toList()));
+            builder.primaryKey(newPrimaryKey);
+        }
 
         if (tableSchema.getConstraintKeys() != null) {
             tableSchema

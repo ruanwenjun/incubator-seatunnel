@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.iceberg.sink.commiter;
 import org.apache.seatunnel.shade.com.google.common.base.Preconditions;
 
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkAggregatedCommitter;
 import org.apache.seatunnel.connectors.seatunnel.iceberg.IcebergTableLoader;
 
 import org.apache.iceberg.AppendFiles;
@@ -44,7 +45,8 @@ import java.util.stream.Collectors;
 /** @Author: Liuli @Date: 2023/7/12 18:33 */
 @Slf4j
 public class IcebregSinkAggregatedCommitter
-        implements SinkAggregatedCommitter<IcebergCommitInfo, IcebergAggregatedCommitInfo> {
+        implements SinkAggregatedCommitter<IcebergCommitInfo, IcebergAggregatedCommitInfo>,
+                SupportMultiTableSinkAggregatedCommitter {
 
     private final Map<String, String> snapshotProperties;
 
