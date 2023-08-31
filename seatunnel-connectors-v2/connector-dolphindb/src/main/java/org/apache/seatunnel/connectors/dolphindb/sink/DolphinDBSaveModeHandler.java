@@ -11,6 +11,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.dolphindb.catalog.DolphinDBCatalog;
 import org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig;
 import org.apache.seatunnel.connectors.dolphindb.exception.DolphinDBConnectorException;
+import org.apache.seatunnel.connectors.dolphindb.utils.DolphinDBSaveModeUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -131,13 +132,10 @@ public class DolphinDBSaveModeHandler {
             catalog.createDatabase(TablePath.of(database, ""), true);
         }
         if (!catalog.tableExists(tablePath)) {
-            String finalTemplate = injectValueInTemplate(tablePath, template);
+            String finalTemplate =
+                    DolphinDBSaveModeUtil.fillingCreateSql(
+                            template, database, tableName, catalogTable.getTableSchema());
             catalog.executeScript(finalTemplate);
         }
-    }
-
-    private String injectValueInTemplate(TablePath tablePath, String template) {
-        return template.replaceAll("\\$\\{database\\}", tablePath.getDatabaseName())
-                .replaceAll("\\$\\{table_name\\}", tablePath.getTableName());
     }
 }
