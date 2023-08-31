@@ -77,15 +77,14 @@ public class DolphinDBConfig {
                     .stringType()
                     .defaultValue(
                             "create table \"${database}\".\"${table_name}\"(\n"
-                                    + "     id INT,\n"
-                                    + "     user_name STRING,\n"
+                                    + "     ${rowtype_primary_key},\n"
                                     + "     user_password STRING,\n"
                                     + "     create_time STRING,\n"
                                     + "     update_time STRING\n"
                                     + " )\n"
-                                    + " partitioned by ID;")
+                                    + " partitioned by ${rowtype_primary_key};")
                     .withDescription(
-                            "Create table statement template, used to create StarRocks table");
+                            "Create table statement template, used to create DolphinDB table");
 
     public static final Option<String> CUSTOM_SQL =
             Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
