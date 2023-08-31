@@ -47,6 +47,8 @@ import com.google.auto.service.AutoService;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,8 +103,23 @@ public class HiveSource extends BaseHdfsFileSource {
         }
         if (pluginConfig.hasPath(BaseSourceConfig.READ_PARTITIONS.key())) {
             // verify partition list
-            List<String> partitionsList =
-                    pluginConfig.getStringList(BaseSourceConfig.READ_PARTITIONS.key());
+            List<String> partitionsList = new ArrayList<>();
+            try {
+                partitionsList = pluginConfig.getStringList(BaseSourceConfig.READ_PARTITIONS.key());
+            } catch (Exception e) {
+
+                String input = pluginConfig.getString(BaseSourceConfig.READ_PARTITIONS.key());
+
+                if (input.startsWith("\"") && input.endsWith("\"")) {
+                    input = input.substring(1, input.length() - 1);
+                }
+
+                if (input.startsWith("[") && input.endsWith("]")) {
+                    input = input.substring(1, input.length() - 1);
+                }
+                partitionsList = new ArrayList<>(Arrays.asList(input.split(",")));
+            }
+
             if (partitionsList.isEmpty()) {
                 throw new HiveConnectorException(
                         SeaTunnelAPIErrorCode.CONFIG_VALIDATION_FAILED,

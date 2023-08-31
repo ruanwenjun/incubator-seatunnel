@@ -160,8 +160,22 @@ public abstract class AbstractReadStrategy implements ReadStrategy {
             skipHeaderNumber = pluginConfig.getLong(BaseSourceConfig.SKIP_HEADER_ROW_NUMBER.key());
         }
         if (pluginConfig.hasPath(BaseSourceConfig.READ_PARTITIONS.key())) {
-            readPartitions.addAll(
-                    pluginConfig.getStringList(BaseSourceConfig.READ_PARTITIONS.key()));
+            List<String> partitionsList = new ArrayList<>();
+            try {
+                partitionsList = pluginConfig.getStringList(BaseSourceConfig.READ_PARTITIONS.key());
+            } catch (Exception e) {
+                String input = pluginConfig.getString(BaseSourceConfig.READ_PARTITIONS.key());
+
+                if (input.startsWith("\"") && input.endsWith("\"")) {
+                    input = input.substring(1, input.length() - 1);
+                }
+
+                if (input.startsWith("[") && input.endsWith("]")) {
+                    input = input.substring(1, input.length() - 1);
+                }
+                partitionsList = new ArrayList<>(Arrays.asList(input.split(",")));
+            }
+            readPartitions.addAll(partitionsList);
         }
         if (pluginConfig.hasPath(BaseSourceConfig.READ_COLUMNS.key())) {
             readColumns.addAll(pluginConfig.getStringList(BaseSourceConfig.READ_COLUMNS.key()));
