@@ -20,6 +20,7 @@ package io.debezium.connector.dameng.logminer.parser;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public class SQLSymbolChecker {
     public static final SQLSymbolChecker NUMBER_CHECKER =
@@ -31,6 +32,10 @@ public class SQLSymbolChecker {
                     'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
                     'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
                     'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z');
+    public static final SQLSymbolChecker STRING_VALUE_CHECKER =
+            new SQLSymbolChecker(
+                    Stream.concat(NAMING_CHECKER.symbols.stream(), Stream.of('-', '.'))
+                            .toArray(value -> new Character[value]));
 
     private final Set<Character> symbols;
 

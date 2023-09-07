@@ -17,11 +17,12 @@
 
 package io.debezium.connector.dameng;
 
-import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
-import lombok.extern.slf4j.Slf4j;
+import io.debezium.pipeline.spi.OffsetContext;
+import io.debezium.relational.RelationalChangeRecordEmitter;
+import io.debezium.util.Clock;
 
-@Slf4j
-public abstract class DamengStreamingChangeEventSource
-        implements StreamingChangeEventSource<DamengOffsetContext> {
-    protected void afterHandleScn(DamengOffsetContext offsetContext) {}
+public abstract class DamengDataChangeEventEmitter extends RelationalChangeRecordEmitter {
+    public DamengDataChangeEventEmitter(final OffsetContext offsetContext, final Clock clock) {
+        super(offsetContext, clock);
+    }
 }

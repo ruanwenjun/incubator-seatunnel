@@ -15,13 +15,27 @@
  * limitations under the License.
  */
 
-package io.debezium.connector.dameng;
+package io.debezium.connector.dameng.logminer;
 
-import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
-import lombok.extern.slf4j.Slf4j;
+import io.debezium.connector.dameng.DamengValueConverters;
 
-@Slf4j
-public abstract class DamengStreamingChangeEventSource
-        implements StreamingChangeEventSource<DamengOffsetContext> {
-    protected void afterHandleScn(DamengOffsetContext offsetContext) {}
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * A "marker" class for passing a collection of Blob data type chunks to {@link
+ * DamengValueConverters} so that each chunk can be converted, decoded, and combined into a single
+ * binary representation for event emission.
+ *
+ * @author Chris Cranford
+ */
+public class BlobChunkList extends ArrayList<String> {
+    /**
+     * Creates a BLOB chunk list backed by the provided collection.
+     *
+     * @param backingList collection of BLOB chunks
+     */
+    public BlobChunkList(List<String> backingList) {
+        super(backingList);
+    }
 }

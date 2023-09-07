@@ -22,6 +22,7 @@ import org.apache.seatunnel.connectors.cdc.debezium.EmbeddedDatabaseHistory;
 
 import java.util.Properties;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -32,11 +33,12 @@ public class DamengSourceConfigFactory extends JdbcSourceConfigFactory {
     public DamengSourceConfig create(int subtaskId) {
         Properties props = new Properties();
 
-        props.setProperty("database.server.name", "dameng_logminer_source");
-        props.setProperty("database.hostname", checkNotNull(hostname));
+        props.setProperty("database.server.name", "dameng_logminer");
+        props.setProperty("database.url", checkNotNull(originUrl));
         props.setProperty("database.port", String.valueOf(port));
         props.setProperty("database.user", checkNotNull(username));
         props.setProperty("database.password", checkNotNull(password));
+        props.setProperty("database.dbname", checkNotNull(databaseList.get(0)));
 
         // database history
         props.setProperty("database.history", EmbeddedDatabaseHistory.class.getCanonicalName());
@@ -47,16 +49,25 @@ public class DamengSourceConfigFactory extends JdbcSourceConfigFactory {
         // TODO Not yet supported
         props.setProperty("include.schema.changes", String.valueOf(false));
 
-        if (databaseList != null) {
-            props.setProperty("schema.include.list", String.join(",", databaseList));
-        }
         if (tableList != null) {
-            props.setProperty("table.include.list", String.join(",", tableList));
+            // Oracle identifier is of the form schemaName.tableName
+            props.setProperty(
+                    "table.include.list",
+                    tableList.stream()
+                            .map(
+                                    tableStr -> {
+                                        String[] splits = tableStr.split("\\.");
+                                        if (splits.length == 2) {
+                                            return tableStr;
+                                        }
+                                        if (splits.length == 3) {
+                                            return String.join(".", splits[1], splits[2]);
+                                        }
+                                        throw new IllegalArgumentException(
+                                                "Invalid table name: " + tableStr);
+                                    })
+                            .collect(Collectors.joining(",")));
         }
-        if (serverTimeZone != null) {
-            props.setProperty("database.serverTimezone", serverTimeZone);
-        }
-
         if (dbzProperties != null) {
             props.putAll(dbzProperties);
         }

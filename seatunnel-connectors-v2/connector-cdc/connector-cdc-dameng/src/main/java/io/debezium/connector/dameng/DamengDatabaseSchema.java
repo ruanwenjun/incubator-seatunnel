@@ -17,6 +17,8 @@
 
 package io.debezium.connector.dameng;
 
+import dm.jdbc.driver.DmdbType;
+import io.debezium.relational.Column;
 import io.debezium.relational.HistorizedRelationalDatabaseSchema;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -89,5 +91,20 @@ public class DamengDatabaseSchema extends HistorizedRelationalDatabaseSchema {
     @Override
     protected DdlParser getDdlParser() {
         return null;
+    }
+
+    /** Return whether the provided relational column model is a LOB data type. */
+    public static boolean isLobColumn(Column column) {
+        return isClobColumn(column) || isBlobColumn(column);
+    }
+
+    /** Returns whether the provided relational column model is a CLOB or NCLOB data type. */
+    private static boolean isClobColumn(Column column) {
+        return column.jdbcType() == DmdbType.CLOB;
+    }
+
+    /** Returns whether the provided relational column model is a CLOB data type. */
+    private static boolean isBlobColumn(Column column) {
+        return column.jdbcType() == DmdbType.BLOB;
     }
 }

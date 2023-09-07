@@ -33,13 +33,16 @@ import java.util.stream.Collectors;
 @Getter
 @Setter
 public class SourceInfo extends BaseSourceInfo {
+    public static final String TXID_KEY = "txId";
     public static final String SCN_KEY = "scn";
     public static final String COMMIT_SCN_KEY = "commit_scn";
-    public static final String EVENT_SERIAL_NO_KEY = "event_serial_no";
+    public static final String LCR_POSITION_KEY = "lcr_position";
+    public static final String SNAPSHOT_KEY = "snapshot";
 
     private Scn scn;
     private Scn commitScn;
-    private Long eventSerialNo;
+    private String lcrPosition;
+    private String transactionId;
     private Instant sourceTime;
     private Set<TableId> tableIds;
 

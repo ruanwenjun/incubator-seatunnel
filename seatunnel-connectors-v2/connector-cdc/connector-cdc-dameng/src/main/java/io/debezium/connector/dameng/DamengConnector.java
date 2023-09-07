@@ -61,7 +61,7 @@ public class DamengConnector extends RelationalBaseSourceConnector {
 
     @Override
     public ConfigDef config() {
-        return DamengConnectorConfig.CONFIG_DEF;
+        return DamengConnectorConfig.configDef();
     }
 
     @Override

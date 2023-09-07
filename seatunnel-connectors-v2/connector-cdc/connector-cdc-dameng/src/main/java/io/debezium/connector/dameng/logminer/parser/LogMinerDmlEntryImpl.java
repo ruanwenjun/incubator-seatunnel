@@ -17,7 +17,7 @@
 
 package io.debezium.connector.dameng.logminer.parser;
 
-import io.debezium.connector.dameng.logminer.Operation;
+import io.debezium.connector.dameng.logminer.RowMapper;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
@@ -26,27 +26,38 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 
+import java.util.Arrays;
+
 @Getter
 @ToString
 @Accessors(chain = true)
 @EqualsAndHashCode(of = {"operation", "newValues", "oldValues"})
 @RequiredArgsConstructor
 public class LogMinerDmlEntryImpl implements LogMinerDmlEntry {
-    @NonNull private final Operation operation;
+    private static final Object[] EMPTY = new Object[0];
+
+    @NonNull private final int operation;
     private final Object[] newValues;
     private final Object[] oldValues;
     @Setter private String objectOwner;
     @Setter private String objectName;
 
     public static LogMinerDmlEntry forInsert(Object[] newColumnValues) {
-        return new LogMinerDmlEntryImpl(Operation.INSERT, newColumnValues, null);
+        return new LogMinerDmlEntryImpl(RowMapper.INSERT, newColumnValues, EMPTY);
     }
 
     public static LogMinerDmlEntry forUpdate(Object[] newColumnValues, Object[] oldColumnValues) {
-        return new LogMinerDmlEntryImpl(Operation.UPDATE, newColumnValues, oldColumnValues);
+        return new LogMinerDmlEntryImpl(RowMapper.UPDATE, newColumnValues, oldColumnValues);
     }
 
     public static LogMinerDmlEntry forDelete(Object[] oldColumnValues) {
-        return new LogMinerDmlEntryImpl(Operation.DELETE, null, oldColumnValues);
+        return new LogMinerDmlEntryImpl(RowMapper.DELETE, EMPTY, oldColumnValues);
+    }
+
+    public static LogMinerDmlEntry forLobLocator(Object[] newColumnValues) {
+        // TODO: can that copy be avoided?
+        final Object[] oldColumnValues = Arrays.copyOf(newColumnValues, newColumnValues.length);
+        return new LogMinerDmlEntryImpl(
+                RowMapper.SELECT_LOB_LOCATOR, newColumnValues, oldColumnValues);
     }
 }

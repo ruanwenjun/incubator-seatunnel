@@ -27,6 +27,7 @@ import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.DamengSour
 import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.logminer.DamengLogMinerSplitReadTask;
 
 import io.debezium.connector.dameng.DamengOffsetContext;
+import io.debezium.connector.dameng.logminer.LogMinerOracleOffsetContextLoader;
 import io.debezium.pipeline.source.spi.ChangeEventSource;
 import io.debezium.pipeline.spi.SnapshotResult;
 import lombok.RequiredArgsConstructor;
@@ -94,14 +95,18 @@ public class DamengSnapshotFetchTask implements FetchTask<SourceSplitBase> {
         // execute logminer read task
         DamengLogMinerSplitReadTask backfillLogMinerReadTask =
                 createBackfillLogMinerReadTask(backfillLogMinerSplit, sourceFetchContext);
+        LogMinerOracleOffsetContextLoader loader =
+                new LogMinerOracleOffsetContextLoader(
+                        sourceFetchContext.getSourceConfig().getDbzConnectorConfig());
+        DamengOffsetContext damengOffsetContext =
+                loader.load(backfillLogMinerSplit.getStartupOffset().getOffset());
 
         log.info(
                 "start execute backfillReadTask, start offset : {}, stop offset : {}",
                 backfillLogMinerSplit.getStartupOffset(),
                 backfillLogMinerSplit.getStopOffset());
         backfillLogMinerReadTask.execute(
-                new SnapshotScnSplitChangeEventSourceContext(),
-                sourceFetchContext.getOffsetContext());
+                new SnapshotScnSplitChangeEventSourceContext(), damengOffsetContext);
         log.info("backfillReadTask execute end");
     }
 
@@ -122,18 +127,14 @@ public class DamengSnapshotFetchTask implements FetchTask<SourceSplitBase> {
 
     private DamengLogMinerSplitReadTask createBackfillLogMinerReadTask(
             IncrementalSplit backfillLogMinerSplit, DamengSourceFetchTaskContext context) {
-        DamengOffsetContext.Loader loader =
-                new DamengOffsetContext.Loader(context.getSourceConfig().getDbzConnectorConfig());
-        DamengOffsetContext damengOffsetContext =
-                loader.load(backfillLogMinerSplit.getStartupOffset().getOffset());
         // task to read logminer and backfill for current split
         return new DamengLogMinerSplitReadTask(
-                damengOffsetContext,
                 context.getSourceConfig(),
                 context.getConnection(),
                 context.getDispatcher(),
                 context.getErrorHandler(),
                 context.getDatabaseSchema(),
+                context.getStreamingChangeEventSourceMetrics(),
                 backfillLogMinerSplit);
     }
 

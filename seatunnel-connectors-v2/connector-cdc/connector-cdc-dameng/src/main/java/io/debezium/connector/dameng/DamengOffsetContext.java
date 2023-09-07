@@ -21,74 +21,116 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 
 import io.debezium.connector.SnapshotRecord;
-import io.debezium.pipeline.source.snapshot.incremental.IncrementalSnapshotContext;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.txmetadata.TransactionContext;
 import io.debezium.relational.TableId;
 import io.debezium.schema.DataCollectionId;
-import io.debezium.util.Collect;
-import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class DamengOffsetContext implements OffsetContext {
     public static final String SERVER_PARTITION_KEY = "server";
-    private static final String SNAPSHOT_COMPLETED_KEY = "snapshot_completed";
+    public static final String SNAPSHOT_COMPLETED_KEY = "snapshot_completed";
     private final Schema sourceInfoSchema;
     private final SourceInfo sourceInfo;
     private final Map<String, String> partition;
     private final TransactionContext transactionContext;
-    private final IncrementalSnapshotContext<TableId> incrementalSnapshotContext;
     private boolean snapshotCompleted;
-    private long eventSerialNo;
 
     public DamengOffsetContext(
             DamengConnectorConfig connectorConfig,
             Scn scn,
-            boolean snapshot,
-            boolean snapshotCompleted) {
-        this(connectorConfig, scn, snapshot, snapshotCompleted, new TransactionContext());
-    }
-
-    public DamengOffsetContext(
-            DamengConnectorConfig connectorConfig,
-            Scn scn,
+            Scn commitScn,
+            String lcrPosition,
             boolean snapshot,
             boolean snapshotCompleted,
             TransactionContext transactionContext) {
-        this(
-                connectorConfig,
-                scn,
-                snapshot,
-                snapshotCompleted,
-                transactionContext,
-                new IncrementalSnapshotContext());
+        this(connectorConfig, scn, lcrPosition, snapshot, snapshotCompleted, transactionContext);
+        sourceInfo.setCommitScn(commitScn);
     }
 
     public DamengOffsetContext(
             DamengConnectorConfig connectorConfig,
             Scn scn,
+            String lcrPosition,
             boolean snapshot,
             boolean snapshotCompleted,
-            TransactionContext transactionContext,
-            IncrementalSnapshotContext incrementalSnapshotContext) {
+            TransactionContext transactionContext) {
         partition =
                 Collections.singletonMap(SERVER_PARTITION_KEY, connectorConfig.getLogicalName());
+
         sourceInfo = new SourceInfo(connectorConfig);
         sourceInfo.setScn(scn);
+        sourceInfo.setLcrPosition(lcrPosition);
         sourceInfoSchema = sourceInfo.schema();
-        this.snapshotCompleted = snapshotCompleted;
 
+        this.transactionContext = transactionContext;
+
+        this.snapshotCompleted = snapshotCompleted;
         if (this.snapshotCompleted) {
             postSnapshotCompletion();
         } else {
             sourceInfo.setSnapshot(snapshot ? SnapshotRecord.TRUE : SnapshotRecord.FALSE);
         }
-        this.eventSerialNo = eventSerialNo;
-        this.transactionContext = transactionContext;
-        this.incrementalSnapshotContext = incrementalSnapshotContext;
+    }
+
+    public static class Builder {
+
+        private DamengConnectorConfig connectorConfig;
+        private Scn scn;
+        private String lcrPosition;
+        private boolean snapshot;
+        private boolean snapshotCompleted;
+        private TransactionContext transactionContext;
+
+        public DamengOffsetContext.Builder logicalName(DamengConnectorConfig connectorConfig) {
+            this.connectorConfig = connectorConfig;
+            return this;
+        }
+
+        public DamengOffsetContext.Builder scn(Scn scn) {
+            this.scn = scn;
+            return this;
+        }
+
+        public DamengOffsetContext.Builder lcrPosition(String lcrPosition) {
+            this.lcrPosition = lcrPosition;
+            return this;
+        }
+
+        public DamengOffsetContext.Builder snapshot(boolean snapshot) {
+            this.snapshot = snapshot;
+            return this;
+        }
+
+        public DamengOffsetContext.Builder snapshotCompleted(boolean snapshotCompleted) {
+            this.snapshotCompleted = snapshotCompleted;
+            return this;
+        }
+
+        public DamengOffsetContext.Builder transactionContext(
+                TransactionContext transactionContext) {
+            this.transactionContext = transactionContext;
+            return this;
+        }
+
+        DamengOffsetContext build() {
+            return new DamengOffsetContext(
+                    connectorConfig,
+                    scn,
+                    lcrPosition,
+                    snapshot,
+                    snapshotCompleted,
+                    transactionContext);
+        }
+    }
+
+    public static DamengOffsetContext.Builder create() {
+        return new DamengOffsetContext.Builder();
     }
 
     @Override
@@ -99,21 +141,27 @@ public class DamengOffsetContext implements OffsetContext {
     @Override
     public Map<String, ?> getOffset() {
         if (sourceInfo.isSnapshot()) {
-            return Collect.hashMapOf(
-                    SNAPSHOT_COMPLETED_KEY,
-                    snapshotCompleted,
-                    SourceInfo.SNAPSHOT_KEY,
-                    true,
-                    SourceInfo.SCN_KEY,
-                    sourceInfo.getScn().toString());
+            Map<String, Object> offset = new HashMap<>();
+
+            final Scn scn = sourceInfo.getScn();
+            offset.put(SourceInfo.SCN_KEY, scn != null ? scn.toString() : scn);
+            offset.put(SourceInfo.SNAPSHOT_KEY, true);
+            offset.put(SNAPSHOT_COMPLETED_KEY, snapshotCompleted);
+
+            return offset;
+        } else {
+            final Map<String, Object> offset = new HashMap<>();
+            if (sourceInfo.getLcrPosition() != null) {
+                offset.put(SourceInfo.LCR_POSITION_KEY, sourceInfo.getLcrPosition());
+            } else {
+                final Scn scn = sourceInfo.getScn();
+                final Scn commitScn = sourceInfo.getCommitScn();
+                offset.put(SourceInfo.SCN_KEY, scn != null ? scn.toString() : null);
+                offset.put(
+                        SourceInfo.COMMIT_SCN_KEY, commitScn != null ? commitScn.toString() : null);
+            }
+            return transactionContext.store(offset);
         }
-        return incrementalSnapshotContext.store(
-                transactionContext.store(
-                        Collect.hashMapOf(
-                                SourceInfo.SCN_KEY,
-                                sourceInfo.getScn() == null ? null : sourceInfo.getScn().toString(),
-                                SourceInfo.EVENT_SERIAL_NO_KEY,
-                                eventSerialNo)));
     }
 
     @Override
@@ -126,14 +174,45 @@ public class DamengOffsetContext implements OffsetContext {
         return sourceInfo.struct();
     }
 
-    @Override
-    public boolean isSnapshotRunning() {
-        return sourceInfo.isSnapshot() && !snapshotCompleted;
+    public void setScn(Scn scn) {
+        sourceInfo.setScn(scn);
+    }
+
+    public void setCommitScn(Scn commitScn) {
+        sourceInfo.setCommitScn(commitScn);
+    }
+
+    public Scn getScn() {
+        return sourceInfo.getScn();
+    }
+
+    public Scn getCommitScn() {
+        return sourceInfo.getCommitScn();
+    }
+
+    public void setLcrPosition(String lcrPosition) {
+        sourceInfo.setLcrPosition(lcrPosition);
+    }
+
+    public String getLcrPosition() {
+        return sourceInfo.getLcrPosition();
+    }
+
+    public void setTransactionId(String transactionId) {
+        sourceInfo.setTransactionId(transactionId);
+    }
+
+    public void setSourceTime(Instant instant) {
+        sourceInfo.setSourceTime(instant);
+    }
+
+    public void setTableId(TableId tableId) {
+        sourceInfo.tableEvent(tableId);
     }
 
     @Override
-    public void markLastSnapshotRecord() {
-        sourceInfo.setSnapshot(SnapshotRecord.LAST);
+    public boolean isSnapshotRunning() {
+        return sourceInfo.isSnapshot() && !snapshotCompleted;
     }
 
     @Override
@@ -153,9 +232,38 @@ public class DamengOffsetContext implements OffsetContext {
     }
 
     @Override
-    public void event(DataCollectionId collectionId, Instant timestamp) {
-        sourceInfo.tableEvent((TableId) collectionId);
+    public String toString() {
+        StringBuilder sb = new StringBuilder("OracleOffsetContext [scn=").append(getScn());
+
+        if (sourceInfo.isSnapshot()) {
+            sb.append(", snapshot=").append(sourceInfo.isSnapshot());
+            sb.append(", snapshot_completed=").append(snapshotCompleted);
+        }
+
+        sb.append("]");
+
+        return sb.toString();
+    }
+
+    @Override
+    public void markLastSnapshotRecord() {
+        sourceInfo.setSnapshot(SnapshotRecord.LAST);
+    }
+
+    @Override
+    public void event(DataCollectionId tableId, Instant timestamp) {
+        sourceInfo.tableEvent((TableId) tableId);
         sourceInfo.setSourceTime(timestamp);
+    }
+
+    public void tableEvent(TableId tableId, Instant timestamp) {
+        sourceInfo.setSourceTime(timestamp);
+        sourceInfo.tableEvent(tableId);
+    }
+
+    public void tableEvent(Set<TableId> tableIds, Instant timestamp) {
+        sourceInfo.setSourceTime(timestamp);
+        sourceInfo.tableEvent(tableIds);
     }
 
     @Override
@@ -163,61 +271,21 @@ public class DamengOffsetContext implements OffsetContext {
         return transactionContext;
     }
 
-    @Override
-    public void incrementalSnapshotEvents() {
-        sourceInfo.setSnapshot(SnapshotRecord.INCREMENTAL);
-    }
-
-    @Override
-    public IncrementalSnapshotContext<?> getIncrementalSnapshotContext() {
-        return incrementalSnapshotContext;
-    }
-
-    public void setScn(Scn changeScn) {
-        sourceInfo.setScn(changeScn);
-    }
-
-    public Scn getScn() {
-        return sourceInfo.getScn();
-    }
-
-    @RequiredArgsConstructor
-    public static class Loader implements OffsetContext.Loader<DamengOffsetContext> {
-        private final DamengConnectorConfig connectorConfig;
-
-        @Override
-        public Map<String, ?> getPartition() {
-            return Collections.singletonMap(
-                    DamengOffsetContext.SERVER_PARTITION_KEY, connectorConfig.getLogicalName());
+    /**
+     * Helper method to resolve a {@link Scn} by key from the offset map.
+     *
+     * @param offset the offset map
+     * @param key the entry key, either {@link SourceInfo#SCN_KEY} or {@link
+     *     SourceInfo#COMMIT_SCN_KEY}.
+     * @return the {@link Scn} or null if not found
+     */
+    public static Scn getScnFromOffsetMapByKey(Map<String, ?> offset, String key) {
+        Object scn = offset.get(key);
+        if (scn instanceof String) {
+            return Scn.valueOf((String) scn);
+        } else if (scn != null) {
+            return Scn.valueOf((Long) scn);
         }
-
-        @Override
-        public DamengOffsetContext load(Map<String, ?> offset) {
-            Scn scn = getLsn(offset, SourceInfo.SCN_KEY);
-            boolean snapshot = Boolean.TRUE.equals(offset.get(SourceInfo.SNAPSHOT_KEY));
-            boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(SNAPSHOT_COMPLETED_KEY));
-
-            Long eventSerialNo = (Long) offset.get(SourceInfo.EVENT_SERIAL_NO_KEY);
-            if (eventSerialNo == null) {
-                eventSerialNo = Long.valueOf(0);
-            }
-
-            return new DamengOffsetContext(
-                    connectorConfig,
-                    scn,
-                    snapshot,
-                    snapshotCompleted,
-                    TransactionContext.load(offset));
-        }
-
-        private static Scn getLsn(Map<String, ?> offset, String key) {
-            Object scn = offset.get(key);
-            if (scn instanceof String) {
-                return Scn.valueOf((String) scn);
-            } else if (scn != null) {
-                return Scn.valueOf((Long) scn);
-            }
-            return null;
-        }
+        return null;
     }
 }

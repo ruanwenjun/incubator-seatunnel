@@ -23,6 +23,9 @@ import org.apache.seatunnel.connectors.cdc.base.source.split.wartermark.Watermar
 import org.apache.seatunnel.connectors.cdc.dameng.source.offset.LogMinerOffset;
 import org.apache.seatunnel.connectors.cdc.dameng.utils.DamengConncetionUtils;
 
+import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.ConnectException;
 
 import io.debezium.DebeziumException;
@@ -30,6 +33,7 @@ import io.debezium.connector.dameng.DamengConnection;
 import io.debezium.connector.dameng.DamengConnectorConfig;
 import io.debezium.connector.dameng.DamengDatabaseSchema;
 import io.debezium.connector.dameng.DamengOffsetContext;
+import io.debezium.connector.dameng.DamengValueConverters;
 import io.debezium.pipeline.EventDispatcher;
 import io.debezium.pipeline.source.AbstractSnapshotChangeEventSource;
 import io.debezium.pipeline.source.spi.ChangeEventSource;
@@ -37,10 +41,12 @@ import io.debezium.pipeline.source.spi.SnapshotProgressListener;
 import io.debezium.pipeline.spi.ChangeRecordEmitter;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.pipeline.spi.SnapshotResult;
+import io.debezium.relational.Column;
 import io.debezium.relational.RelationalSnapshotChangeEventSource;
 import io.debezium.relational.SnapshotChangeRecordEmitter;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.relational.ValueConverter;
 import io.debezium.util.Clock;
 import io.debezium.util.ColumnUtils;
 import io.debezium.util.Strings;
@@ -49,9 +55,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.time.Duration;
 
 @Slf4j
@@ -173,7 +177,7 @@ public class DamengSnapshotSplitReadTask extends AbstractSnapshotChangeEventSour
         log.info("Exporting data from split '{}' of table {}", snapshotSplit.splitId(), table.id());
 
         String selectSql =
-                DamengConncetionUtils.buildSplitQuery(
+                DamengConncetionUtils.buildSplitScanQuery(
                         snapshotSplit.getTableId(),
                         snapshotSplit.getSplitKeyType(),
                         snapshotSplit.getSplitStart() == null,
@@ -193,7 +197,7 @@ public class DamengSnapshotSplitReadTask extends AbstractSnapshotChangeEventSour
                                 snapshotSplit.getSplitStart(),
                                 snapshotSplit.getSplitEnd(),
                                 snapshotSplit.getSplitKeyType().getTotalFields(),
-                                connectorConfig.getQueryFetchSize());
+                                connectorConfig.getSnapshotFetchSize());
                 ResultSet rs = selectStatement.executeQuery()) {
 
             ColumnUtils.ColumnArray columnArray = ColumnUtils.toArray(rs, table);
@@ -204,15 +208,18 @@ public class DamengSnapshotSplitReadTask extends AbstractSnapshotChangeEventSour
                 rows++;
                 Object[] row = new Object[columnArray.getGreatestColumnPosition()];
                 for (int i = 0; i < columnArray.getColumns().length; i++) {
-                    row[columnArray.getColumns()[i].position() - 1] = readField(rs, i + 1);
+                    Column actualColumn = table.columns().get(i);
+                    row[columnArray.getColumns()[i].position() - 1] =
+                            readField(rs, i + 1, actualColumn);
                 }
 
                 if (logTimer.expired()) {
+                    long stop = clock.currentTimeInMillis();
                     log.info(
                             "Exported {} records for split '{}' after {}",
                             rows,
                             snapshotSplit.splitId(),
-                            Strings.duration(clock.currentTimeInMillis() - exportStart));
+                            Strings.duration(stop - exportStart));
                     snapshotProgressListener.rowsScanned(table.id(), rows);
                     logTimer = getTableScanLogTimer();
                 }
@@ -235,15 +242,22 @@ public class DamengSnapshotSplitReadTask extends AbstractSnapshotChangeEventSour
         return Threads.timer(clock, LOG_INTERVAL);
     }
 
-    private Object readField(ResultSet rs, int columnIndex) throws SQLException {
-        ResultSetMetaData metaData = rs.getMetaData();
-        int columnType = metaData.getColumnType(columnIndex);
+    private Object readField(ResultSet rs, int columnIndex, Column actualColumn)
+            throws SQLException {
+        DamengValueConverters valueConverters =
+                new DamengValueConverters(connectorConfig, jdbcConnection);
 
-        if (columnType == Types.TIME) {
-            return rs.getTimestamp(columnIndex);
-        } else {
-            return rs.getObject(columnIndex);
+        SchemaBuilder schemaBuilder = valueConverters.schemaBuilder(actualColumn);
+        if (schemaBuilder == null) {
+            return null;
         }
+        Schema schema = schemaBuilder.build();
+        Field field = new Field(actualColumn.name(), 1, schema);
+        ValueConverter valueConverter = valueConverters.converter(actualColumn, field);
+
+        Object original = rs.getObject(columnIndex);
+        Object converted = valueConverter.convert(rs.getObject(columnIndex));
+        return converted;
     }
 
     protected ChangeRecordEmitter getChangeRecordEmitter(

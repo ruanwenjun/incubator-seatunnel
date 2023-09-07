@@ -28,8 +28,8 @@ import io.debezium.DebeziumException;
 import io.debezium.connector.dameng.DamengConnection;
 import io.debezium.connector.dameng.DamengDatabaseSchema;
 import io.debezium.connector.dameng.DamengOffsetContext;
-import io.debezium.connector.dameng.DamengStreamingChangeEventSource;
-import io.debezium.connector.dameng.logminer.LogContent;
+import io.debezium.connector.dameng.DamengStreamingChangeEventSourceMetrics;
+import io.debezium.connector.dameng.logminer.LogMinerStreamingChangeEventSource;
 import io.debezium.pipeline.ErrorHandler;
 import io.debezium.util.Clock;
 import lombok.extern.slf4j.Slf4j;
@@ -40,45 +40,44 @@ import java.util.Map;
 import static org.apache.seatunnel.connectors.cdc.dameng.source.offset.LogMinerOffset.NO_STOPPING_OFFSET;
 
 @Slf4j
-public class DamengLogMinerSplitReadTask extends DamengStreamingChangeEventSource {
+public class DamengLogMinerSplitReadTask extends LogMinerStreamingChangeEventSource {
 
     private final IncrementalSplit split;
-    private final DamengOffsetContext offsetContext;
     private final JdbcSourceEventDispatcher eventDispatcher;
     private final ErrorHandler errorHandler;
     private ChangeEventSourceContext context;
 
     public DamengLogMinerSplitReadTask(
-            DamengOffsetContext offsetContext,
             DamengSourceConfig sourceConfig,
             DamengConnection connection,
             JdbcSourceEventDispatcher eventDispatcher,
             ErrorHandler errorHandler,
             DamengDatabaseSchema databaseSchema,
+            DamengStreamingChangeEventSourceMetrics streamingMetrics,
             IncrementalSplit split) {
         super(
                 sourceConfig,
                 connection,
-                split.getTableIds(),
                 eventDispatcher,
                 errorHandler,
                 Clock.SYSTEM,
-                databaseSchema);
+                databaseSchema,
+                streamingMetrics);
         this.split = split;
-        this.offsetContext = offsetContext;
         this.eventDispatcher = eventDispatcher;
         this.errorHandler = errorHandler;
     }
 
     @Override
-    public void execute(ChangeEventSourceContext context, DamengOffsetContext offsetContext) {
+    public void execute(ChangeEventSourceContext context, DamengOffsetContext offsetContext)
+            throws InterruptedException {
         this.context = context;
-        super.execute(context, this.offsetContext);
+        super.execute(context, offsetContext);
     }
 
     @Override
-    protected void handleEvent(DamengOffsetContext offsetContext, LogContent event) {
-        super.handleEvent(offsetContext, event);
+    protected void afterHandleScn(DamengOffsetContext offsetContext) {
+        super.afterHandleScn(offsetContext);
         // check do we need to stop for fetch logminer for snapshot split.
         if (isBoundedRead()) {
             LogMinerOffset currentLogMinerOffset = getLogMinerPosition(offsetContext.getOffset());
