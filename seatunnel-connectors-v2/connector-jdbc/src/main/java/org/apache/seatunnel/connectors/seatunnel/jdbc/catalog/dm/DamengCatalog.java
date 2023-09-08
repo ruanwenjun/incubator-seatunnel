@@ -48,19 +48,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_BFILE;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_BLOB;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_CHAR;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_CLOB;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_LONG;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_LONG_RAW;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_NCHAR;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_NCLOB;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_NVARCHAR2;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_RAW;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_ROWID;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor.ORACLE_VARCHAR2;
-
 @Slf4j
 public class DamengCatalog extends AbstractJdbcCatalog {
     private static final DamengDataTypeConvertor DATA_TYPE_CONVERTOR =
@@ -237,30 +224,6 @@ public class DamengCatalog extends AbstractJdbcCatalog {
 
                     SeaTunnelDataType<?> type =
                             fromJdbcType(typeName, columnPrecision, columnScale);
-                    long bitLen = 0;
-                    switch (typeName) {
-                        case ORACLE_LONG:
-                        case ORACLE_ROWID:
-                        case ORACLE_NCLOB:
-                        case ORACLE_CLOB:
-                            columnLength = -1;
-                            break;
-                        case ORACLE_RAW:
-                            bitLen = 2000 * 8;
-                            break;
-                        case ORACLE_BLOB:
-                        case ORACLE_LONG_RAW:
-                        case ORACLE_BFILE:
-                            bitLen = -1;
-                            break;
-                        case ORACLE_CHAR:
-                        case ORACLE_NCHAR:
-                        case ORACLE_NVARCHAR2:
-                        case ORACLE_VARCHAR2:
-                        default:
-                            break;
-                    }
-
                     PhysicalColumn physicalColumn =
                             PhysicalColumn.of(
                                     columnName,
@@ -272,7 +235,7 @@ public class DamengCatalog extends AbstractJdbcCatalog {
                                     typeName,
                                     false,
                                     false,
-                                    bitLen,
+                                    0L,
                                     null,
                                     columnLength);
                     columns.add(physicalColumn);
