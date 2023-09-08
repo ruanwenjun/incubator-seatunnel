@@ -32,7 +32,6 @@ import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.oracle.OracleDataTypeConvertor;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -247,8 +246,8 @@ public class DamengCatalog extends AbstractJdbcCatalog {
 
     private SeaTunnelDataType<?> fromJdbcType(String typeName, long precision, long scale) {
         Map<String, Object> dataTypeProperties = new HashMap<>();
-        dataTypeProperties.put(OracleDataTypeConvertor.PRECISION, precision);
-        dataTypeProperties.put(OracleDataTypeConvertor.SCALE, scale);
+        dataTypeProperties.put(DamengDataTypeConvertor.PRECISION, precision);
+        dataTypeProperties.put(DamengDataTypeConvertor.SCALE, scale);
         return DATA_TYPE_CONVERTOR.toSeaTunnelType(typeName, dataTypeProperties);
     }
 
