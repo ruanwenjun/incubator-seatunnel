@@ -78,7 +78,7 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void>
     public AbstractSinkWriter<SeaTunnelRow, Void> createWriter(SinkWriter.Context context)
             throws IOException {
         try {
-            return new DolphinDBSinkWriter(readonlyConfig, seaTunnelRowType);
+            return new DolphinDBSinkWriter(catalogTable, readonlyConfig);
         } catch (Exception ex) {
             throw new IOException("Create DolphinDBSinkWriter failed", ex);
         }

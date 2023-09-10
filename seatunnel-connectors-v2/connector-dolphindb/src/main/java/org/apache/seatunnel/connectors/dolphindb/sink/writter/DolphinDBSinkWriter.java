@@ -1,9 +1,9 @@
 package org.apache.seatunnel.connectors.dolphindb.sink.writter;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.RowKind;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
-import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.common.sink.AbstractSinkWriter;
 
 import lombok.SneakyThrows;
@@ -20,11 +20,11 @@ public class DolphinDBSinkWriter extends AbstractSinkWriter<SeaTunnelRow, Void> 
     private DolphinDBUpsertWriter dolphinDBUpsertWriter;
     private DolphinDbDeleteWriter dolphinDbDeleteWriter;
 
-    public DolphinDBSinkWriter(ReadonlyConfig pluginConfig, SeaTunnelRowType seaTunnelRowType)
+    public DolphinDBSinkWriter(CatalogTable catalogTable, ReadonlyConfig pluginConfig)
             throws Exception {
         this.pluginConfig = pluginConfig;
-        this.dolphinDBUpsertWriter = new DolphinDBUpsertWriter(pluginConfig, seaTunnelRowType);
-        this.dolphinDbDeleteWriter = new DolphinDbDeleteWriter(pluginConfig, seaTunnelRowType);
+        this.dolphinDBUpsertWriter = new DolphinDBUpsertWriter(catalogTable, pluginConfig);
+        this.dolphinDbDeleteWriter = new DolphinDbDeleteWriter(catalogTable, pluginConfig);
     }
 
     @Override

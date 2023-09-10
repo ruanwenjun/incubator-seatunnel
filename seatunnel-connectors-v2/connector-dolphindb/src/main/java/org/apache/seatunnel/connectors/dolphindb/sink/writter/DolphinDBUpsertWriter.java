@@ -1,6 +1,7 @@
 package org.apache.seatunnel.connectors.dolphindb.sink.writter;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -21,14 +22,16 @@ import java.util.Optional;
 @Slf4j
 public class DolphinDBUpsertWriter implements DolphinDBWriter {
 
-    private ReadonlyConfig pluginConfig;
-    private SeaTunnelRowType seaTunnelRowType;
+    private final CatalogTable catalogTable;
+    private final ReadonlyConfig pluginConfig;
+    private final SeaTunnelRowType seaTunnelRowType;
     private final MultithreadedTableWriter multithreadedTableWriter;
 
-    public DolphinDBUpsertWriter(ReadonlyConfig pluginConfig, SeaTunnelRowType seaTunnelRowType)
+    public DolphinDBUpsertWriter(CatalogTable catalogTable, ReadonlyConfig pluginConfig)
             throws Exception {
+        this.catalogTable = catalogTable;
         this.pluginConfig = pluginConfig;
-        this.seaTunnelRowType = seaTunnelRowType;
+        this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
         this.multithreadedTableWriter =
                 MultithreadedTableWriterFactory.createMultithreadedTableWriter(pluginConfig);
     }

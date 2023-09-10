@@ -5,6 +5,7 @@ import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
+import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
@@ -68,8 +69,16 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
     @Override
     public TableSink<SeaTunnelRow, Void, Void, Void> createSink(TableFactoryContext context) {
         ReadonlyConfig config = context.getOptions();
-        CatalogTable catalogTable = context.getCatalogTable();
-        if (!config.getOptional(TABLE).isPresent()) {
+        final CatalogTable catalogTable;
+        final ReadonlyConfig readonlyConfig;
+        if (config.getOptional(TABLE).isPresent()) {
+            // if the table is not exist in config, will use the table name from catalog table
+            // inject the table name from config to catalog table
+            // do nothing if the table name is exist in config
+            catalogTable = context.getCatalogTable();
+            readonlyConfig = config;
+        } else {
+            catalogTable = tableNameFromConfig(context);
             Map<String, String> map = config.toMap();
             if (StringUtils.isNotBlank(catalogTable.getTableId().getSchemaName())) {
                 map.put(
@@ -80,14 +89,26 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
             } else {
                 map.put(TABLE.key(), catalogTable.getTableId().getTableName());
             }
-
             PrimaryKey primaryKey = catalogTable.getTableSchema().getPrimaryKey();
             if (primaryKey != null && !CollectionUtils.isEmpty(primaryKey.getColumnNames())) {
                 map.put(PARTITION_COLUMN.key(), String.join(",", primaryKey.getColumnNames()));
             }
-            config = ReadonlyConfig.fromMap(new HashMap<>(map));
+            readonlyConfig = ReadonlyConfig.fromMap(new HashMap<>(map));
         }
-        final ReadonlyConfig readonlyConfig = config;
-        return () -> new DolphinDBSink(context.getCatalogTable(), readonlyConfig);
+        return () -> new DolphinDBSink(catalogTable, readonlyConfig);
+    }
+
+    private CatalogTable tableNameFromConfig(TableFactoryContext context) {
+        ReadonlyConfig readonlyConfig = context.getOptions();
+        CatalogTable catalogTable = context.getCatalogTable();
+        TableIdentifier tableId = catalogTable.getTableId();
+        String tableName = readonlyConfig.get(TABLE);
+        TableIdentifier newTableId =
+                TableIdentifier.of(
+                        tableId.getCatalogName(),
+                        readonlyConfig.get(DATABASE),
+                        tableId.getSchemaName(),
+                        tableName);
+        return CatalogTable.of(newTableId, catalogTable);
     }
 }
