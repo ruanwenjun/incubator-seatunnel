@@ -69,7 +69,7 @@ You could start the application by the following commands
 spark 2.4.x
 
 ```bash
-cd "apache-seatunnel-${version}"
+cd "apache-seatunnel-incubating-${version}"
 ./bin/start-seatunnel-spark-2-connector-v2.sh \
 --master local[4] \
 --deploy-mode client \
@@ -79,7 +79,7 @@ cd "apache-seatunnel-${version}"
 spark3.x.x
 
 ```shell
-cd "apache-seatunnel-${version}"
+cd "apache-seatunnel-incubating-${version}"
 ./bin/start-seatunnel-spark-3-connector-v2.sh \
 --master local[4] \
 --deploy-mode client \

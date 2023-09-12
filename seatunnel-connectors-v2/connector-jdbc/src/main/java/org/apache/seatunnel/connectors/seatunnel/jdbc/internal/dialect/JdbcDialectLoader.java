@@ -39,23 +39,18 @@ public final class JdbcDialectLoader {
     private JdbcDialectLoader() {}
 
     public static JdbcDialect load(String url) {
-        return load(url, "", "");
-    }
-
-    public static JdbcDialect load(String url, String compatibleMode) {
-        return load(url, compatibleMode, "");
+        return load(url, "");
     }
 
     /**
      * Loads the unique JDBC Dialect that can handle the given database url.
      *
      * @param url A database URL.
-     * @param compatibleMode The compatible mode.
-     * @return The loaded dialect.
      * @throws IllegalStateException if the loader cannot find exactly one dialect that can
      *     unambiguously process the given database URL.
+     * @return The loaded dialect.
      */
-    public static JdbcDialect load(String url, String compatibleMode, String fieldIde) {
+    public static JdbcDialect load(String url, String fieldIde) {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         List<JdbcDialectFactory> foundFactories = discoverFactories(cl);
 
@@ -99,15 +94,10 @@ public final class JdbcDialectLoader {
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
         }
-        if (StringUtils.isNotEmpty(fieldIde) && StringUtils.isNotEmpty(compatibleMode)) {
-            return matchingFactories.get(0).create(compatibleMode, fieldIde);
-        } else if (StringUtils.isNotEmpty(fieldIde)) {
-            return matchingFactories.get(0).createWithFieldIde(fieldIde);
-        } else if (StringUtils.isNotEmpty(compatibleMode)) {
-            return matchingFactories.get(0).createWithCompatible(compatibleMode);
-        } else {
-            return matchingFactories.get(0).create();
+        if (StringUtils.isNotEmpty(fieldIde)) {
+            return matchingFactories.get(0).create(fieldIde);
         }
+        return matchingFactories.get(0).create();
     }
 
     private static List<JdbcDialectFactory> discoverFactories(ClassLoader classLoader) {

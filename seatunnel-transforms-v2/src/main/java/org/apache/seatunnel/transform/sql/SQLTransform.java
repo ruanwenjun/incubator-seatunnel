@@ -115,11 +115,7 @@ public class SQLTransform extends AbstractCatalogSupportTransform {
     @Override
     public void open() {
         sqlEngine = SQLEngineFactory.getSQLEngine(engineType);
-        sqlEngine.init(
-                inputTableName,
-                inputCatalogTable != null ? inputCatalogTable.getTableId().getTableName() : null,
-                inputRowType,
-                query);
+        sqlEngine.init(inputTableName, inputRowType, query);
     }
 
     private void tryOpen() {

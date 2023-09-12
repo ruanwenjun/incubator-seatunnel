@@ -26,6 +26,7 @@ import com.google.auto.service.AutoService;
 
 import static org.apache.seatunnel.connectors.seatunnel.tablestore.config.TablestoreConfig.ACCESS_KEY_ID;
 import static org.apache.seatunnel.connectors.seatunnel.tablestore.config.TablestoreConfig.ACCESS_KEY_SECRET;
+import static org.apache.seatunnel.connectors.seatunnel.tablestore.config.TablestoreConfig.BATCH_INTERVAL_MS;
 import static org.apache.seatunnel.connectors.seatunnel.tablestore.config.TablestoreConfig.BATCH_SIZE;
 import static org.apache.seatunnel.connectors.seatunnel.tablestore.config.TablestoreConfig.END_POINT;
 import static org.apache.seatunnel.connectors.seatunnel.tablestore.config.TablestoreConfig.INSTANCE_NAME;
@@ -50,7 +51,7 @@ public class TablestoreSinkFactory implements TableSinkFactory {
                         ACCESS_KEY_SECRET,
                         PRIMARY_KEYS,
                         CatalogTableUtil.SCHEMA)
-                .optional(BATCH_SIZE)
+                .optional(BATCH_INTERVAL_MS, BATCH_SIZE)
                 .build();
     }
 }

@@ -49,7 +49,6 @@ Read all the data in a split in a pollNext call. What splits are read will be sa
 | schema                    | config  | no       | -                   |
 | common-options            |         | no       | -                   |
 | sheet_name                | string  | no       | -                   |
-| file_filter_pattern       | string  | no       | -                   |
 
 ### path [string]
 
@@ -224,11 +223,7 @@ Source plugin common parameters, please refer to [Source Common Options](common-
 
 ### sheet_name [string]
 
-Reader the sheet of the workbook,Only used when file_format_type is excel.
-
-### file_filter_pattern [string]
-
-Filter pattern, which used for filtering files.
+Reader the sheet of the workbook,Only used when file_format is excel.
 
 ## Example
 

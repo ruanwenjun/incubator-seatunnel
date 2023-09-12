@@ -37,8 +37,6 @@ import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.select.SelectExpressionItem;
 import net.sf.jsqlparser.statement.select.SelectItem;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,7 +45,6 @@ import java.util.stream.Collectors;
 
 public class ZetaSQLEngine implements SQLEngine {
     private String inputTableName;
-    @Nullable private String catalogTableName;
     private SeaTunnelRowType inputRowType;
 
     private String sql;
@@ -62,13 +59,8 @@ public class ZetaSQLEngine implements SQLEngine {
     public ZetaSQLEngine() {}
 
     @Override
-    public void init(
-            String inputTableName,
-            String catalogTableName,
-            SeaTunnelRowType inputRowType,
-            String sql) {
+    public void init(String inputTableName, SeaTunnelRowType inputRowType, String sql) {
         this.inputTableName = inputTableName;
-        this.catalogTableName = catalogTableName;
         this.inputRowType = inputRowType;
         this.sql = sql;
 

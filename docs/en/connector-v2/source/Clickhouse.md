@@ -2,96 +2,87 @@
 
 > Clickhouse source connector
 
-## Support Those Engines
+## Description
 
-> Spark<br/>
-> Flink<br/>
-> SeaTunnel Zeta<br/>
+Used to read data from Clickhouse.
 
-## Key Features
+## Key features
 
 - [x] [batch](../../concept/connector-v2-features.md)
 - [ ] [stream](../../concept/connector-v2-features.md)
 - [ ] [exactly-once](../../concept/connector-v2-features.md)
 - [x] [column projection](../../concept/connector-v2-features.md)
+
+supports query SQL and can achieve projection effect.
+
 - [ ] [parallelism](../../concept/connector-v2-features.md)
 - [ ] [support user-defined split](../../concept/connector-v2-features.md)
 
-> supports query SQL and can achieve projection effect.
+## Options
 
-## Description
+|      name      |  type  | required | default value |
+|----------------|--------|----------|---------------|
+| host           | string | yes      | -             |
+| database       | string | yes      | -             |
+| sql            | string | yes      | -             |
+| username       | string | yes      | -             |
+| password       | string | yes      | -             |
+| common-options |        | no       | -             |
 
-Used to read data from Clickhouse.
+### host [string]
 
-## Supported DataSource Info
+`ClickHouse` cluster address, the format is `host:port` , allowing multiple `hosts` to be specified. Such as `"host1:8123,host2:8123"` .
 
-In order to use the Clickhouse connector, the following dependencies are required.
-They can be downloaded via install-plugin.sh or from the Maven central repository.
+### database [string]
 
-| Datasource | Supported Versions |                                                    Dependency                                                    |
-|------------|--------------------|------------------------------------------------------------------------------------------------------------------|
-| Clickhouse | universal          | [Download](https://mvnrepository.com/artifact/org.apache.seatunnel/seatunnel-connectors-v2/connector-clickhouse) |
+The `ClickHouse` database
 
-## Data Type Mapping
+### sql [string]
 
-|                                                             Clickhouse Data type                                                              | SeaTunnel Data type |
-|-----------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
-| String / Int128 / UInt128 / Int256 / UInt256 / Point / Ring / Polygon MultiPolygon                                                            | STRING              |
-| Int8 / UInt8 / Int16 / UInt16 / Int32                                                                                                         | INT                 |
-| UInt64 / Int64 / IntervalYear / IntervalQuarter / IntervalMonth / IntervalWeek / IntervalDay / IntervalHour / IntervalMinute / IntervalSecond | BIGINT              |
-| Float64                                                                                                                                       | DOUBLE              |
-| Decimal                                                                                                                                       | DECIMAL             |
-| Float32                                                                                                                                       | FLOAT               |
-| Date                                                                                                                                          | DATE                |
-| DateTime                                                                                                                                      | TIME                |
-| Array                                                                                                                                         | ARRAY               |
-| Map                                                                                                                                           | MAP                 |
+The query sql used to search data though Clickhouse server
 
-## Source Options
+### username [string]
 
-|       Name       |  Type  | Required |        Default         |                                                               Description                                                                |
-|------------------|--------|----------|------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| host             | String | Yes      | -                      | `ClickHouse` cluster address, the format is `host:port` , allowing multiple `hosts` to be specified. Such as `"host1:8123,host2:8123"` . |
-| database         | String | Yes      | -                      | The `ClickHouse` database.                                                                                                               |
-| sql              | String | Yes      | -                      | The query sql used to search data though Clickhouse server.                                                                              |
-| username         | String | Yes      | -                      | `ClickHouse` user username.                                                                                                              |
-| password         | String | Yes      | -                      | `ClickHouse` user password.                                                                                                              |
-| server_time_zone | String | No       | ZoneId.systemDefault() | The session time zone in database server. If not set, then ZoneId.systemDefault() is used to determine the server time zone.             |
-| common-options   |        | No       | -                      | Source plugin common parameters, please refer to [Source Common Options](common-options.md) for details.                                 |
+`ClickHouse` user username
 
-## How to Create a Clickhouse Data Synchronization Jobs
+### password [string]
 
-The following example demonstrates how to create a data synchronization job that reads data from Clickhouse and prints it on the local client:
+`ClickHouse` user password
 
-```bash
-# Set the basic configuration of the task to be performed
-env {
-  execution.parallelism = 1
-  job.mode = "BATCH"
-}
+### common options
 
-# Create a source to connect to Clickhouse
+Source plugin common parameters, please refer to [Source Common Options](common-options.md) for details
+
+## Examples
+
+```hocon
 source {
+  
   Clickhouse {
     host = "localhost:8123"
     database = "default"
     sql = "select * from test where age = 20 limit 100"
-    username = "xxxxx"
-    password = "xxxxx"
-    server_time_zone = "UTC"
+    username = "default"
+    password = ""
     result_table_name = "test"
   }
-}
-
-# Console printing of the read Clickhouse data
-sink {
-  Console {
-    parallelism = 1
-  }
+  
 }
 ```
 
-### Tips
+## Changelog
 
-> 1.[SeaTunnel Deployment Document](../../start-v2/locally/deployment.md).
+### 2.2.0-beta 2022-09-26
+
+- Add ClickHouse Source Connector
+
+### 2.3.0-beta 2022-10-20
+
+- [Improve] Clickhouse Source random use host when config multi-host ([3108](https://github.com/apache/seatunnel/pull/3108))
+
+### next version
+
+- [Improve] Clickhouse Source support nest type and array type([3047](https://github.com/apache/seatunnel/pull/3047))
+
+- [Improve] Clickhouse Source support geo type([3141](https://github.com/apache/seatunnel/pull/3141))
 

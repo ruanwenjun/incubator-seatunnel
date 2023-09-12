@@ -56,8 +56,7 @@ public class MongodbConfig {
             Options.key("match.query")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Mongodb's query syntax.")
-                    .withFallbackKeys("matchQuery");
+                    .withDescription("Mongodb's query syntax.");
 
     public static final Option<String> PROJECTION =
             Options.key("match.projection")
@@ -150,7 +149,4 @@ public class MongodbConfig {
                     .withDescription(
                             "The primary keys for upsert/update. Keys are in csv format for properties.")
                     .withFallbackKeys("upsert-key");
-
-    public static final Option<Boolean> TRANSACTION =
-            Options.key("transaction").booleanType().defaultValue(false).withDescription(".");
 }

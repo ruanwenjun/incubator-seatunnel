@@ -54,6 +54,12 @@ public class YamlSeaTunnelConfigParserTest {
                 7000, config.getEngineConfig().getCheckpointConfig().getCheckpointTimeout());
 
         Assertions.assertEquals(
+                5, config.getEngineConfig().getCheckpointConfig().getMaxConcurrentCheckpoints());
+
+        Assertions.assertEquals(
+                2, config.getEngineConfig().getCheckpointConfig().getTolerableFailureCheckpoints());
+
+        Assertions.assertEquals(
                 "hdfs", config.getEngineConfig().getCheckpointConfig().getStorage().getStorage());
 
         Assertions.assertEquals(

@@ -92,15 +92,16 @@ public class MysqlCreateTableSqlBuilderTest {
 
         String createTableSql =
                 MysqlCreateTableSqlBuilder.builder(tablePath, catalogTable)
-                        .build("mysql", catalogTable.getOptions().get("fieldIde"));
+                        .build("", catalogTable.getOptions().get("fieldIde"));
         String expect =
                 "CREATE TABLE IF NOT EXISTS test_table (\n"
-                        + "\tid null NOT NULL COMMENT 'id', \n"
-                        + "\tname null NOT NULL COMMENT 'name', \n"
-                        + "\tage null NULL COMMENT 'age', \n"
-                        + "\tcreateTime null NULL COMMENT 'createTime', \n"
-                        + "\tlastUpdateTime null NULL COMMENT 'lastUpdateTime', \n"
-                        + "\tPRIMARY KEY (`id`)\n"
+                        + "\tid BIGINT (22) NOT NULL COMMENT 'id', \n"
+                        + "\tname VARCHAR (128) NOT NULL COMMENT 'name', \n"
+                        + "\tage INT NULL COMMENT 'age', \n"
+                        + "\tcreateTime TIMESTAMP (3) NULL COMMENT 'createTime', \n"
+                        + "\tlastUpdateTime TIMESTAMP (3) NULL COMMENT 'lastUpdateTime', \n"
+                        + "\tPRIMARY KEY (`id`), \n"
+                        + "\tKEY `name` (`name`)\n"
                         + ") COMMENT = 'User table';";
         CONSOLE.println(expect);
         System.out.println(createTableSql);

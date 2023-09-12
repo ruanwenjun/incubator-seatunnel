@@ -24,8 +24,6 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSourceConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.HadoopConf;
-import org.apache.seatunnel.connectors.seatunnel.file.exception.FileConnectorErrorCode;
-import org.apache.seatunnel.connectors.seatunnel.file.exception.FileConnectorException;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.util.FileSystemUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -45,9 +43,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.apache.parquet.avro.AvroReadSupport.READ_INT96_AS_FIXED;
 import static org.apache.parquet.avro.AvroSchemaConverter.ADD_LIST_ELEMENT_RECORDS;
@@ -78,8 +73,6 @@ public abstract class AbstractReadStrategy implements ReadStrategy {
     protected boolean isMergePartition = true;
     protected long skipHeaderNumber = BaseSourceConfig.SKIP_HEADER_ROW_NUMBER.defaultValue();
     protected transient boolean isKerberosAuthorization = false;
-
-    protected Pattern pattern;
 
     @Override
     public void init(HadoopConf conf) {
@@ -133,7 +126,7 @@ public abstract class AbstractReadStrategy implements ReadStrategy {
                 fileNames.addAll(getFileNamesByPath(hadoopConf, fileStatus.getPath().toString()));
                 continue;
             }
-            if (fileStatus.isFile() && filterFileByPattern(fileStatus)) {
+            if (fileStatus.isFile()) {
                 // filter '_SUCCESS' file
                 if (!fileStatus.getPath().getName().equals("_SUCCESS")
                         && !fileStatus.getPath().getName().startsWith(".")) {
@@ -153,15 +146,6 @@ public abstract class AbstractReadStrategy implements ReadStrategy {
                 }
             }
         }
-
-        if (fileNames.isEmpty()) {
-            throw new FileConnectorException(
-                    FileConnectorErrorCode.FILE_LIST_EMPTY,
-                    "The target file list is empty,"
-                            + "SeaTunnel will not be able to sync empty table, "
-                            + "please check the configuration parameters such as: [file_filter_pattern]");
-        }
-
         return fileNames;
     }
 
@@ -195,11 +179,6 @@ public abstract class AbstractReadStrategy implements ReadStrategy {
         }
         if (pluginConfig.hasPath(BaseSourceConfig.READ_COLUMNS.key())) {
             readColumns.addAll(pluginConfig.getStringList(BaseSourceConfig.READ_COLUMNS.key()));
-        }
-        if (pluginConfig.hasPath(BaseSourceConfig.FILE_FILTER_PATTERN.key())) {
-            String filterPattern =
-                    pluginConfig.getString(BaseSourceConfig.FILE_FILTER_PATTERN.key());
-            this.pattern = Pattern.compile(Matcher.quoteReplacement(filterPattern));
         }
     }
 
@@ -248,12 +227,5 @@ public abstract class AbstractReadStrategy implements ReadStrategy {
                 partitionTypes, 0, newFieldTypes, fieldTypes.length, partitionTypes.length);
         // return merge row type
         return new SeaTunnelRowType(newFieldNames, newFieldTypes);
-    }
-
-    protected boolean filterFileByPattern(FileStatus fileStatus) {
-        if (Objects.nonNull(pattern)) {
-            return pattern.matcher(fileStatus.getPath().getName()).matches();
-        }
-        return true;
     }
 }

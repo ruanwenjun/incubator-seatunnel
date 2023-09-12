@@ -477,6 +477,11 @@ public class PhysicalVertex {
         } else if (ExecutionState.CANCELING.equals(runningJobStateIMap.get(taskGroupLocation))) {
             noticeTaskExecutionServiceCancel();
         }
+
+        LOGGER.info(
+                String.format(
+                        "can not cancel task %s because it is in state %s ",
+                        taskFullName, getExecutionState()));
     }
 
     @SuppressWarnings("checkstyle:MagicNumber")

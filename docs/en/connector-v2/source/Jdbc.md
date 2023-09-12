@@ -8,9 +8,9 @@ Read external data source data through JDBC.
 
 :::tip
 
-Warn: for license compliance, you have to provide database driver yourself, copy to `$SEATNUNNEL_HOME/lib/` directory in order to make them work.
+Warn: for license compliance, you have to provide database driver yourself, copy to `$SEATNUNNEL_HOME/plugins/jdbc/lib/` directory in order to make them work.
 
-e.g. If you use MySQL, should download and copy `mysql-connector-java-xxx.jar` to `$SEATNUNNEL_HOME/lib/`. For Spark/Flink, you should also copy it to `$SPARK_HOME/jars/` or `$FLINK_HOME/lib/`.
+e.g. If you use MySQL, should download and copy `mysql-connector-java-xxx.jar` to `$SEATNUNNEL_HOME/plugins/jdbc/lib/`
 
 :::
 
@@ -35,7 +35,6 @@ supports query SQL and can achieve projection effect.
 | user                         | String | No       | -               |
 | password                     | String | No       | -               |
 | query                        | String | Yes      | -               |
-| compatible_mode              | String | No       | -               |
 | connection_check_timeout_sec | Int    | No       | 30              |
 | partition_column             | String | No       | -               |
 | partition_upper_bound        | Long   | No       | -               |
@@ -64,10 +63,6 @@ The URL of the JDBC connection. Refer to a case: jdbc:postgresql://localhost/tes
 
 Query statement
 
-### compatible_mode [string]
-
-The compatible mode of database, required when the database supports multiple compatible modes. For example, when using OceanBase database, you need to set it to 'mysql' or 'oracle'.
-
 ### connection_check_timeout_sec [int]
 
 The time in seconds to wait for the database operation used to validate the connection to complete.
@@ -76,11 +71,11 @@ The time in seconds to wait for the database operation used to validate the conn
 
 The column name for parallelism's partition, only support numeric type.
 
-### partition_upper_bound [BigDecimal]
+### partition_upper_bound [long]
 
 The partition_column max value for scan, if not set SeaTunnel will query database get max value.
 
-### partition_lower_bound [BigDecimal]
+### partition_lower_bound [long]
 
 The partition_column min value for scan, if not set SeaTunnel will query database get min value.
 
@@ -125,7 +120,6 @@ there are some reference value for params above.
 | Snowflake  | net.snowflake.client.jdbc.SnowflakeDriver           | jdbc:snowflake://<account_name>.snowflakecomputing.com                 | https://mvnrepository.com/artifact/net.snowflake/snowflake-jdbc                                             |
 | Redshift   | com.amazon.redshift.jdbc42.Driver                   | jdbc:redshift://localhost:5439/testdb?defaultRowFetchSize=1000         | https://mvnrepository.com/artifact/com.amazon.redshift/redshift-jdbc42                                      |
 | Vertica    | com.vertica.jdbc.Driver                             | jdbc:vertica://localhost:5433                                          | https://repo1.maven.org/maven2/com/vertica/jdbc/vertica-jdbc/12.0.3-0/vertica-jdbc-12.0.3-0.jar             |
-| OceanBase  | com.oceanbase.jdbc.Driver                           | jdbc:oceanbase://localhost:2881                                        | https://repo1.maven.org/maven2/com/oceanbase/oceanbase-client/2.4.3/oceanbase-client-2.4.3.jar              |
 
 ## Example
 

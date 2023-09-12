@@ -69,12 +69,6 @@ public class ConfigBuilder {
         return config;
     }
 
-    public static Config of(@NonNull Map<String, Object> objectMap) {
-        log.info("Loading config file from objectMap");
-        Config config = ConfigFactory.parseMap(objectMap);
-        return ConfigShadeUtils.decryptConfig(config);
-    }
-
     public static Config of(@NonNull ConfigAdapter configAdapter, @NonNull Path filePath) {
         log.info("With config adapter spi {}", configAdapter.getClass().getName());
         try {

@@ -87,10 +87,9 @@ public class OracleTypeMapper implements JdbcDialectTypeMapper {
                 if (scale == 0) {
                     if (precision <= 9) {
                         return BasicType.INT_TYPE;
-                    } else if (precision <= 18) {
+                    }
+                    if (precision <= 18) {
                         return BasicType.LONG_TYPE;
-                    } else if (precision <= 38) {
-                        return new DecimalType(38, 0);
                     }
                 }
                 return new DecimalType(38, 18);

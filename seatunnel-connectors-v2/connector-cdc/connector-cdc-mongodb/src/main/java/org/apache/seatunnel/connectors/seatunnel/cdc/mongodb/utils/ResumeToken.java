@@ -17,8 +17,6 @@
 
 package org.apache.seatunnel.connectors.seatunnel.cdc.mongodb.utils;
 
-import org.apache.seatunnel.connectors.seatunnel.cdc.mongodb.exception.MongodbConnectorException;
-
 import org.bson.BsonDocument;
 import org.bson.BsonTimestamp;
 import org.bson.BsonValue;
@@ -28,8 +26,6 @@ import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Objects;
-
-import static org.apache.seatunnel.common.exception.CommonErrorCode.ILLEGAL_ARGUMENT;
 
 public class ResumeToken {
 
@@ -45,15 +41,14 @@ public class ResumeToken {
         } else if (bsonValue.isString()) { // Hex-encoded string (v0 or v1)
             keyStringBytes = hexToUint8Array(bsonValue.asString().getValue());
         } else {
-            throw new MongodbConnectorException(
-                    ILLEGAL_ARGUMENT, "Unknown resume token format: " + bsonValue);
+            throw new IllegalArgumentException(
+                    "Unknown resume token format: " + resumeToken.toJson());
         }
 
         ByteBuffer buffer = ByteBuffer.wrap(keyStringBytes).order(ByteOrder.BIG_ENDIAN);
         int kType = buffer.get() & 0xff;
         if (kType != K_TIMESTAMP) {
-            throw new MongodbConnectorException(
-                    ILLEGAL_ARGUMENT, "Unknown keyType of timestamp: " + kType);
+            throw new IllegalArgumentException("Unknown keyType of timestamp: " + kType);
         }
 
         int t = buffer.getInt();

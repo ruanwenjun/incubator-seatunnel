@@ -246,10 +246,4 @@ public final class ContainerUtil {
             throw new FactoryException("Could not load service provider for containers.", e);
         }
     }
-
-    public static void copyFileIntoContainers(
-            String fileName, String targetPath, GenericContainer<?> container) {
-        Path path = getResourcesFile(fileName).toPath();
-        container.copyFileToContainer(MountableFile.forHostPath(path), targetPath);
-    }
 }

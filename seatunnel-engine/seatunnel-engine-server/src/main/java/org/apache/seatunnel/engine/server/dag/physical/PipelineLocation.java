@@ -25,7 +25,6 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Data
 public class PipelineLocation implements Serializable {
-    private static final long serialVersionUID = 2510281765212372549L;
     private long jobId;
     private int pipelineId;
 }

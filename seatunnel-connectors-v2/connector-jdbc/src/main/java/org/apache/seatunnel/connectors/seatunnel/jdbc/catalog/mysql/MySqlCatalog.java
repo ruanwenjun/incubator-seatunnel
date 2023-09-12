@@ -50,7 +50,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -218,16 +217,13 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         int scale = resultSet.getInt("NUMERIC_SCALE");
         long columnLength = resultSet.getLong("CHARACTER_MAXIMUM_LENGTH");
         long octetLength = resultSet.getLong("CHARACTER_OCTET_LENGTH");
-        if (sourceType.toLowerCase(Locale.ROOT).contains("unsigned")) {
-            typeName += "_UNSIGNED";
-        }
-        SeaTunnelDataType<?> type = fromJdbcType(typeName, precision, scale);
+        SeaTunnelDataType<?> type = fromJdbcType(sourceType, precision, scale);
         String comment = resultSet.getString("COLUMN_COMMENT");
         Object defaultValue = resultSet.getObject("COLUMN_DEFAULT");
         String isNullableStr = resultSet.getString("IS_NULLABLE");
         boolean isNullable = isNullableStr.equals("YES");
         long bitLen = 0;
-        MysqlType mysqlType = MysqlType.valueOf(typeName);
+        MysqlType mysqlType = MysqlType.getByName(sourceType);
         switch (mysqlType) {
             case BIT:
                 bitLen = precision;
@@ -321,7 +317,9 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         Connection connection = getConnection(dbUrl);
         try (PreparedStatement ps =
                 connection.prepareStatement(
-                        String.format("DROP TABLE IF EXISTS %s;", tablePath.getFullName()))) {
+                        String.format(
+                                "DROP TABLE IF EXISTS %s.%s;",
+                                tablePath.getDatabaseName(), tablePath.getTableName()))) {
             // Will there exist concurrent drop for one table?
             return ps.execute();
         } catch (SQLException e) {

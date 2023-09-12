@@ -83,14 +83,10 @@ public class ClickhouseSourceReader implements SourceReader<SeaTunnelRow, Clickh
                                     Object[] values =
                                             new Object[this.rowTypeInfo.getFieldNames().length];
                                     for (int i = 0; i < record.size(); i++) {
-                                        if (record.getValue(i).isNullOrEmpty()) {
-                                            values[i] = null;
-                                        } else {
-                                            values[i] =
-                                                    TypeConvertUtil.valueUnwrap(
-                                                            this.rowTypeInfo.getFieldType(i),
-                                                            record.getValue(i));
-                                        }
+                                        values[i] =
+                                                TypeConvertUtil.valueUnwrap(
+                                                        this.rowTypeInfo.getFieldType(i),
+                                                        record.getValue(i));
                                     }
                                     output.collect(new SeaTunnelRow(values));
                                 });

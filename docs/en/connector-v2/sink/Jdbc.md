@@ -9,9 +9,9 @@ semantics (using XA transaction guarantee).
 
 :::tip
 
-Warn: for license compliance, you have to provide database driver yourself, copy to `$SEATNUNNEL_HOME/lib/` directory in order to make them work.
+Warn: for license compliance, you have to provide database driver yourself, copy to `$SEATNUNNEL_HOME/plugins/jdbc/lib/` directory in order to make them work.
 
-e.g. If you use MySQL, should download and copy `mysql-connector-java-xxx.jar` to `$SEATNUNNEL_HOME/lib/`. For Spark/Flink, you should also copy it to `$SPARK_HOME/jars/` or `$FLINK_HOME/lib/`.
+e.g. If you use MySQL, should download and copy `mysql-connector-java-xxx.jar` to `$SEATNUNNEL_HOME/plugins/jdbc/lib/`
 
 :::
 
@@ -26,28 +26,28 @@ support `Xa transactions`. You can set `is_exactly_once=true` to enable it.
 
 ## Options
 
-|                   name                    |  type   | required | default value |
-|-------------------------------------------|---------|----------|---------------|
-| url                                       | String  | Yes      | -             |
-| driver                                    | String  | Yes      | -             |
-| user                                      | String  | No       | -             |
-| password                                  | String  | No       | -             |
-| query                                     | String  | No       | -             |
-| compatible_mode                           | String  | No       | -             |
-| database                                  | String  | No       | -             |
-| table                                     | String  | No       | -             |
-| primary_keys                              | Array   | No       | -             |
-| support_upsert_by_query_primary_key_exist | Boolean | No       | false         |
-| connection_check_timeout_sec              | Int     | No       | 30            |
-| max_retries                               | Int     | No       | 0             |
-| batch_size                                | Int     | No       | 1000          |
-| is_exactly_once                           | Boolean | No       | false         |
-| generate_sink_sql                         | Boolean | No       | false         |
-| xa_data_source_class_name                 | String  | No       | -             |
-| max_commit_attempts                       | Int     | No       | 3             |
-| transaction_timeout_sec                   | Int     | No       | -1            |
-| auto_commit                               | Boolean | No       | true          |
-| common-options                            |         | no       | -             |
+|             name             |  type   | required | default value |
+|------------------------------|---------|----------|---------------|
+| url                          | String  | Yes      | -             |
+| driver                       | String  | Yes      | -             |
+| user                         | String  | No       | -             |
+| password                     | String  | No       | -             |
+| query                        | String  | No       | -             |
+| database                     | String  | No       | -             |
+| table                        | String  | No       | -             |
+| primary_keys                 | Array   | No       | -             |
+| enable_upsert                | Boolean | No       | false         |
+| isPrimaryKeyUpdated          | Boolean | No       | true          |
+| connection_check_timeout_sec | Int     | No       | 30            |
+| max_retries                  | Int     | No       | 0             |
+| batch_size                   | Int     | No       | 1000          |
+| batch_interval_ms            | Int     | No       | 1000          |
+| is_exactly_once              | Boolean | No       | false         |
+| xa_data_source_class_name    | String  | No       | -             |
+| max_commit_attempts          | Int     | No       | 3             |
+| transaction_timeout_sec      | Int     | No       | -1            |
+| auto_commit                  | Boolean | No       | true          |
+| common-options               |         | no       | -             |
 
 ### driver [string]
 
@@ -69,12 +69,6 @@ The URL of the JDBC connection. Refer to a case: jdbc:postgresql://localhost/tes
 
 Use this sql write upstream input datas to database. e.g `INSERT ...`
 
-### compatible_mode [string]
-
-The compatible mode of database, required when the database supports multiple compatible modes. For example, when using OceanBase database, you need to set it to 'mysql' or 'oracle'.
-
-Postgres 9.5 version or below,please set it to `postgresLow` to support cdc
-
 ### database [string]
 
 Use this `database` and `table-name` auto-generate sql and receive upstream input datas write to database.
@@ -91,10 +85,15 @@ This option is mutually exclusive with `query` and has a higher priority.
 
 This option is used to support operations such as `insert`, `delete`, and `update` when automatically generate sql.
 
-### support_upsert_by_query_primary_key_exist [boolean]
+### enable_upsert [boolean]
 
-Choose to use INSERT sql, UPDATE sql to process update events(INSERT, UPDATE_AFTER) based on query primary key exists. This configuration is only used when database unsupported upsert syntax.
-**Note**: that this method has low performance
+Choose to use INSERT/UPDATE or UPSERT sql to process update events(INSERT, UPDATE_AFTER) based on `primary_keys` exists.
+
+**Note**: that this method has low performance on database not support UPSERT sql
+
+### isPrimaryKeyUpdated [boolean]
+
+When executing the update statement, consider whether the primary key is updated or not. Note that this parameter does not take effect when directly configuring the `query`.
 
 ### connection_check_timeout_sec [int]
 
@@ -106,17 +105,18 @@ The number of retries to submit failed (executeBatch)
 
 ### batch_size[int]
 
-For batch writing, when the number of buffered records reaches the number of `batch_size` or the time reaches `checkpoint.interval`
+For batch writing, when the number of buffered records reaches the number of `batch_size` or the time reaches `batch_interval_ms`
+, the data will be flushed into the database
+
+### batch_interval_ms[int]
+
+For batch writing, when the number of buffers reaches the number of `batch_size` or the time reaches `batch_interval_ms`
 , the data will be flushed into the database
 
 ### is_exactly_once[boolean]
 
 Whether to enable exactly-once semantics, which will use Xa transactions. If on, you need to
 set `xa_data_source_class_name`.
-
-### generate_sink_sql[boolean]
-
-Generate sql statements based on the database table you want to write to
 
 ### xa_data_source_class_name[string]
 
@@ -169,7 +169,6 @@ there are some reference value for params above.
 | Redshift   | com.amazon.redshift.jdbc42.Driver            | jdbc:redshift://localhost:5439/testdb                              | com.amazon.redshift.xa.RedshiftXADataSource        | https://mvnrepository.com/artifact/com.amazon.redshift/redshift-jdbc42                                      |
 | Snowflake  | net.snowflake.client.jdbc.SnowflakeDriver    | jdbc:snowflake://<account_name>.snowflakecomputing.com             | /                                                  | https://mvnrepository.com/artifact/net.snowflake/snowflake-jdbc                                             |
 | Vertica    | com.vertica.jdbc.Driver                      | jdbc:vertica://localhost:5433                                      | /                                                  | https://repo1.maven.org/maven2/com/vertica/jdbc/vertica-jdbc/12.0.3-0/vertica-jdbc-12.0.3-0.jar             |
-| OceanBase  | com.oceanbase.jdbc.Driver                    | jdbc:oceanbase://localhost:2881                                    | /                                                  | https://repo1.maven.org/maven2/com/oceanbase/oceanbase-client/2.4.3/oceanbase-client-2.4.3.jar              |
 
 ## Example
 
@@ -220,26 +219,6 @@ sink {
         primary_keys = ["key1", "key2", ...]
     }
 }
-```
-
-Postgresql 9.5 version below support CDC(Change data capture) event
-
-```
-sink {
-    jdbc {
-        url = "jdbc:postgresql://localhost:5432"
-        driver = "org.postgresql.Driver"
-        user = "root"
-        password = "123456"
-        compatible_mode="postgresLow"
-        database = "sink_database"
-        table = "sink_table"
-        support_upsert_by_query_primary_key_exist = true
-        generate_sink_sql = true
-        primary_keys = ["key1", "key2", ...]
-    }
-}
-
 ```
 
 ## Changelog

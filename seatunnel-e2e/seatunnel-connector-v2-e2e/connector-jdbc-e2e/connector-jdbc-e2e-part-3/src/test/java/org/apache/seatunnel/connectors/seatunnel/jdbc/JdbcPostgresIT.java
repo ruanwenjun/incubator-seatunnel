@@ -95,9 +95,7 @@ public class JdbcPostgresIT extends TestSuiteBase implements TestResource {
                     + "  multilinestring geometry(MULTILINESTRING, 4326),\n"
                     + "  multipolygon geometry(MULTIPOLYGON, 4326),\n"
                     + "  geometrycollection geometry(GEOMETRYCOLLECTION, 4326),\n"
-                    + "  geog geography(POINT, 4326),\n"
-                    + "  json_col json NOT NULL,\n"
-                    + "  jsonb_col jsonb NOT NULL\n"
+                    + "  geog geography(POINT, 4326)\n"
                     + ")";
     private static final String PG_SINK_DDL =
             "CREATE TABLE IF NOT EXISTS pg_e2e_sink_table (\n"
@@ -128,9 +126,7 @@ public class JdbcPostgresIT extends TestSuiteBase implements TestResource {
                     + "    multilinestring varchar(2000) NULL,\n"
                     + "    multipolygon varchar(2000) NULL,\n"
                     + "    geometrycollection varchar(2000) NULL,\n"
-                    + "    geog varchar(2000) NULL,\n"
-                    + "    json_col json NOT NULL \n,"
-                    + "    jsonb_col jsonb NOT NULL\n"
+                    + "    geog varchar(2000) NULL\n"
                     + "  )";
     private static final String SOURCE_SQL =
             "select \n"
@@ -161,10 +157,8 @@ public class JdbcPostgresIT extends TestSuiteBase implements TestResource {
                     + "multilinestring,\n"
                     + "multipolygon,\n"
                     + "geometrycollection,\n"
-                    + "geog,\n"
-                    + "json_col,\n"
-                    + "jsonb_col\n"
-                    + "from pg_e2e_source_table";
+                    + "geog\n"
+                    + " from pg_e2e_source_table";
     private static final String SINK_SQL =
             "select\n"
                     + "  gid,\n"
@@ -194,9 +188,7 @@ public class JdbcPostgresIT extends TestSuiteBase implements TestResource {
                     + "  cast(multilinestring as geometry) as multilinestring,\n"
                     + "  cast(multipolygon as geometry) as multilinestring,\n"
                     + "  cast(geometrycollection as geometry) as geometrycollection,\n"
-                    + "  cast(geog as geography) as geog,\n"
-                    + "   json_col,\n"
-                    + "   jsonb_col\n"
+                    + "  cast(geog as geography) as geog\n"
                     + "from\n"
                     + "  pg_e2e_sink_table";
 
@@ -287,9 +279,7 @@ public class JdbcPostgresIT extends TestSuiteBase implements TestResource {
                                 + "    multilinestring,\n"
                                 + "    multipolygon,\n"
                                 + "    geometrycollection,\n"
-                                + "    geog,\n"
-                                + "    json_col,\n"
-                                + "    jsonb_col \n"
+                                + "    geog\n"
                                 + "  )\n"
                                 + "VALUES\n"
                                 + "  (\n"
@@ -340,9 +330,7 @@ public class JdbcPostgresIT extends TestSuiteBase implements TestResource {
                                 + "      'GEOMETRYCOLLECTION(POINT(-122.3462 47.5921), LINESTRING(-122.3460 47.5924, -122.3457 47.5924))',\n"
                                 + "      4326\n"
                                 + "    ),\n"
-                                + "    ST_GeographyFromText('POINT(-122.3452 47.5925)'),\n"
-                                + "    '{\"key\":\"test\"}',\n"
-                                + "    '{\"key\":\"test\"}'\n"
+                                + "    ST_GeographyFromText('POINT(-122.3452 47.5925)')\n"
                                 + "  )");
             }
 

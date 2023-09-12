@@ -41,8 +41,7 @@ public class RedisSinkFactory implements TableSinkFactory {
                         RedisConfig.AUTH,
                         RedisConfig.USER,
                         RedisConfig.KEY_PATTERN,
-                        RedisConfig.FORMAT,
-                        RedisConfig.EXPIRE)
+                        RedisConfig.FORMAT)
                 .conditional(RedisConfig.MODE, RedisConfig.RedisMode.CLUSTER, RedisConfig.NODES)
                 .build();
     }

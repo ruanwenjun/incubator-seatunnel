@@ -24,10 +24,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.translation.serialization.RowConverter;
-import org.apache.seatunnel.translation.spark.utils.TypeConverterUtils;
 
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import scala.Tuple2;
@@ -54,11 +51,7 @@ public class SeaTunnelRowConverter extends RowConverter<SeaTunnelRow> {
     @Override
     public SeaTunnelRow convert(SeaTunnelRow seaTunnelRow) throws IOException {
         validate(seaTunnelRow);
-        GenericRowWithSchema rowWithSchema = (GenericRowWithSchema) convert(seaTunnelRow, dataType);
-        SeaTunnelRow newRow = new SeaTunnelRow(rowWithSchema.values());
-        newRow.setRowKind(seaTunnelRow.getRowKind());
-        newRow.setTableId(seaTunnelRow.getTableId());
-        return newRow;
+        return (SeaTunnelRow) convert(seaTunnelRow, dataType);
     }
 
     private Object convert(Object field, SeaTunnelDataType<?> dataType) {
@@ -69,7 +62,7 @@ public class SeaTunnelRowConverter extends RowConverter<SeaTunnelRow> {
             case ROW:
                 SeaTunnelRow seaTunnelRow = (SeaTunnelRow) field;
                 SeaTunnelRowType rowType = (SeaTunnelRowType) dataType;
-                return convertRow(seaTunnelRow, rowType);
+                return convert(seaTunnelRow, rowType);
             case DATE:
                 return Date.valueOf((LocalDate) field);
             case TIMESTAMP:
@@ -101,17 +94,16 @@ public class SeaTunnelRowConverter extends RowConverter<SeaTunnelRow> {
         }
     }
 
-    private GenericRowWithSchema convertRow(SeaTunnelRow seaTunnelRow, SeaTunnelRowType rowType) {
+    private SeaTunnelRow convert(SeaTunnelRow seaTunnelRow, SeaTunnelRowType rowType) {
         int arity = rowType.getTotalFields();
         Object[] values = new Object[arity];
-        StructType schema = (StructType) TypeConverterUtils.convert(rowType);
         for (int i = 0; i < arity; i++) {
             Object fieldValue = convert(seaTunnelRow.getField(i), rowType.getFieldType(i));
             if (fieldValue != null) {
                 values[i] = fieldValue;
             }
         }
-        return new GenericRowWithSchema(values, schema);
+        return new SeaTunnelRow(values);
     }
 
     private scala.collection.immutable.HashMap<Object, Object> convertMap(
@@ -156,10 +148,6 @@ public class SeaTunnelRowConverter extends RowConverter<SeaTunnelRow> {
         }
         switch (dataType.getSqlType()) {
             case ROW:
-                if (field instanceof GenericRowWithSchema) {
-                    return createFromGenericRow(
-                            (GenericRowWithSchema) field, (SeaTunnelRowType) dataType);
-                }
                 return reconvert((SeaTunnelRow) field, (SeaTunnelRowType) dataType);
             case DATE:
                 return ((Date) field).toLocalDate();
@@ -176,15 +164,6 @@ public class SeaTunnelRowConverter extends RowConverter<SeaTunnelRow> {
             default:
                 return field;
         }
-    }
-
-    private SeaTunnelRow createFromGenericRow(GenericRowWithSchema row, SeaTunnelRowType type) {
-        Object[] fields = row.values();
-        Object[] newFields = new Object[fields.length];
-        for (int idx = 0; idx < fields.length; idx++) {
-            newFields[idx] = reconvert(fields[idx], type.getFieldType(idx));
-        }
-        return new SeaTunnelRow(newFields);
     }
 
     private SeaTunnelRow reconvert(SeaTunnelRow engineRow, SeaTunnelRowType rowType) {

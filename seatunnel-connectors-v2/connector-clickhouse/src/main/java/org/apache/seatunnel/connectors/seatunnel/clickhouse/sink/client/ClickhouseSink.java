@@ -61,7 +61,6 @@ import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.Clickh
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.ClickhouseConfig.HOST;
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.ClickhouseConfig.PASSWORD;
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.ClickhouseConfig.PRIMARY_KEY;
-import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.ClickhouseConfig.SERVER_TIME_ZONE;
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.ClickhouseConfig.SHARDING_KEY;
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.ClickhouseConfig.SPLIT_MODE;
 import static org.apache.seatunnel.connectors.seatunnel.clickhouse.config.ClickhouseConfig.SUPPORT_UPSERT;
@@ -102,7 +101,6 @@ public class ClickhouseSink
                 ImmutableMap.<String, Object>builder()
                         .put(BULK_SIZE.key(), BULK_SIZE.defaultValue())
                         .put(SPLIT_MODE.key(), SPLIT_MODE.defaultValue())
-                        .put(SERVER_TIME_ZONE.key(), SERVER_TIME_ZONE.defaultValue())
                         .build();
 
         config = config.withFallback(ConfigFactory.parseMap(defaultConfig));
@@ -113,7 +111,6 @@ public class ClickhouseSink
                     ClickhouseUtil.createNodes(
                             config.getString(HOST.key()),
                             config.getString(DATABASE.key()),
-                            config.getString(SERVER_TIME_ZONE.key()),
                             null,
                             null);
         } else {
@@ -121,7 +118,6 @@ public class ClickhouseSink
                     ClickhouseUtil.createNodes(
                             config.getString(HOST.key()),
                             config.getString(DATABASE.key()),
-                            config.getString(SERVER_TIME_ZONE.key()),
                             config.getString(USERNAME.key()),
                             config.getString(PASSWORD.key()));
         }

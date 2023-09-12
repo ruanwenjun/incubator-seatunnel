@@ -117,8 +117,10 @@ public class IncrementalSourceRecordEmitter<T>
                 splitState.asSnapshotSplitState().setLowWatermark(watermark);
             } else if (isHighWatermarkEvent(element) && splitState.isSnapshotSplitState()) {
                 splitState.asSnapshotSplitState().setHighWatermark(watermark);
-            } else if ((isSchemaChangeBeforeWatermarkEvent(element)
-                            || isSchemaChangeAfterWatermarkEvent(element))
+            } else if (isSchemaChangeBeforeWatermarkEvent(element)
+                    && splitState.isIncrementalSplitState()) {
+                emitElement(element, output);
+            } else if (isSchemaChangeAfterWatermarkEvent(element)
                     && splitState.isIncrementalSplitState()) {
                 emitElement(element, output);
             }

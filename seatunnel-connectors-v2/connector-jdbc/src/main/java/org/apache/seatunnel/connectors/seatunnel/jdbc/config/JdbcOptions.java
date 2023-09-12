@@ -38,12 +38,6 @@ public interface JdbcOptions {
                     .intType()
                     .defaultValue(30)
                     .withDescription("connection check time second");
-    Option<String> COMPATIBLE_MODE =
-            Options.key("compatible_mode")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "The compatible mode of database, required when the database supports multiple compatible modes. For example, when using OceanBase database, you need to set it to 'mysql' or 'oracle'.");
 
     Option<Integer> MAX_RETRIES =
             Options.key("max_retries").intType().defaultValue(0).withDescription("max_retired");
@@ -81,6 +75,12 @@ public interface JdbcOptions {
                     .withDescription(
                             "For queries that return a large number of objects, "
                                     + "you can configure the row fetch size used in the query to improve performance by reducing the number database hits required to satisfy the selection criteria. Zero means use jdbc default value.");
+
+    Option<Integer> BATCH_INTERVAL_MS =
+            Options.key("batch_interval_ms")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription("batch interval milliSecond");
 
     Option<Boolean> IS_EXACTLY_ONCE =
             Options.key("is_exactly_once")

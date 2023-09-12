@@ -59,7 +59,7 @@ More information about config please check [config concept](../../concept/config
 You could start the application by the following commands
 
 ```shell
-cd "apache-seatunnel-${version}"
+cd "apache-seatunnel-incubating-${version}"
 ./bin/seatunnel.sh --config ./config/v2.batch.config.template -e local
 
 ```

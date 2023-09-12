@@ -39,11 +39,9 @@ import org.apache.seatunnel.engine.server.dag.physical.SubPlan;
 import org.apache.seatunnel.engine.server.execution.ExecutionState;
 import org.apache.seatunnel.engine.server.execution.TaskExecutionState;
 import org.apache.seatunnel.engine.server.execution.TaskGroupLocation;
-import org.apache.seatunnel.engine.server.execution.TaskLocation;
 import org.apache.seatunnel.engine.server.master.JobHistoryService;
 import org.apache.seatunnel.engine.server.master.JobMaster;
 import org.apache.seatunnel.engine.server.metrics.JobMetricsUtil;
-import org.apache.seatunnel.engine.server.metrics.SeaTunnelMetricsContext;
 import org.apache.seatunnel.engine.server.resourcemanager.ResourceManager;
 import org.apache.seatunnel.engine.server.resourcemanager.ResourceManagerFactory;
 import org.apache.seatunnel.engine.server.resourcemanager.resource.SlotProfile;
@@ -61,7 +59,6 @@ import com.hazelcast.spi.impl.NodeEngineImpl;
 import lombok.NonNull;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -139,8 +136,6 @@ public class CoordinatorService {
      */
     private IMap<PipelineLocation, Map<TaskGroupLocation, SlotProfile>> ownedSlotProfilesIMap;
 
-    private IMap<Long, HashMap<TaskLocation, SeaTunnelMetricsContext>> metricsImap;
-
     /** If this node is a master node */
     private volatile boolean isActive = false;
 
@@ -206,7 +201,6 @@ public class CoordinatorService {
                 nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_STATE_TIMESTAMPS);
         ownedSlotProfilesIMap =
                 nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_OWNED_SLOT_PROFILES);
-        metricsImap = nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_RUNNING_JOB_METRICS);
 
         jobHistoryService =
                 new JobHistoryService(
@@ -219,8 +213,7 @@ public class CoordinatorService {
                                 .getMap(Constant.IMAP_FINISHED_JOB_METRICS),
                         nodeEngine
                                 .getHazelcastInstance()
-                                .getMap(Constant.IMAP_FINISHED_JOB_VERTEX_INFO),
-                        engineConfig.getHistoryJobExpireMinutes());
+                                .getMap(Constant.IMAP_FINISHED_JOB_VERTEX_INFO));
 
         List<CompletableFuture<Void>> collect =
                 runningJobInfoIMap.entrySet().stream()
@@ -273,7 +266,6 @@ public class CoordinatorService {
                         runningJobStateTimestampsIMap,
                         ownedSlotProfilesIMap,
                         runningJobInfoIMap,
-                        metricsImap,
                         engineConfig);
 
         // If Job Status is CANCELLING , set needRestore to false
@@ -449,7 +441,6 @@ public class CoordinatorService {
                         runningJobStateTimestampsIMap,
                         ownedSlotProfilesIMap,
                         runningJobInfoIMap,
-                        metricsImap,
                         engineConfig);
         executorService.submit(
                 () -> {

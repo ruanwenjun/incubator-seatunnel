@@ -21,7 +21,7 @@ import org.apache.seatunnel.connectors.cdc.base.option.JdbcSourceOptions;
 
 import java.io.Serializable;
 
-import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * This class defines a range of server id. The boundaries of the range are inclusive.
@@ -32,27 +32,27 @@ public class ServerIdRange implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** Start of the range (inclusive). */
-    private final long startServerId;
+    private final int startServerId;
 
     /** End of the range (inclusive). */
-    private final long endServerId;
+    private final int endServerId;
 
-    public ServerIdRange(long startServerId, long endServerId) {
+    public ServerIdRange(int startServerId, int endServerId) {
         this.startServerId = startServerId;
         this.endServerId = endServerId;
     }
 
-    public long getStartServerId() {
+    public int getStartServerId() {
         return startServerId;
     }
 
-    public long getEndServerId() {
+    public int getEndServerId() {
         return endServerId;
     }
 
-    public long getServerId(int subTaskId) {
+    public int getServerId(int subTaskId) {
         checkArgument(subTaskId >= 0, "Subtask ID %s shouldn't be a negative number.", subTaskId);
-        if ((long) subTaskId > getNumberOfServerIds()) {
+        if (subTaskId > getNumberOfServerIds()) {
             throw new IllegalArgumentException(
                     String.format(
                             "Subtask ID %s is out of server id range %s, "
@@ -64,8 +64,8 @@ public class ServerIdRange implements Serializable {
         return startServerId + subTaskId;
     }
 
-    public long getNumberOfServerIds() {
-        return endServerId - startServerId + 1L;
+    public int getNumberOfServerIds() {
+        return endServerId - startServerId + 1;
     }
 
     @Override
@@ -96,14 +96,14 @@ public class ServerIdRange implements Serializable {
             return new ServerIdRange(
                     parseServerId(idArray[0].trim()), parseServerId(idArray[1].trim()));
         } else {
-            long serverId = parseServerId(range);
+            int serverId = parseServerId(range);
             return new ServerIdRange(serverId, serverId);
         }
     }
 
-    private static long parseServerId(String serverIdValue) {
+    private static int parseServerId(String serverIdValue) {
         try {
-            return Long.parseLong(serverIdValue);
+            return Integer.parseInt(serverIdValue);
         } catch (NumberFormatException e) {
             throw new IllegalStateException(
                     String.format("The server id %s is not a valid numeric.", serverIdValue), e);

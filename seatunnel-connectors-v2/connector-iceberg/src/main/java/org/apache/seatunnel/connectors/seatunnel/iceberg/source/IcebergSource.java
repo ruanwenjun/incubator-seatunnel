@@ -54,7 +54,7 @@ import lombok.SneakyThrows;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkArgument;
 
 @AutoService(SeaTunnelSource.class)
 public class IcebergSource

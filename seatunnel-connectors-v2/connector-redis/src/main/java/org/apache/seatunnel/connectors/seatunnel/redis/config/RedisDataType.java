@@ -30,9 +30,8 @@ import java.util.Set;
 public enum RedisDataType {
     KEY {
         @Override
-        public void set(Jedis jedis, String key, String value, long expire) {
+        public void set(Jedis jedis, String key, String value) {
             jedis.set(key, value);
-            expire(jedis, key, expire);
         }
 
         @Override
@@ -42,10 +41,9 @@ public enum RedisDataType {
     },
     HASH {
         @Override
-        public void set(Jedis jedis, String key, String value, long expire) {
+        public void set(Jedis jedis, String key, String value) {
             Map<String, String> fieldsMap = JsonUtils.toMap(value);
             jedis.hset(key, fieldsMap);
-            expire(jedis, key, expire);
         }
 
         @Override
@@ -56,9 +54,8 @@ public enum RedisDataType {
     },
     LIST {
         @Override
-        public void set(Jedis jedis, String key, String value, long expire) {
+        public void set(Jedis jedis, String key, String value) {
             jedis.lpush(key, value);
-            expire(jedis, key, expire);
         }
 
         @Override
@@ -68,9 +65,8 @@ public enum RedisDataType {
     },
     SET {
         @Override
-        public void set(Jedis jedis, String key, String value, long expire) {
+        public void set(Jedis jedis, String key, String value) {
             jedis.sadd(key, value);
-            expire(jedis, key, expire);
         }
 
         @Override
@@ -81,9 +77,8 @@ public enum RedisDataType {
     },
     ZSET {
         @Override
-        public void set(Jedis jedis, String key, String value, long expire) {
+        public void set(Jedis jedis, String key, String value) {
             jedis.zadd(key, 1, value);
-            expire(jedis, key, expire);
         }
 
         @Override
@@ -96,13 +91,7 @@ public enum RedisDataType {
         return Collections.emptyList();
     }
 
-    private static void expire(Jedis jedis, String key, long expire) {
-        if (expire > 0) {
-            jedis.expire(key, expire);
-        }
-    }
-
-    public void set(Jedis jedis, String key, String value, long expire) {
+    public void set(Jedis jedis, String key, String value) {
         // do nothing
     }
 }

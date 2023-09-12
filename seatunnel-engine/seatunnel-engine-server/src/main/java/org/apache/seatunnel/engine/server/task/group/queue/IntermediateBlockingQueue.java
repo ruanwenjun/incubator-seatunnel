@@ -57,7 +57,7 @@ public class IntermediateBlockingQueue extends AbstractIntermediateQueue<Blockin
 
     @Override
     public void close() throws IOException {
-        getIntermediateQueue().clear();
+        queue.clear();
     }
 
     private void handleRecord(Record<?> record, ConsumerWithException<Record<?>> consumer)

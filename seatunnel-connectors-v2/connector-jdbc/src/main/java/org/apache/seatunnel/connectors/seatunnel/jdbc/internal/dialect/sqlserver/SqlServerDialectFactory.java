@@ -36,7 +36,7 @@ public class SqlServerDialectFactory implements JdbcDialectFactory {
     }
 
     @Override
-    public JdbcDialect createWithFieldIde(String fieldIde) {
+    public JdbcDialect create(String fieldIde) {
         return new SqlServerDialect(fieldIde);
     }
 }

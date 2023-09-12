@@ -89,7 +89,7 @@ public class MySqlSourceConfigFactory extends JdbcSourceConfigFactory {
 
         if (serverIdRange != null) {
             props.setProperty("database.server.id.range", String.valueOf(serverIdRange));
-            long serverId = serverIdRange.getServerId(subtaskId);
+            int serverId = serverIdRange.getServerId(subtaskId);
             props.setProperty("database.server.id", String.valueOf(serverId));
         }
         if (databaseList != null) {

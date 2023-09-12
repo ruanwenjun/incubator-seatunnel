@@ -21,7 +21,6 @@ import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.connectors.cdc.base.source.IncrementalSource;
 
-import java.time.ZoneId;
 import java.util.List;
 
 /** Configurations for {@link IncrementalSource} of JDBC data source. */
@@ -62,10 +61,8 @@ public class JdbcSourceOptions extends SourceOptions {
     public static final Option<String> SERVER_TIME_ZONE =
             Options.key("server-time-zone")
                     .stringType()
-                    .defaultValue(ZoneId.systemDefault().getId())
-                    .withDescription(
-                            "The session time zone in database server."
-                                    + "If not set, then ZoneId.systemDefault() is used to determine the server time zone");
+                    .defaultValue("UTC")
+                    .withDescription("The session time zone in database server.");
 
     public static final Option<String> SERVER_ID =
             Options.key("server-id")

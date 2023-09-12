@@ -23,7 +23,6 @@ Used to write data to Redis.
 | mode           | string | no                    | single        |
 | nodes          | list   | yes when mode=cluster | -             |
 | format         | string | no                    | json          |
-| expire         | long   | no                    | -1            |
 | common-options |        | no                    | -             |
 
 ### host [string]
@@ -120,10 +119,6 @@ Connector will generate data as the following and write it to redis:
 {"code":  200, "data":  "get success", "success":  "true"}
 
 ```
-
-### expire [long]
-
-Set redis expiration time, the unit is second. The default value is -1, keys do not automatically expire by default.
 
 ### common options
 
