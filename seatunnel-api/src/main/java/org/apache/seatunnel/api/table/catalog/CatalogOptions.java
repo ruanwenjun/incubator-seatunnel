@@ -22,6 +22,7 @@ import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +30,7 @@ public interface CatalogOptions {
     Option<Map<String, String>> CATALOG_OPTIONS =
             Options.key("catalog")
                     .mapType()
-                    .noDefaultValue()
+                    .defaultValue(new HashMap<>())
                     .withDescription("configuration options for the catalog.");
 
     Option<String> NAME =
