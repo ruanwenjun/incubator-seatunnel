@@ -119,10 +119,8 @@ public class DolphinDBCatalog implements Catalog {
         try {
             BasicStringVector run =
                     (BasicStringVector)
-                            dbConnection.run("getDFSTablesByDatabase(\"" + databaseName + "\")");
-            return Arrays.stream(run.getdataArray())
-                    .map(tableFullName -> tableFullName.substring(databaseName.length() + 1))
-                    .collect(Collectors.toList());
+                            dbConnection.run("database(\"" + databaseName + "\").getTables()");
+            return Arrays.stream(run.getdataArray()).collect(Collectors.toList());
         } catch (IOException e) {
             throw new CatalogException("DolphinDB listTables in " + databaseName + " failed", e);
         }

@@ -9,7 +9,7 @@ public class DwsGaussDBCatalogOption implements BaseDwsGaussDBOption {
     @Override
     public OptionRule getOptionRule() {
         return OptionRule.builder()
-                .required(URL, DRIVER, DATABASE, SCHEMA)
+                .required(URL, DRIVER, DATABASE)
                 .optional(USER, PASSWORD, PROPERTIES)
                 .build();
     }

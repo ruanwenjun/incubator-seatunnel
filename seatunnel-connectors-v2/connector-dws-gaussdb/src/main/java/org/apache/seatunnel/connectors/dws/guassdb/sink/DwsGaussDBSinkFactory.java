@@ -11,6 +11,7 @@ import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption;
 import org.apache.seatunnel.connectors.dws.guassdb.config.DwsGaussDBConfig;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.commit.DwsGaussDBSinkAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.commit.DwsGaussDBSinkCommitInfo;
@@ -110,9 +111,21 @@ public class DwsGaussDBSinkFactory
         }
         final ReadonlyConfig options = config;
         String[] split = config.get(TABLE).split("\\.");
+        String schemaName = null;
+        String tableName = null;
+        if (split.length == 2) {
+            schemaName = split[0];
+            tableName = split[1];
+        } else {
+            schemaName = config.get(BaseDwsGaussDBOption.DATABASE_SCHEMA);
+            tableName = split[0];
+        }
         TableIdentifier tableIdentifier =
                 TableIdentifier.of(
-                        catalogTable.getCatalogName(), options.get(DATABASE), split[0], split[1]);
+                        catalogTable.getCatalogName(),
+                        options.get(DATABASE),
+                        schemaName,
+                        tableName);
         CatalogTable finalCatalogTable = CatalogTable.of(tableIdentifier, catalogTable);
 
         return () -> new DwsGaussDBSink(options, finalCatalogTable);

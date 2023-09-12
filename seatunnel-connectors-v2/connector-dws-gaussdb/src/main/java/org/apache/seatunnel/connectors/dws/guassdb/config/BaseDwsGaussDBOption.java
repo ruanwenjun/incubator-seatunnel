@@ -14,8 +14,11 @@ public interface BaseDwsGaussDBOption {
     Option<String> DATABASE =
             Options.key("database").stringType().noDefaultValue().withDescription("database");
 
-    Option<String> SCHEMA =
-            Options.key("schema").stringType().noDefaultValue().withDescription("schema");
+    Option<String> DATABASE_SCHEMA =
+            Options.key("database_schema")
+                    .stringType()
+                    .defaultValue("default")
+                    .withDescription("database_schema");
 
     Option<String> TABLE =
             Options.key("table").stringType().noDefaultValue().withDescription("table");

@@ -9,12 +9,15 @@ import org.apache.seatunnel.connectors.dws.guassdb.sink.sql.DwsGaussSqlGenerator
 
 import org.apache.commons.collections4.CollectionUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class DwsGaussDBSinkAggregatedCommitter
         implements SinkAggregatedCommitter<
                 DwsGaussDBSinkCommitInfo, DwsGaussDBSinkAggregatedCommitInfo> {
@@ -49,6 +52,10 @@ public class DwsGaussDBSinkAggregatedCommitter
                     clearTemporaryTable(snapshotId);
                 }
             } catch (Exception ex) {
+                log.error(
+                        "DwsGaussDBSinkAggregatedCommitter commit failed, commitInfo: {}",
+                        commitInfo,
+                        ex);
                 needRetryCommitInfo.add(commitInfo);
             }
         }

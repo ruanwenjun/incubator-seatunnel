@@ -33,6 +33,12 @@ public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
                     .defaultValue(Lists.newArrayList("id"))
                     .withDescription("primary_keys");
 
+    public static final Option<FieldIdeEnum> FIELD_IDE =
+            Options.key("field_ide")
+                    .enumType(FieldIdeEnum.class)
+                    .noDefaultValue()
+                    .withDescription("Whether case conversion is required");
+
     public static final Option<Integer> BATCH_SIZE =
             Options.key("batch_size").intType().defaultValue(8196).withDescription("batch_size");
 
@@ -40,6 +46,22 @@ public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
         APPEND_ONLY,
         // todo: Add UPSERT mode(Doesn't use temporary table)
         USING_TEMPORARY_TABLE,
+    }
+
+    public enum FieldIdeEnum {
+        ORIGINAL("original"), // Original string form
+        UPPERCASE("uppercase"), // Convert to uppercase
+        LOWERCASE("lowercase"); // Convert to lowercase
+
+        private final String value;
+
+        FieldIdeEnum(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
     }
 
     @Override

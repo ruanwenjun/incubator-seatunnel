@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption.PRIMARY_KEYS;
+import static org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption.FIELD_IDE;
 import static org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption.SAVE_MODE;
 
 public class DwsGaussDBSink
@@ -62,7 +63,10 @@ public class DwsGaussDBSink
         this.readonlyConfig = readonlyConfig;
         this.catalogTable = catalogTable;
         this.sqlGenerator =
-                new DwsGaussSqlGenerator(readonlyConfig.get(PRIMARY_KEYS), catalogTable);
+                new DwsGaussSqlGenerator(
+                        readonlyConfig.get(PRIMARY_KEYS),
+                        readonlyConfig.get(FIELD_IDE),
+                        catalogTable);
         this.dataSaveMode =
                 ReadOnlyConfigUtils.getOrDefault(
                         readonlyConfig, SAVE_MODE, DataSaveMode.ERROR_WHEN_EXISTS);

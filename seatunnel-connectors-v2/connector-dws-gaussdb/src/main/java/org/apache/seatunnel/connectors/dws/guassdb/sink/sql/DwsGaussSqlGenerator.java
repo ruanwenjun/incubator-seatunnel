@@ -6,6 +6,7 @@ import org.apache.seatunnel.api.table.type.DecimalType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.connectors.dws.guassdb.catalog.DwsGaussDBDataTypeConvertor;
+import org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption;
 
 import org.apache.commons.collections4.CollectionUtils;
 
@@ -13,11 +14,13 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class DwsGaussSqlGenerator implements Serializable {
 
     private final CatalogTable catalogTable;
+    private final DwsGaussDBSinkOption.FieldIdeEnum fieldIdeEnum;
     // todo: use primary key in catalog table
     private final List<String> primaryKeys;
     private final String schemaName;
@@ -29,12 +32,24 @@ public class DwsGaussSqlGenerator implements Serializable {
 
     private final DwsGaussDBDataTypeConvertor dwsGaussDBDataTypeConvertor;
 
-    public DwsGaussSqlGenerator(List<String> primaryKeys, CatalogTable catalogTable) {
-        this.primaryKeys = primaryKeys;
+    public DwsGaussSqlGenerator(
+            List<String> primaryKeys,
+            DwsGaussDBSinkOption.FieldIdeEnum fieldIdeEnum,
+            CatalogTable catalogTable) {
+        if (CollectionUtils.isNotEmpty(primaryKeys)) {
+            this.primaryKeys =
+                    primaryKeys.stream().map(this::getIDEString).collect(Collectors.toList());
+        } else {
+            this.primaryKeys = primaryKeys;
+        }
+        this.fieldIdeEnum = fieldIdeEnum;
         this.catalogTable = catalogTable;
-        this.schemaName = catalogTable.getTableId().getSchemaName();
-        this.targetTableName = catalogTable.getTableId().getTableName();
-        this.templateTableName = "st_temporary_" + targetTableName;
+        this.schemaName =
+                Optional.ofNullable(catalogTable.getTableId().getSchemaName())
+                        .map(this::getIDEString)
+                        .orElse("default");
+        this.targetTableName = getIDEString(catalogTable.getTableId().getTableName());
+        this.templateTableName = getIDEString("st_temporary_" + targetTableName);
         this.dwsGaussDBDataTypeConvertor = new DwsGaussDBDataTypeConvertor();
     }
 
@@ -79,18 +94,22 @@ public class DwsGaussSqlGenerator implements Serializable {
 
         List<String> updateColumns = new ArrayList<>();
         List<Column> columns = catalogTable.getTableSchema().getColumns();
-        for (Column column : columns) {
-            if (column.getName().equals(primaryKey)) {
+        List<String> columnNames =
+                columns.stream()
+                        .map(column -> getIDEString(column.getName()))
+                        .collect(Collectors.toList());
+        for (String columnName : columnNames) {
+            if (columnName.equals(primaryKey)) {
                 // the primary key doesn't need to update
                 continue;
             }
-            updateColumns.add(column.getName() + "=" + "EXCLUDED." + column.getName());
+            updateColumns.add(columnName + "=" + "EXCLUDED." + columnName);
         }
 
         return String.format(
                 sql,
                 targetTable,
-                columns.stream().map(Column::getName).collect(Collectors.joining(",")),
+                columnNames.stream().collect(Collectors.joining(",")),
                 temporaryTable,
                 snapshotId,
                 primaryKey,
@@ -181,12 +200,12 @@ public class DwsGaussSqlGenerator implements Serializable {
                         .map(this::buildColumnSql)
                         .collect(Collectors.toList());
         // add snapshot_id and is_deleted column
-        columnSqls.add("\"st_snapshot_id\" varchar(255)");
-        columnSqls.add("\"st_is_deleted\" boolean");
+        columnSqls.add("\"" + getIDEString("st_snapshot_id") + "\" varchar(255)");
+        columnSqls.add("\"" + getIDEString("st_is_deleted") + "\" boolean");
         createTemporaryTableSql.append(String.join(",\n", columnSqls));
         createTemporaryTableSql.append("\n);");
         // add index for snapshot_id
-        columnSqls.add("INDEX (st_snapshot_id)");
+        columnSqls.add("INDEX (" + getIDEString("st_snapshot_id") + ")");
 
         return createTemporaryTableSql.toString();
     }
@@ -197,7 +216,12 @@ public class DwsGaussSqlGenerator implements Serializable {
 
         createTemporaryTableSql
                 .append("CREATE TABLE IF NOT EXISTS ")
-                .append(catalogTable.getTableId().toTablePath().getSchemaAndTableName("\""))
+                .append(
+                        getIDEString(
+                                catalogTable
+                                        .getTableId()
+                                        .toTablePath()
+                                        .getSchemaAndTableName("\"")))
                 .append(" (\n");
 
         List<String> columnSqls =
@@ -242,7 +266,7 @@ public class DwsGaussSqlGenerator implements Serializable {
         StringBuilder columnSql = new StringBuilder();
         columnSql
                 .append("\"")
-                .append(column.getName())
+                .append(getIDEString(column.getName()))
                 .append("\" ")
                 .append(buildColumnType(column));
 
@@ -253,7 +277,7 @@ public class DwsGaussSqlGenerator implements Serializable {
 
         // Add primary key directly after the column if it is a primary key
         if (CollectionUtils.isNotEmpty(primaryKeys)) {
-            if (primaryKeys.get(0).equals(column.getName())) {
+            if (primaryKeys.get(0).equals(getIDEString(column.getName()))) {
                 columnSql.append(" PRIMARY KEY");
             }
         }
@@ -285,6 +309,22 @@ public class DwsGaussSqlGenerator implements Serializable {
                             + ")";
                 }
                 return type;
+        }
+    }
+
+    private String getIDEString(String originString) {
+        if (originString == null) {
+            return originString;
+        }
+        switch (fieldIdeEnum) {
+            case ORIGINAL:
+                return originString;
+            case LOWERCASE:
+                return originString.toLowerCase();
+            case UPPERCASE:
+                return originString.toUpperCase();
+            default:
+                return originString;
         }
     }
 }

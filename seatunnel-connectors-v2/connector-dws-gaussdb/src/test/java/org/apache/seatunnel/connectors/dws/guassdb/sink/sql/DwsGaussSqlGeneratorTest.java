@@ -10,6 +10,7 @@ import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.type.BasicType;
 import org.apache.seatunnel.api.table.type.LocalTimeType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -54,7 +55,11 @@ public class DwsGaussSqlGeneratorTest {
         CatalogTable catalogTable =
                 CatalogTable.of(
                         tableIdentifier, tableSchema, new HashMap<>(), new ArrayList<>(), "");
-        dwsGaussSqlGenerator = new DwsGaussSqlGenerator(Lists.newArrayList("id"), catalogTable);
+        dwsGaussSqlGenerator =
+                new DwsGaussSqlGenerator(
+                        Lists.newArrayList("id"),
+                        DwsGaussDBSinkOption.FieldIdeEnum.ORIGINAL,
+                        catalogTable);
     }
 
     @Test
