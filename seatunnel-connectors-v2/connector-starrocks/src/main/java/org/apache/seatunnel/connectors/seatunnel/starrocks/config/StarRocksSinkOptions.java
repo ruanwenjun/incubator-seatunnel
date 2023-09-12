@@ -145,7 +145,8 @@ public interface StarRocksSinkOptions {
             Options.key("save_mode")
                     .enumType(DataSaveMode.class)
                     .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
-                    .withDescription("save_mode");
+                    .withDescription(
+                            "Table structure and data processing methods that already exist on the target end");
 
     Option<String> CUSTOM_SQL =
             Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");

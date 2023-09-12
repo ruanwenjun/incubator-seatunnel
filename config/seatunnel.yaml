@@ -17,6 +17,7 @@
 
 seatunnel:
   engine:
+    history-job-expire-minutes: 1440
     backup-count: 1
     queue-type: blockingqueue
     print-execution-info-interval: 60
@@ -24,10 +25,8 @@ seatunnel:
     slot-service:
       dynamic-slot: true
     checkpoint:
-      interval: 30000
-      timeout: 300000
-      max-concurrent: 1
-      tolerable-failure: 0
+      interval: 10000
+      timeout: 60000
       storage:
         type: hdfs
         max-retained: 3

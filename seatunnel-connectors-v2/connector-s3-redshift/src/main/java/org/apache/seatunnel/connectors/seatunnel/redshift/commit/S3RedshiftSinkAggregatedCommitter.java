@@ -351,7 +351,9 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
             String filepath = tempFilePath;
             mergeS3FileToRedshiftWithTemporaryTable(filepath);
 
-            fileSystemUtils.deleteFile(filepath);
+            if (filepath != null) {
+                fileSystemUtils.deleteFile(filepath);
+            }
             log.info("delete file {} ", filepath);
         }
     }

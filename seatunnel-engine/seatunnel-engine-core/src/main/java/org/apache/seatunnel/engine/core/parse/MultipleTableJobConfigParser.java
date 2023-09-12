@@ -127,6 +127,22 @@ public class MultipleTableJobConfigParser {
                 new JobConfigParser(idGenerator, commonPluginJars, isStartWithSavePoint);
     }
 
+    public MultipleTableJobConfigParser(
+            Config seaTunnelJobConfig,
+            IdGenerator idGenerator,
+            JobConfig jobConfig,
+            List<URL> commonPluginJars,
+            boolean isStartWithSavePoint) {
+        this.idGenerator = idGenerator;
+        this.jobConfig = jobConfig;
+        this.commonPluginJars = commonPluginJars;
+        this.isStartWithSavePoint = isStartWithSavePoint;
+        this.seaTunnelJobConfig = seaTunnelJobConfig;
+        this.envOptions = ReadonlyConfig.fromConfig(seaTunnelJobConfig.getConfig("env"));
+        this.fallbackParser =
+                new JobConfigParser(idGenerator, commonPluginJars, isStartWithSavePoint);
+    }
+
     public ImmutablePair<List<Action>, Set<URL>> parse() {
         List<? extends Config> sourceConfigs =
                 TypesafeConfigUtils.getConfigList(
@@ -241,7 +257,12 @@ public class MultipleTableJobConfigParser {
                 || jobConfig.getName().equals(Constants.LOGO)) {
             jobConfig.setName(envOptions.get(EnvCommonOptions.JOB_NAME));
         }
-        envOptions.toMap().forEach((k, v) -> jobConfig.getEnvOptions().put(k, v));
+        envOptions
+                .toMap()
+                .forEach(
+                        (k, v) -> {
+                            jobConfig.getEnvOptions().put(k, v);
+                        });
     }
 
     private static <T extends Factory> boolean isFallback(
