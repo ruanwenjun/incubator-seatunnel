@@ -241,7 +241,7 @@ public class DolphinDBCatalog implements Catalog {
             throws DatabaseNotExistException, CatalogException {
         StringBuilder sb = new StringBuilder();
         sb.append("db=database(\"" + tablePath.getDatabaseName() + "\");\n");
-        sb.append("droptable(db, `" + tablePath.getTableName() + ");\n");
+        sb.append("dropTable(db, \"" + tablePath.getTableName() + "\");\n");
         try {
             Entity run = dbConnection.run(sb.toString());
             System.out.println(run);

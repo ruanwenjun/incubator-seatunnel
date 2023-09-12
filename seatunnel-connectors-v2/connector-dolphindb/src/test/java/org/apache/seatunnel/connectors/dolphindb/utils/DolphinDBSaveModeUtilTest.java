@@ -26,7 +26,7 @@ public class DolphinDBSaveModeUtilTest {
 
         String result =
                 DolphinDBSaveModeUtil.fillingCreateSql(
-                        "CREATE TABLE ${database}.${table_name}\" (                                                                                                                                                   \n"
+                        "CREATE TABLE '${database}'.'${table_name}'\" (                                                                                                                                                   \n"
                                 + "${rowtype_primary_key}  ,       \n"
                                 + "create_time TIMESTAMP,  \n"
                                 + "${rowtype_fields}"

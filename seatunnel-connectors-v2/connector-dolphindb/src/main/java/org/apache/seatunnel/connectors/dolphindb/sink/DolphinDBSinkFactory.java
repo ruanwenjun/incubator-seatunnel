@@ -102,13 +102,12 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
         ReadonlyConfig readonlyConfig = context.getOptions();
         CatalogTable catalogTable = context.getCatalogTable();
         TableIdentifier tableId = catalogTable.getTableId();
-        String tableName = readonlyConfig.get(TABLE);
         TableIdentifier newTableId =
                 TableIdentifier.of(
                         tableId.getCatalogName(),
                         readonlyConfig.get(DATABASE),
                         tableId.getSchemaName(),
-                        tableName);
+                        tableId.getTableName());
         return CatalogTable.of(newTableId, catalogTable);
     }
 }
