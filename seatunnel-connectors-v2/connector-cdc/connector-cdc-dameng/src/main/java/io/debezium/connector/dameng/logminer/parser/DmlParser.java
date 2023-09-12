@@ -31,10 +31,4 @@ public interface DmlParser {
      * @throws DmlParserException thrown if a parse exception is detected.
      */
     LogMinerDmlEntry parse(String sql, Table table, String txId);
-
-    LogMinerDmlEntry parseInsert(String sql, Table table, String txId);
-
-    LogMinerDmlEntry parseUpdate(String sql, Table table, String txId);
-
-    LogMinerDmlEntry parseDelete(String sql, Table table, String txId);
 }

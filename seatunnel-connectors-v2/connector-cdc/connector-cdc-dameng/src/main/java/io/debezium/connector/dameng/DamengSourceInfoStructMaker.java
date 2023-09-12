@@ -34,9 +34,10 @@ public class DamengSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
                         .name("io.debezium.connector.dameng.Source")
                         .field(SourceInfo.SCHEMA_NAME_KEY, Schema.STRING_SCHEMA)
                         .field(SourceInfo.TABLE_NAME_KEY, Schema.STRING_SCHEMA)
+                        .field(SourceInfo.TXID_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                         .field(SourceInfo.SCN_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                         .field(SourceInfo.COMMIT_SCN_KEY, Schema.OPTIONAL_STRING_SCHEMA)
-                        .field(SourceInfo.EVENT_SERIAL_NO_KEY, Schema.OPTIONAL_INT64_SCHEMA)
+                        .field(SourceInfo.LCR_POSITION_KEY, Schema.OPTIONAL_STRING_SCHEMA)
                         .build();
     }
 
@@ -47,15 +48,22 @@ public class DamengSourceInfoStructMaker extends AbstractSourceInfoStructMaker<S
 
     @Override
     public Struct struct(SourceInfo sourceInfo) {
-        String lsn = sourceInfo.getScn() == null ? null : sourceInfo.getScn().toString();
-        Struct ret =
+        final String scn = sourceInfo.getScn() == null ? null : sourceInfo.getScn().toString();
+        final String commitScn =
+                sourceInfo.getCommitScn() == null ? null : sourceInfo.getCommitScn().toString();
+
+        final Struct ret =
                 super.commonStruct(sourceInfo)
                         .put(SourceInfo.SCHEMA_NAME_KEY, sourceInfo.tableSchema())
                         .put(SourceInfo.TABLE_NAME_KEY, sourceInfo.table())
-                        .put(SourceInfo.SCN_KEY, lsn);
+                        .put(SourceInfo.TXID_KEY, sourceInfo.getTransactionId())
+                        .put(SourceInfo.SCN_KEY, scn);
 
-        if (sourceInfo.getCommitScn() != null) {
-            ret.put(SourceInfo.COMMIT_SCN_KEY, sourceInfo.getCommitScn().toString());
+        if (sourceInfo.getLcrPosition() != null) {
+            ret.put(SourceInfo.LCR_POSITION_KEY, sourceInfo.getLcrPosition());
+        }
+        if (commitScn != null) {
+            ret.put(SourceInfo.COMMIT_SCN_KEY, commitScn);
         }
         return ret;
     }

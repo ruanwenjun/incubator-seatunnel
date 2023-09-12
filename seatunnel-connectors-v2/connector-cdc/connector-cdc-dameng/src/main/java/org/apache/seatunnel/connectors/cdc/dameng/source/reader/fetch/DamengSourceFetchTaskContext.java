@@ -31,18 +31,19 @@ import org.apache.seatunnel.connectors.cdc.dameng.utils.DamengUtils;
 import org.apache.kafka.connect.source.SourceRecord;
 
 import io.debezium.connector.base.ChangeEventQueue;
+import io.debezium.connector.dameng.DamengChangeEventSourceMetricsFactory;
 import io.debezium.connector.dameng.DamengConnection;
 import io.debezium.connector.dameng.DamengConnectorConfig;
 import io.debezium.connector.dameng.DamengDatabaseSchema;
 import io.debezium.connector.dameng.DamengErrorHandler;
 import io.debezium.connector.dameng.DamengEventMetadataProvider;
 import io.debezium.connector.dameng.DamengOffsetContext;
+import io.debezium.connector.dameng.DamengStreamingChangeEventSourceMetrics;
 import io.debezium.connector.dameng.DamengTaskContext;
 import io.debezium.connector.dameng.DamengTopicSelector;
-import io.debezium.connector.dameng.DamengValueConverters;
+import io.debezium.connector.dameng.logminer.LogMinerOracleOffsetContextLoader;
 import io.debezium.pipeline.DataChangeEvent;
 import io.debezium.pipeline.ErrorHandler;
-import io.debezium.pipeline.metrics.DefaultChangeEventSourceMetricsFactory;
 import io.debezium.pipeline.metrics.SnapshotChangeEventSourceMetrics;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -52,6 +53,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.SQLException;
+
+import static org.apache.seatunnel.connectors.cdc.dameng.utils.DamengConncetionUtils.createDamengConnection;
 
 @Slf4j
 public class DamengSourceFetchTaskContext extends JdbcSourceFetchTaskContext {
@@ -64,32 +67,27 @@ public class DamengSourceFetchTaskContext extends JdbcSourceFetchTaskContext {
     private ChangeEventQueue<DataChangeEvent> queue;
     private JdbcSourceEventDispatcher dispatcher;
     @Getter private SnapshotChangeEventSourceMetrics snapshotChangeEventSourceMetrics;
+    @Getter private DamengStreamingChangeEventSourceMetrics streamingChangeEventSourceMetrics;
     private DamengErrorHandler errorHandler;
 
     public DamengSourceFetchTaskContext(
             JdbcSourceConfig sourceConfig, JdbcDataSourceDialect dataSourceDialect) {
         super(sourceConfig, dataSourceDialect);
-        this.connection =
-                new DamengConnection(sourceConfig.getDbzConnectorConfig().getJdbcConfig());
+        this.connection = createDamengConnection(sourceConfig.getDbzConfiguration());
         this.metadataProvider = new DamengEventMetadataProvider();
     }
 
     @Override
     public void configure(SourceSplitBase sourceSplitBase) {
         super.registerDatabaseHistory(sourceSplitBase, connection);
-        DamengConnectorConfig connectorConfig = getDbzConnectorConfig();
 
+        // initial stateful objects
+        DamengConnectorConfig connectorConfig = getDbzConnectorConfig();
         this.topicSelector = DamengTopicSelector.defaultSelector(connectorConfig);
-        this.databaseSchema =
-                new DamengDatabaseSchema(
-                        connectorConfig,
-                        new DamengValueConverters(),
-                        topicSelector,
-                        schemaNameAdjuster,
-                        false);
+        this.databaseSchema = DamengUtils.createDamengDatabaseSchema(connectorConfig, connection);
         this.offsetContext =
                 loadStartingOffsetState(
-                        new DamengOffsetContext.Loader(connectorConfig), sourceSplitBase);
+                        new LogMinerOracleOffsetContextLoader(connectorConfig), sourceSplitBase);
         validateAndLoadDatabaseHistory(offsetContext, databaseSchema);
 
         this.taskContext = new DamengTaskContext(connectorConfig, databaseSchema);
@@ -122,11 +120,17 @@ public class DamengSourceFetchTaskContext extends JdbcSourceFetchTaskContext {
                         metadataProvider,
                         schemaNameAdjuster);
 
-        DefaultChangeEventSourceMetricsFactory changeEventSourceMetricsFactory =
-                new DefaultChangeEventSourceMetricsFactory();
+        DamengChangeEventSourceMetricsFactory changeEventSourceMetricsFactory =
+                new DamengChangeEventSourceMetricsFactory(
+                        new DamengStreamingChangeEventSourceMetrics(
+                                taskContext, queue, metadataProvider, connectorConfig));
         this.snapshotChangeEventSourceMetrics =
                 changeEventSourceMetricsFactory.getSnapshotMetrics(
                         taskContext, queue, metadataProvider);
+        this.streamingChangeEventSourceMetrics =
+                (DamengStreamingChangeEventSourceMetrics)
+                        changeEventSourceMetricsFactory.getStreamingMetrics(
+                                taskContext, queue, metadataProvider);
 
         this.errorHandler = new DamengErrorHandler(connectorConfig.getLogicalName(), queue);
     }
@@ -191,7 +195,7 @@ public class DamengSourceFetchTaskContext extends JdbcSourceFetchTaskContext {
     }
 
     private DamengOffsetContext loadStartingOffsetState(
-            DamengOffsetContext.Loader loader, SourceSplitBase split) {
+            LogMinerOracleOffsetContextLoader loader, SourceSplitBase split) {
         Offset offset =
                 split.isSnapshotSplit()
                         ? LogMinerOffset.INITIAL_OFFSET

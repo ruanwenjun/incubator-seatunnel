@@ -1,8 +1,6 @@
 package org.apache.seatunnel.connectors.dolphindb.sink.writter;
 
-import org.apache.seatunnel.shade.com.typesafe.config.Config;
-
-import org.apache.seatunnel.common.config.TypesafeConfigUtils;
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig;
 
 import com.xxdb.multithreadedtablewriter.MultithreadedTableWriter;
@@ -17,51 +15,43 @@ import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.W
 
 public class MultithreadedTableWriterFactory {
 
-    public static MultithreadedTableWriter createMultithreadedTableWriter(Config pluginConfig)
-            throws Exception {
-        List<String> addresses = pluginConfig.getStringList(DolphinDBConfig.ADDRESS.key());
+    public static MultithreadedTableWriter createMultithreadedTableWriter(
+            ReadonlyConfig pluginConfig) throws Exception {
+        List<String> addresses = pluginConfig.get(DolphinDBConfig.ADDRESS);
         String address = addresses.get(0);
         String host = address.substring(0, address.lastIndexOf(":"));
         int port = Integer.parseInt(address.substring(address.lastIndexOf(":") + 1));
 
         int[] compressType = null;
-        if (pluginConfig.hasPath(DolphinDBConfig.COMPRESS_TYPE.key())) {
-            List<Integer> compressTypeList =
-                    pluginConfig.getIntList(DolphinDBConfig.COMPRESS_TYPE.key());
+        if (pluginConfig.get(DolphinDBConfig.COMPRESS_TYPE) != null) {
+            List<Integer> compressTypeList = pluginConfig.get(DolphinDBConfig.COMPRESS_TYPE);
             compressType = compressTypeList.stream().mapToInt(Integer::intValue).toArray();
         }
         String partitionColumn = null;
-        if (pluginConfig.hasPath(DolphinDBConfig.PARTITION_COLUMN.key())) {
-            partitionColumn = pluginConfig.getString(DolphinDBConfig.PARTITION_COLUMN.key());
-        }
-        MultithreadedTableWriter.Mode writeMode = MultithreadedTableWriter.Mode.M_Upsert;
-        if (pluginConfig.hasPath(WRITE_MODE.key())) {
-            writeMode =
-                    MultithreadedTableWriter.Mode.valueOf(pluginConfig.getString(WRITE_MODE.key()));
+        if (pluginConfig.get(DolphinDBConfig.PARTITION_COLUMN) != null) {
+            partitionColumn = pluginConfig.get(DolphinDBConfig.PARTITION_COLUMN);
         }
         String[] pModelOption = null;
-        if (pluginConfig.hasPath(KEY_COL_NAMES.key())) {
-            pModelOption = pluginConfig.getStringList(KEY_COL_NAMES.key()).toArray(new String[0]);
+        if (pluginConfig.get(KEY_COL_NAMES) != null) {
+            pModelOption = pluginConfig.get(KEY_COL_NAMES).toArray(new String[0]);
         }
 
         return new MultithreadedTableWriter(
                 host,
                 port,
-                pluginConfig.getString(DolphinDBConfig.USER.key()),
-                pluginConfig.getString(DolphinDBConfig.PASSWORD.key()),
-                pluginConfig.getString(DolphinDBConfig.DATABASE.key()),
-                pluginConfig.getString(DolphinDBConfig.TABLE.key()),
-                TypesafeConfigUtils.getConfig(pluginConfig, USE_SSL.key(), USE_SSL.defaultValue()),
+                pluginConfig.get(DolphinDBConfig.USER),
+                pluginConfig.get(DolphinDBConfig.PASSWORD),
+                pluginConfig.get(DolphinDBConfig.DATABASE),
+                pluginConfig.get(DolphinDBConfig.TABLE),
+                pluginConfig.get(USE_SSL),
                 address.length() > 1,
                 addresses.toArray(new String[0]),
-                TypesafeConfigUtils.getConfig(
-                        pluginConfig, BATCH_SIZE.key(), BATCH_SIZE.defaultValue()),
-                TypesafeConfigUtils.getConfig(
-                        pluginConfig, THROTTLE.key(), THROTTLE.defaultValue()),
+                pluginConfig.get(BATCH_SIZE),
+                pluginConfig.get(THROTTLE),
                 1,
                 partitionColumn,
                 compressType,
-                writeMode,
+                pluginConfig.get(WRITE_MODE),
                 pModelOption);
     }
 }

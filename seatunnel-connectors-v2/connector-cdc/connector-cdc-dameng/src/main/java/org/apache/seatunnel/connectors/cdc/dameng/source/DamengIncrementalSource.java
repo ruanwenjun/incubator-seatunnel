@@ -21,7 +21,9 @@ import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SupportParallelism;
-import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
+import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.config.SourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.option.JdbcSourceOptions;
@@ -35,24 +37,41 @@ import org.apache.seatunnel.connectors.cdc.dameng.config.DamengSourceOptions;
 import org.apache.seatunnel.connectors.cdc.dameng.source.offset.LogMinerOffsetFactory;
 import org.apache.seatunnel.connectors.cdc.dameng.utils.DamengUtils;
 import org.apache.seatunnel.connectors.cdc.debezium.DebeziumDeserializationSchema;
+import org.apache.seatunnel.connectors.cdc.debezium.DeserializeFormat;
+import org.apache.seatunnel.connectors.cdc.debezium.row.DebeziumJsonDeserializeSchema;
 import org.apache.seatunnel.connectors.cdc.debezium.row.SeaTunnelRowDebeziumDeserializeSchema;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
+
+import org.apache.kafka.connect.data.Struct;
 
 import com.google.auto.service.AutoService;
-import io.debezium.config.Configuration;
 import io.debezium.connector.dameng.DamengConnection;
+import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
+import io.debezium.relational.history.ConnectTableChangeSerializer;
+import io.debezium.relational.history.TableChanges;
+import lombok.NoArgsConstructor;
 
 import java.sql.SQLException;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static org.apache.seatunnel.connectors.cdc.dameng.utils.DamengConncetionUtils.createDamengConnection;
+
+@NoArgsConstructor
 @AutoService(SeaTunnelSource.class)
 public class DamengIncrementalSource<T> extends IncrementalSource<T, JdbcSourceConfig>
         implements SupportParallelism {
     static final String IDENTIFIER = "Dameng-CDC";
 
-    private DamengSourceConfig sourceConfig;
-    private DamengPooledDataSourceFactory connectionPoolFactory;
+    public DamengIncrementalSource(
+            ReadonlyConfig options, SeaTunnelDataType<SeaTunnelRow> dataType) {
+        super(options, dataType);
+    }
 
     @Override
     public String getPluginName() {
@@ -75,43 +94,84 @@ public class DamengIncrementalSource<T> extends IncrementalSource<T, JdbcSourceC
         configFactory.fromReadonlyConfig(readonlyConfig);
         configFactory.startupOptions(startupConfig);
         configFactory.stopOptions(stopConfig);
-
-        this.sourceConfig = configFactory.create(0);
-
+        configFactory.originUrl(config.get(JdbcCatalogOptions.BASE_URL));
         return configFactory;
     }
 
     @Override
     public DebeziumDeserializationSchema<T> createDebeziumDeserializationSchema(
             ReadonlyConfig config) {
-        // TODO: support multi-table
-        TableId tableId = dataSourceDialect.discoverDataCollections(sourceConfig).get(0);
-        Configuration jdbcConfig = sourceConfig.getDbzConnectorConfig().getJdbcConfig();
-        try (DamengConnection damengConnection = new DamengConnection(jdbcConfig)) {
-            Table table =
-                    ((DamengDialect) dataSourceDialect)
-                            .queryTableSchema(damengConnection, tableId)
-                            .getTable();
-            SeaTunnelRowType seaTunnelRowType = DamengUtils.convert(table);
+        Map<TableId, Struct> tableIdStructMap = tableChanges();
+        if (DeserializeFormat.COMPATIBLE_DEBEZIUM_JSON.equals(
+                config.get(JdbcSourceOptions.FORMAT))) {
             return (DebeziumDeserializationSchema<T>)
-                    SeaTunnelRowDebeziumDeserializeSchema.builder()
-                            .setPhysicalRowType(seaTunnelRowType)
-                            .setResultTypeInfo(seaTunnelRowType)
-                            .setServerTimeZone(
-                                    ZoneId.of(config.get(JdbcSourceOptions.SERVER_TIME_ZONE)))
-                            .build();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+                    new DebeziumJsonDeserializeSchema(
+                            config.get(JdbcSourceOptions.DEBEZIUM_PROPERTIES), tableIdStructMap);
         }
+
+        SeaTunnelDataType<SeaTunnelRow> physicalRowType;
+        if (dataType == null) {
+            DamengSourceConfig oracleSourceConfig =
+                    (DamengSourceConfig) this.configFactory.create(0);
+            TableId tableId =
+                    this.dataSourceDialect.discoverDataCollections(oracleSourceConfig).get(0);
+            Table table;
+            try (DamengConnection oracleConnection =
+                    createDamengConnection(oracleSourceConfig.getDbzConfiguration())) {
+                table =
+                        ((DamengDialect) dataSourceDialect)
+                                .queryTableSchema(oracleConnection, tableId)
+                                .getTable();
+            } catch (SQLException e) {
+                throw new SeaTunnelException(e);
+            }
+            physicalRowType = DamengUtils.convert(table);
+        } else {
+            physicalRowType = dataType;
+        }
+        String zoneId = config.get(JdbcSourceOptions.SERVER_TIME_ZONE);
+        return (DebeziumDeserializationSchema<T>)
+                SeaTunnelRowDebeziumDeserializeSchema.builder()
+                        .setPhysicalRowType(physicalRowType)
+                        .setResultTypeInfo(physicalRowType)
+                        .setTableIdTableChangeMap(tableIdStructMap)
+                        .setServerTimeZone(ZoneId.of(zoneId))
+                        .build();
     }
 
     @Override
     public DamengDialect createDataSourceDialect(ReadonlyConfig config) {
-        return new DamengDialect(sourceConfig);
+        return new DamengDialect((DamengSourceConfigFactory) configFactory);
     }
 
     @Override
     public OffsetFactory createOffsetFactory(ReadonlyConfig config) {
-        return new LogMinerOffsetFactory(sourceConfig, (DamengDialect) dataSourceDialect);
+        return new LogMinerOffsetFactory(
+                (DamengSourceConfigFactory) configFactory, (DamengDialect) dataSourceDialect);
+    }
+
+    private Map<TableId, Struct> tableChanges() {
+        JdbcSourceConfig jdbcSourceConfig = configFactory.create(0);
+        DamengDialect dialect = new DamengDialect((DamengSourceConfigFactory) configFactory);
+        List<TableId> discoverTables = dialect.discoverDataCollections(jdbcSourceConfig);
+        ConnectTableChangeSerializer connectTableChangeSerializer =
+                new ConnectTableChangeSerializer();
+        try (JdbcConnection jdbcConnection = dialect.openJdbcConnection(jdbcSourceConfig)) {
+            return discoverTables.stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Function.identity(),
+                                    (tableId) -> {
+                                        TableChanges tableChanges = new TableChanges();
+                                        tableChanges.create(
+                                                dialect.queryTableSchema(jdbcConnection, tableId)
+                                                        .getTable());
+                                        return connectTableChangeSerializer
+                                                .serialize(tableChanges)
+                                                .get(0);
+                                    }));
+        } catch (Exception e) {
+            throw new SeaTunnelException(e);
+        }
     }
 }

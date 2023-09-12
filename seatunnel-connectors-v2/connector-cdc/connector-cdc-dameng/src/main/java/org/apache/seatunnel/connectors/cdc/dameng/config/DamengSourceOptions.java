@@ -31,14 +31,11 @@ public class DamengSourceOptions {
                     Options.key(SourceOptions.STARTUP_MODE_KEY)
                             .singleChoice(
                                     StartupMode.class,
-                                    Arrays.asList(
-                                            StartupMode.INITIAL,
-                                            StartupMode.EARLIEST,
-                                            StartupMode.LATEST))
+                                    Arrays.asList(StartupMode.INITIAL, StartupMode.LATEST))
                             .defaultValue(StartupMode.INITIAL)
                             .withDescription(
                                     "Optional startup mode for CDC source, valid enumerations are "
-                                            + "\"initial\", \"earliest\", \"latest\", \"timestamp\"\n or \"specific\"");
+                                            + "\"initial\", \"latest\", \"timestamp\"\n or \"specific\"");
 
     public static final SingleChoiceOption<StopMode> STOP_MODE =
             (SingleChoiceOption)

@@ -90,8 +90,9 @@ public class DamengDialect implements JdbcDataSourceDialect {
     @Override
     public List<TableId> discoverDataCollections(JdbcSourceConfig sourceConfig) {
         DamengSourceConfig damengSourceConfig = (DamengSourceConfig) sourceConfig;
+        String database = damengSourceConfig.getDbzConnectorConfig().getDatabaseName();
         try (DamengConnection jdbcConnection = openJdbcConnection(sourceConfig)) {
-            return jdbcConnection.listTables(damengSourceConfig.getTableFilters());
+            return jdbcConnection.listTables(damengSourceConfig.getTableFilters(), database);
         } catch (SQLException e) {
             throw new SeaTunnelException("Error to discover tables: " + e.getMessage(), e);
         }

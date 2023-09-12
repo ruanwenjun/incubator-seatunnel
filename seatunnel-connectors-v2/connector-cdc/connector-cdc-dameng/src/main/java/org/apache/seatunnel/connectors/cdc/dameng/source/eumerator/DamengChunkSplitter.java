@@ -83,7 +83,7 @@ public class DamengChunkSplitter extends AbstractJdbcSourceChunkSplitter {
             SeaTunnelRowType splitKeyType,
             boolean isFirstSplit,
             boolean isLastSplit) {
-        return DamengConncetionUtils.buildSplitQuery(
+        return DamengConncetionUtils.buildSplitScanQuery(
                 tableId, splitKeyType, isFirstSplit, isLastSplit);
     }
 

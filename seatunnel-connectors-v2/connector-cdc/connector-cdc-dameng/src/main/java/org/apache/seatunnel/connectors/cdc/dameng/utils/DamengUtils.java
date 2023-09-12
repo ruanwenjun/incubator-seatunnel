@@ -22,16 +22,34 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.connectors.cdc.dameng.source.offset.LogMinerOffset;
 
+import io.debezium.connector.dameng.DamengConnection;
+import io.debezium.connector.dameng.DamengConnectorConfig;
+import io.debezium.connector.dameng.DamengDatabaseSchema;
+import io.debezium.connector.dameng.DamengTopicSelector;
+import io.debezium.connector.dameng.DamengValueConverters;
 import io.debezium.connector.dameng.Scn;
 import io.debezium.connector.dameng.SourceInfo;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
+import io.debezium.relational.TableId;
+import io.debezium.schema.TopicSelector;
+import io.debezium.util.SchemaNameAdjuster;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class DamengUtils {
+
+    public static DamengDatabaseSchema createDamengDatabaseSchema(
+            DamengConnectorConfig dbzConfig, DamengConnection connection) {
+        TopicSelector<TableId> topicSelector = DamengTopicSelector.defaultSelector(dbzConfig);
+        SchemaNameAdjuster schemaNameAdjuster = SchemaNameAdjuster.create();
+        DamengValueConverters valueConverters = new DamengValueConverters(dbzConfig, connection);
+
+        return new DamengDatabaseSchema(
+                dbzConfig, valueConverters, topicSelector, schemaNameAdjuster, false);
+    }
 
     public static SeaTunnelRowType getSplitType(Table table) {
         List<Column> primaryKeys = table.primaryKeyColumns();

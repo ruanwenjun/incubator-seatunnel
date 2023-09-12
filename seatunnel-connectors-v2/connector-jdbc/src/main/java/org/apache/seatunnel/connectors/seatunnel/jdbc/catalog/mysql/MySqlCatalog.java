@@ -61,7 +61,7 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
 
     protected static final Set<String> SYS_DATABASES = new HashSet<>(4);
     private final String SELECT_COLUMNS =
-            "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME ='%s'";
+            "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME ='%s' order by ORDINAL_POSITION";
 
     static {
         SYS_DATABASES.add("information_schema");

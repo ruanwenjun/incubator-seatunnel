@@ -40,11 +40,7 @@ public class CopySQLBuilder {
         this.selectdbConfig = selectdbConfig;
         this.fileList = fileList;
         this.table = table;
-        if (selectdbConfig.getTableIdentifier() != null) {
-            tablePath = TablePath.of(selectdbConfig.getTableIdentifier());
-        } else {
-            tablePath = table.getTableId().toTablePath();
-        }
+        tablePath = table.getTableId().toTablePath();
         this.properties = selectdbConfig.getStageLoadProps();
     }
 

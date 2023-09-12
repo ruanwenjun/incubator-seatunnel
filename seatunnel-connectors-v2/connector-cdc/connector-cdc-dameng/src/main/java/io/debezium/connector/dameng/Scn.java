@@ -22,10 +22,15 @@ import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Objects;
 
 @EqualsAndHashCode
 @RequiredArgsConstructor
 public class Scn implements Comparable<Scn> {
+
+    public static final Scn NULL = new Scn(null);
+    public static final Scn MAX = new Scn(BigInteger.valueOf(-2));
+
     private final BigInteger scn;
 
     public boolean isNull() {
@@ -52,6 +57,32 @@ public class Scn implements Comparable<Scn> {
         return isNull() ? null : new BigDecimal(scn);
     }
 
+    public long longValue() {
+        return isNull() ? 0 : scn.longValue();
+    }
+
+    public Scn add(Scn value) {
+        if (isNull() && value.isNull()) {
+            return Scn.NULL;
+        } else if (value.isNull()) {
+            return new Scn(scn);
+        } else if (isNull()) {
+            return new Scn(value.scn);
+        }
+        return new Scn(scn.add(value.scn));
+    }
+
+    public Scn subtract(Scn value) {
+        if (isNull() && value.isNull()) {
+            return Scn.NULL;
+        } else if (value.isNull()) {
+            return new Scn(scn);
+        } else if (isNull()) {
+            return new Scn(value.scn.negate());
+        }
+        return new Scn(scn.subtract(value.scn));
+    }
+
     @Override
     public int compareTo(Scn o) {
         if (isNull() && o.isNull()) {
@@ -65,7 +96,24 @@ public class Scn implements Comparable<Scn> {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Scn scn1 = (Scn) o;
+        return Objects.equals(scn, scn1.scn);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(scn);
+    }
+
+    @Override
     public String toString() {
-        return scn.toString();
+        return isNull() ? "null" : scn.toString();
     }
 }

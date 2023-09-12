@@ -77,6 +77,7 @@ public class KafkaSourceFactory implements TableSourceFactory, SupportMultipleTa
             TableSource<T, SplitT, StateT> createSource(TableFactoryContext context) {
         return () -> {
             SeaTunnelDataType<SeaTunnelRow> dataType;
+            Map<String, String> primaryKeyMap = new HashMap<>();
             if (context.getCatalogTables().size() == 1
                     && !context.getOptions().get(FORMAT).equals(MessageFormat.KINGBASE_JSON)) {
                 dataType =
@@ -86,11 +87,20 @@ public class KafkaSourceFactory implements TableSourceFactory, SupportMultipleTa
                 for (CatalogTable catalogTable : context.getCatalogTables()) {
                     String tableId = catalogTable.getTableId().toTablePath().toString();
                     rowTypeMap.put(tableId, catalogTable.getTableSchema().toPhysicalRowDataType());
+                    if (catalogTable.getTableSchema().getPrimaryKey() != null) {
+                        primaryKeyMap.put(
+                                tableId,
+                                catalogTable
+                                        .getTableSchema()
+                                        .getPrimaryKey()
+                                        .getColumnNames()
+                                        .get(0));
+                    }
                 }
                 dataType = new MultipleRowType(rowTypeMap);
             }
             return (SeaTunnelSource<T, SplitT, StateT>)
-                    new KafkaSource(context.getOptions(), dataType);
+                    new KafkaSource(context.getOptions(), dataType, primaryKeyMap);
         };
     }
 

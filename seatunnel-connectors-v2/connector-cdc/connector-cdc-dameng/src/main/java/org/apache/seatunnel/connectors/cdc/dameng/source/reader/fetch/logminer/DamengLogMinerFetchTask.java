@@ -23,6 +23,7 @@ import org.apache.seatunnel.connectors.cdc.base.source.split.SourceSplitBase;
 import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.DamengSourceFetchTaskContext;
 
 import io.debezium.connector.dameng.DamengStreamingChangeEventSource;
+import io.debezium.connector.dameng.logminer.LogMinerStreamingChangeEventSource;
 import io.debezium.pipeline.source.spi.ChangeEventSource;
 import io.debezium.util.Clock;
 import lombok.RequiredArgsConstructor;
@@ -41,14 +42,14 @@ public class DamengLogMinerFetchTask implements FetchTask<SourceSplitBase> {
 
         DamengSourceFetchTaskContext sourceFetchContext = (DamengSourceFetchTaskContext) context;
         DamengStreamingChangeEventSource streamingChangeEventSource =
-                new DamengStreamingChangeEventSource(
+                new LogMinerStreamingChangeEventSource(
                         sourceFetchContext.getSourceConfig(),
                         sourceFetchContext.getConnection(),
-                        incrementalSplit.getTableIds(),
                         sourceFetchContext.getDispatcher(),
                         sourceFetchContext.getErrorHandler(),
                         Clock.SYSTEM,
-                        sourceFetchContext.getDatabaseSchema());
+                        sourceFetchContext.getDatabaseSchema(),
+                        sourceFetchContext.getStreamingChangeEventSourceMetrics());
         DamengLogMinerChangeEventSourceContext changeEventSourceContext =
                 new DamengLogMinerChangeEventSourceContext();
         streamingChangeEventSource.execute(

@@ -17,6 +17,8 @@
 
 package io.debezium.connector.dameng.logminer.parser;
 
+import org.apache.commons.lang3.math.NumberUtils;
+
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.TableId;
@@ -34,8 +36,8 @@ import java.util.List;
 import java.util.Map;
 
 import static io.debezium.connector.dameng.logminer.parser.SQLSymbolChecker.NAMING_CHECKER;
-import static io.debezium.connector.dameng.logminer.parser.SQLSymbolChecker.NUMBER_CHECKER;
 import static io.debezium.connector.dameng.logminer.parser.SQLSymbolChecker.SKIP_CHECKER;
+import static io.debezium.connector.dameng.logminer.parser.SQLSymbolChecker.STRING_VALUE_CHECKER;
 
 /**
  * A simple DML parser implementation specifically for Oracle LogMiner.
@@ -47,6 +49,8 @@ import static io.debezium.connector.dameng.logminer.parser.SQLSymbolChecker.SKIP
  *     insert into "schema"."table"("C1","C2") values ('v1','v2');
  *     update "schema"."table" set "C1" = 'v1a', "C2" = 'v2a' where "C1" = 'v1' and "C2" = 'v2';
  *     delete from "schema"."table" where "C1" = 'v1' AND "C2" = 'v2';
+ *
+ *     INSERT INTO \"DMHR\".\"TEST\"(\"ID\", \"DM_BIT\", \"DM_BYTE\", \"DM_TINYINT\", \"DM_SMALLINT\", \"DM_INT\", \"DM_INTEGER\", \"DM_BIGINT\", \"DM_NUMERIC\", \"DM_NUMBER\", \"DM_DECIMAL\", \"DM_DEC\", \"DM_REAL\", \"DM_FLOAT\", \"DM_DOUBLE_PRECISION\", \"DM_DOUBLE\", \"DM_CHAR\", \"DM_CHARACTER\", \"DM_VARCHAR\", \"DM_VARCHAR2\", \"DM_TEXT\", \"DM_LONG\", \"DM_LONGVARCHAR\", \"DM_CLOB\", \"DM_TIMESTAMP\", \"DM_DATETIME\", \"DM_DATE\", \"DM_BLOB\", \"DM_BINARY\", \"DM_VARBINARY\", \"DM_LONGVARBINARY\") VALUES(30000, 1, 28, 28, -30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000, 30000.000000, 30000.000000, 30000.000000, 30000.000000, '30000', '30000', '30000', '30000', '30000', '30000', '30000', '30000', TIMESTAMP'2023-09-07 15:01:50.678', TIMESTAMP'2023-09-07 15:01:50.687', DATE'2023-09-07', 0x3330303030, 0x33303030300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000, 0x3330303030, 0x3330303030)
  * </pre>
  *
  * Certain data types are not emitted as string literals, such as {@code DATE}/{@code TIME} and
@@ -107,8 +111,7 @@ public class LogMinerDmlParser implements DmlParser {
         throw new DmlParserException("Unknown supported SQL '" + sql + "'");
     }
 
-    @Override
-    public LogMinerDmlEntry parseInsert(@NonNull String sql, @NonNull Table table, String txId) {
+    private LogMinerDmlEntry parseInsert(@NonNull String sql, Table table, String txId) {
         SQLReader reader = new SQLReader(sql);
         checkArgument(
                 reader.equalsIgnoreCaseAndMove(INSERT)
@@ -160,8 +163,7 @@ public class LogMinerDmlParser implements DmlParser {
                 .setObjectName(tableId.table());
     }
 
-    @Override
-    public LogMinerDmlEntry parseUpdate(@NonNull String sql, @NonNull Table table, String txId) {
+    private LogMinerDmlEntry parseUpdate(@NonNull String sql, @NonNull Table table, String txId) {
         SQLReader reader = new SQLReader(sql + SQL_END_OF);
         checkArgument(
                 reader.equalsIgnoreCaseAndMove(UPDATE) && reader.nextAndSkip(SKIP_CHECKER),
@@ -205,8 +207,7 @@ public class LogMinerDmlParser implements DmlParser {
         }
     }
 
-    @Override
-    public LogMinerDmlEntry parseDelete(@NonNull String sql, @NonNull Table table, String txId) {
+    private LogMinerDmlEntry parseDelete(@NonNull String sql, @NonNull Table table, String txId) {
         SQLReader reader = new SQLReader(sql + SQL_END_OF);
         checkArgument(
                 reader.equalsIgnoreCaseAndMove(DELETE)
@@ -269,16 +270,18 @@ public class LogMinerDmlParser implements DmlParser {
                 : reader.loadIn(NAMING_CHECKER, errorMsg);
     }
 
+    private static String readString(SQLReader reader, String errorMsg) {
+        return reader.current(NAME_QUOTE)
+                ? reader.loadInQuote(50, ESCAPE)
+                : reader.loadIn(STRING_VALUE_CHECKER, errorMsg);
+    }
+
     @SuppressWarnings("MagicNumber")
     private static Object readValue(SQLReader reader) {
         if (reader.current(VALUE_QUOTE)) {
             return reader.loadInQuote(50, ESCAPE);
         }
-        if (NUMBER_CHECKER.contains(reader.getCurrent())) {
-            return reader.loadIn(NUMBER_CHECKER, "Can't found number value");
-        }
-
-        String tmp = readName(reader, "Can't found function name");
+        String tmp = readString(reader, "Can't found function name");
         if (Boolean.TRUE.toString().equalsIgnoreCase(tmp)) {
             return true;
         }
@@ -308,10 +311,16 @@ public class LogMinerDmlParser implements DmlParser {
             String datetimeStr = (String) readValue(reader);
             return LocalDateTime.parse(datetimeStr, DATE_TIME_FORMAT);
         }
+        if (tmp.startsWith("0x")) {
+            return tmp;
+        }
+        if (NumberUtils.isNumber(tmp)) {
+            return NumberUtils.createNumber(tmp);
+        }
         if (reader.nextAndSkip(SKIP_CHECKER) && reader.current('(')) {
             return tmp + reader.loadInQuoteMulti(50, ')');
         }
-        throw reader.exception("Value error '" + tmp + "'");
+        return tmp;
     }
 
     private static TableId readTableId(SQLReader reader) {

@@ -3,8 +3,12 @@ package org.apache.seatunnel.connectors.dolphindb.sink;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportDataSaveMode;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -21,11 +25,23 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 
 @AutoService(SeaTunnelSink.class)
-public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void> {
+public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void>
+        implements SupportDataSaveMode {
 
-    private Config pluginConfig;
+    private final ReadonlyConfig readonlyConfig;
 
     private SeaTunnelRowType seaTunnelRowType;
+
+    private DataSaveMode dataSaveMode;
+
+    private final CatalogTable catalogTable;
+
+    public DolphinDBSink(CatalogTable catalogTable, ReadonlyConfig readonlyConfig) {
+        this.catalogTable = catalogTable;
+        this.readonlyConfig = readonlyConfig;
+        this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
+        this.dataSaveMode = readonlyConfig.get(DolphinDBConfig.SAVE_MODE);
+    }
 
     @Override
     public String getPluginName() {
@@ -46,7 +62,6 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void> {
         if (!result.isSuccess()) {
             throw new PrepareFailException(getPluginName(), PluginType.SINK, result.getMsg());
         }
-        this.pluginConfig = pluginConfig;
     }
 
     @Override
@@ -63,9 +78,20 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void> {
     public AbstractSinkWriter<SeaTunnelRow, Void> createWriter(SinkWriter.Context context)
             throws IOException {
         try {
-            return new DolphinDBSinkWriter(pluginConfig, seaTunnelRowType);
+            return new DolphinDBSinkWriter(catalogTable, readonlyConfig);
         } catch (Exception ex) {
             throw new IOException("Create DolphinDBSinkWriter failed", ex);
         }
+    }
+
+    @Override
+    public DataSaveMode getUserConfigSaveMode() {
+        return dataSaveMode;
+    }
+
+    @Override
+    public void handleSaveMode(DataSaveMode dataSaveMode) {
+        new DolphinDBSaveModeHandler(catalogTable, readonlyConfig, seaTunnelRowType, dataSaveMode)
+                .handleSaveMode();
     }
 }

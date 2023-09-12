@@ -79,8 +79,11 @@ public class InformixTypeMapper implements JdbcDialectTypeMapper {
 
     public SeaTunnelDataType<?> mapping(
             String columnName, String columnType, Integer precision, Integer scale) {
-
-        switch (columnType.toUpperCase()) {
+        String dataType = columnType.toUpperCase();
+        if (dataType.startsWith(DATETIME)) {
+            return LocalTimeType.LOCAL_DATE_TIME_TYPE;
+        }
+        switch (dataType) {
             case SMALLINT:
                 return BasicType.SHORT_TYPE;
             case BIGINT:

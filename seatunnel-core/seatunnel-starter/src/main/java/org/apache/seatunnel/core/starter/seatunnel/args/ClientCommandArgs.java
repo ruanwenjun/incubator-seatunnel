@@ -120,8 +120,17 @@ public class ClientCommandArgs extends AbstractCommandArgs {
         if (!this.variables.isEmpty()) {
             variables.stream()
                     .filter(Objects::nonNull)
-                    .map(variable -> variable.split("=", 2))
-                    .filter(pair -> pair.length == 2)
+                    .map(
+                            variable -> {
+                                int indexOfFirstEquals = variable.indexOf("=");
+                                if (indexOfFirstEquals != -1) {
+                                    String key = variable.substring(0, indexOfFirstEquals);
+                                    String value = variable.substring(indexOfFirstEquals + 1);
+                                    return new String[] {key, value};
+                                }
+                                return null;
+                            })
+                    .filter(Objects::nonNull)
                     .forEach(pair -> System.setProperty(pair[0], pair[1]));
         }
     }

@@ -17,34 +17,29 @@
 
 package io.debezium.connector.dameng.logminer;
 
+import io.debezium.common.annotation.Incubating;
 import io.debezium.connector.dameng.Scn;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
+import io.debezium.jdbc.JdbcConfiguration;
+import io.debezium.pipeline.metrics.StreamingChangeEventSourceMetrics;
 
-import java.util.Date;
+import java.sql.Timestamp;
 
-@Builder
-@Getter
-@ToString
-@RequiredArgsConstructor
-public class LogContent {
-    private final Scn scn;
-    private final Scn startScn;
-    private final Scn commitScn;
-    private final Date timestamp;
-    private final Date startTimestamp;
-    private final Date commitTimestamp;
-    private final String xid;
-    private final boolean rollBack;
-    private final String operation;
-    private final int operationCode;
-    private final String segOwner;
-    private final String tableName;
-    private final String sqlRedo;
-    private final String sqlUndo;
-    private final int ssn;
-    private final int csf;
-    private final int status;
+@Incubating
+public interface HistoryRecorder extends AutoCloseable {
+    void prepare(
+            StreamingChangeEventSourceMetrics streamingMetrics,
+            JdbcConfiguration jdbcConfiguration,
+            long retentionHours);
+
+    void record(
+            Scn scn,
+            String tableName,
+            String segOwner,
+            int operationCode,
+            Timestamp changeTime,
+            String transactionId,
+            int csf,
+            String redoSql);
+
+    void flush();
 }

@@ -30,6 +30,7 @@ import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkCommonOptions;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportDataSaveMode;
+import org.apache.seatunnel.api.sink.SupportMultiTableSink;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.ConstraintKey;
 import org.apache.seatunnel.api.table.catalog.PhysicalColumn;
@@ -76,7 +77,8 @@ public class IcebergSink
                         IcebergSinkState,
                         IcebergCommitInfo,
                         IcebergAggregatedCommitInfo>,
-                SupportDataSaveMode {
+                SupportDataSaveMode,
+                SupportMultiTableSink {
 
     private SeaTunnelRowType seaTunnelRowType;
 
@@ -233,13 +235,15 @@ public class IcebergSink
                                             column.getComment());
                             builder.column(physicalColumn);
                         });
-        PrimaryKey newPrimaryKey =
-                PrimaryKey.of(
-                        tableSchema.getPrimaryKey().getPrimaryKey(),
-                        tableSchema.getPrimaryKey().getColumnNames().stream()
-                                .map(String::toLowerCase)
-                                .collect(Collectors.toList()));
-        builder.primaryKey(newPrimaryKey);
+        if (tableSchema.getPrimaryKey() != null) {
+            PrimaryKey newPrimaryKey =
+                    PrimaryKey.of(
+                            tableSchema.getPrimaryKey().getPrimaryKey(),
+                            tableSchema.getPrimaryKey().getColumnNames().stream()
+                                    .map(String::toLowerCase)
+                                    .collect(Collectors.toList()));
+            builder.primaryKey(newPrimaryKey);
+        }
 
         if (tableSchema.getConstraintKeys() != null) {
             tableSchema

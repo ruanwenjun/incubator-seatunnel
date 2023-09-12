@@ -12,9 +12,17 @@
 
     <properties>
         <dolphindb-javaapi.version>1.30.22.1</dolphindb-javaapi.version>
+        <dolphindb-jdbc.version>1.30.22.1</dolphindb-jdbc.version>
     </properties>
 
     <dependencies>
+
+        <dependency>
+            <groupId>org.apache.seatunnel</groupId>
+            <artifactId>seatunnel-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.seatunnel</groupId>
             <artifactId>connector-common</artifactId>
@@ -25,6 +33,12 @@
             <groupId>com.dolphindb</groupId>
             <artifactId>dolphindb-javaapi</artifactId>
             <version>${dolphindb-javaapi.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.dolphindb</groupId>
+            <artifactId>jdbc</artifactId>
+            <version>${dolphindb-jdbc.version}</version>
         </dependency>
     </dependencies>
 </project>

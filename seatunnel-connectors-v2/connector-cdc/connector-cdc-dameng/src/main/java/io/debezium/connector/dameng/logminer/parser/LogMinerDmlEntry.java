@@ -17,8 +17,6 @@
 
 package io.debezium.connector.dameng.logminer.parser;
 
-import io.debezium.connector.dameng.logminer.Operation;
-
 public interface LogMinerDmlEntry {
 
     /** @return object array that contains the before state, values from WHERE clause. */
@@ -31,7 +29,7 @@ public interface LogMinerDmlEntry {
     Object[] getNewValues();
 
     /** @return LogMiner event operation type */
-    Operation getOperation();
+    int getOperation();
 
     /** @return schema name */
     String getObjectOwner();

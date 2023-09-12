@@ -20,6 +20,8 @@ package org.apache.seatunnel.connectors.cdc.dameng.utils;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.cdc.base.utils.SourceRecordUtils;
 
+import io.debezium.config.Configuration;
+import io.debezium.connector.dameng.DamengConnection;
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Column;
 import io.debezium.relational.TableId;
@@ -33,12 +35,23 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import static io.debezium.config.CommonConnectorConfig.DATABASE_CONFIG_PREFIX;
 
 @Slf4j
 public class DamengConncetionUtils {
+
+    public static DamengConnection createDamengConnection(Configuration dbzConfiguration) {
+        Configuration configuration = dbzConfiguration.subset(DATABASE_CONFIG_PREFIX, true);
+
+        return new DamengConnection(
+                configuration.isEmpty() ? dbzConfiguration : configuration,
+                DamengConncetionUtils.class::getClassLoader);
+    }
 
     public static Object[] queryMinMax(JdbcConnection jdbc, TableId tableId, String columnName)
             throws SQLException {
@@ -182,47 +195,150 @@ public class DamengConncetionUtils {
                 });
     }
 
-    public static String buildSplitQuery(
+    public static String buildSplitScanQuery(
             TableId tableId, SeaTunnelRowType rowType, boolean isFirstSplit, boolean isLastSplit) {
+        return buildSplitQuery(tableId, rowType, isFirstSplit, isLastSplit, -1, true);
+    }
+
+    private static String buildSplitQuery(
+            TableId tableId,
+            SeaTunnelRowType rowType,
+            boolean isFirstSplit,
+            boolean isLastSplit,
+            int limitSize,
+            boolean isScanningData) {
         final String condition;
+
         if (isFirstSplit && isLastSplit) {
             condition = null;
         } else if (isFirstSplit) {
-            String filterCondition =
-                    Arrays.stream(rowType.getFieldNames())
-                            .map(field -> field + "  <= ? ")
-                            .collect(Collectors.joining(" AND "));
-            String notCondition =
-                    Arrays.stream(rowType.getFieldNames())
-                            .map(field -> field + "  = ? ")
-                            .collect(Collectors.joining(" AND "));
-            condition = String.format("%s AND NOT (%s)", filterCondition, notCondition);
+            final StringBuilder sql = new StringBuilder();
+            addPrimaryKeyColumnsToCondition(rowType, sql, " <= ?");
+            if (isScanningData) {
+                sql.append(" AND NOT (");
+                addPrimaryKeyColumnsToCondition(rowType, sql, " = ?");
+                sql.append(")");
+            }
+            condition = sql.toString();
         } else if (isLastSplit) {
-            condition =
-                    Arrays.stream(rowType.getFieldNames())
-                            .map(field -> field + "  >= ? ")
-                            .collect(Collectors.joining(" AND "));
+            final StringBuilder sql = new StringBuilder();
+            addPrimaryKeyColumnsToCondition(rowType, sql, " >= ?");
+            condition = sql.toString();
         } else {
-            String filterCondition =
-                    Stream.concat(
-                                    Arrays.stream(rowType.getFieldNames())
-                                            .map(field -> field + "  <= ? "),
-                                    Arrays.stream(rowType.getFieldNames())
-                                            .map(field -> field + "  >= ? "))
-                            .collect(Collectors.joining(" AND "));
-            String notCondition =
-                    Arrays.stream(rowType.getFieldNames())
-                            .map(field -> field + "  = ? ")
-                            .collect(Collectors.joining(" AND "));
-            condition = String.format("%s AND NOT (%s)", filterCondition, notCondition);
+            final StringBuilder sql = new StringBuilder();
+            addPrimaryKeyColumnsToCondition(rowType, sql, " >= ?");
+            if (isScanningData) {
+                sql.append(" AND NOT (");
+                addPrimaryKeyColumnsToCondition(rowType, sql, " = ?");
+                sql.append(")");
+            }
+            sql.append(" AND ");
+            addPrimaryKeyColumnsToCondition(rowType, sql, " <= ?");
+            condition = sql.toString();
         }
 
+        if (isScanningData) {
+            return buildSelectWithRowLimits(
+                    tableId, limitSize, "*", Optional.ofNullable(condition), Optional.empty());
+        } else {
+            final String orderBy = String.join(", ", rowType.getFieldNames());
+            return buildSelectWithBoundaryRowLimits(
+                    tableId,
+                    limitSize,
+                    getPrimaryKeyColumnsProjection(rowType),
+                    getMaxPrimaryKeyColumnsProjection(rowType),
+                    Optional.ofNullable(condition),
+                    orderBy);
+        }
+    }
+
+    private static void addPrimaryKeyColumnsToCondition(
+            SeaTunnelRowType rowType, StringBuilder sql, String predicate) {
+        for (Iterator<String> fieldNamesIt = Arrays.stream(rowType.getFieldNames()).iterator();
+                fieldNamesIt.hasNext(); ) {
+            sql.append(fieldNamesIt.next()).append(predicate);
+            if (fieldNamesIt.hasNext()) {
+                sql.append(" AND ");
+            }
+        }
+    }
+
+    private static String getPrimaryKeyColumnsProjection(SeaTunnelRowType rowType) {
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT * FROM ").append(quote(tableId));
-        if (condition != null) {
-            sql.append(" WHERE ").append(condition);
+        for (Iterator<String> fieldNamesIt = Arrays.stream(rowType.getFieldNames()).iterator();
+                fieldNamesIt.hasNext(); ) {
+            sql.append(fieldNamesIt.next());
+            if (fieldNamesIt.hasNext()) {
+                sql.append(" , ");
+            }
         }
         return sql.toString();
+    }
+
+    private static String getMaxPrimaryKeyColumnsProjection(SeaTunnelRowType rowType) {
+        StringBuilder sql = new StringBuilder();
+        for (Iterator<String> fieldNamesIt = Arrays.stream(rowType.getFieldNames()).iterator();
+                fieldNamesIt.hasNext(); ) {
+            sql.append("MAX(" + fieldNamesIt.next() + ")");
+            if (fieldNamesIt.hasNext()) {
+                sql.append(" , ");
+            }
+        }
+        return sql.toString();
+    }
+
+    private static String buildSelectWithRowLimits(
+            TableId tableId,
+            int limit,
+            String projection,
+            Optional<String> condition,
+            Optional<String> orderBy) {
+        final StringBuilder sql = new StringBuilder("SELECT ");
+        sql.append(projection).append(" FROM ");
+        sql.append(quoteSchemaAndTable(tableId));
+        if (condition.isPresent()) {
+            sql.append(" WHERE ").append(condition.get());
+        }
+        if (orderBy.isPresent()) {
+            sql.append(" ORDER BY ").append(orderBy.get());
+        }
+        if (limit > 0) {
+            sql.append(" LIMIT ").append(limit);
+        }
+        return sql.toString();
+    }
+
+    private static String buildSelectWithBoundaryRowLimits(
+            TableId tableId,
+            int limit,
+            String projection,
+            String maxColumnProjection,
+            Optional<String> condition,
+            String orderBy) {
+        final StringBuilder sql = new StringBuilder("SELECT ");
+        sql.append(maxColumnProjection);
+        sql.append(" FROM (");
+        sql.append("SELECT ");
+        sql.append(projection);
+        sql.append(" FROM ");
+        sql.append(quoteSchemaAndTable(tableId));
+        if (condition.isPresent()) {
+            sql.append(" WHERE ").append(condition.get());
+        }
+        sql.append(" ORDER BY ").append(orderBy).append(" LIMIT ").append(limit);
+        sql.append(") T");
+        return sql.toString();
+    }
+
+    public static String quoteSchemaAndTable(TableId tableId) {
+        StringBuilder quoted = new StringBuilder();
+
+        if (tableId.schema() != null && !tableId.schema().isEmpty()) {
+            quoted.append(quote(tableId.schema())).append(".");
+        }
+
+        quoted.append(quote(tableId.table()));
+        return quoted.toString();
     }
 
     public static PreparedStatement createTableSplitDataStatement(
@@ -364,10 +480,17 @@ public class DamengConncetionUtils {
     }
 
     public static String quote(TableId tableId) {
-        return tableId.toQuotedString('"');
+        StringBuilder quoted = new StringBuilder();
+
+        if (tableId.schema() != null && !tableId.schema().isEmpty()) {
+            quoted.append(quote(tableId.schema())).append(".");
+        }
+
+        quoted.append(quote(tableId.table()));
+        return quoted.toString();
     }
 
     public static String quote(String dbOrTableName) {
-        return dbOrTableName;
+        return "\"" + dbOrTableName + "\"";
     }
 }

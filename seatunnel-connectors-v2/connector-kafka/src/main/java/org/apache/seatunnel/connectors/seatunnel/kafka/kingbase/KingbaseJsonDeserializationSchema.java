@@ -40,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 public class KingbaseJsonDeserializationSchema
@@ -49,8 +50,12 @@ public class KingbaseJsonDeserializationSchema
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    public KingbaseJsonDeserializationSchema(MultipleRowType dataType) {
+    private final Map<String, String> primaryMap;
+
+    public KingbaseJsonDeserializationSchema(
+            MultipleRowType dataType, Map<String, String> primaryMap) {
         this.dataType = dataType;
+        this.primaryMap = primaryMap;
     }
 
     @Override
@@ -82,12 +87,25 @@ public class KingbaseJsonDeserializationSchema
                 return;
         }
         row.setTableId(tableId);
-        for (int i = 0; i < rowType.getFieldNames().length; i++) {
-            row.setField(
-                    i,
-                    convertDataType(
-                            kingBaseRow.getRecord().get(rowType.getFieldName(i)),
-                            rowType.getFieldType(i)));
+        if (row.getRowKind().equals(RowKind.DELETE)) {
+            if (primaryMap.containsKey(tableId)) {
+                int primaryIndex = rowType.indexOf(primaryMap.get(tableId));
+                row.setField(
+                        primaryIndex,
+                        convertDataType(
+                                kingBaseRow.getRecord().get("PKID"),
+                                rowType.getFieldType(primaryIndex)));
+            } else {
+                throw new IllegalArgumentException("can't find primary key from table " + tableId);
+            }
+        } else {
+            for (int i = 0; i < rowType.getFieldNames().length; i++) {
+                row.setField(
+                        i,
+                        convertDataType(
+                                kingBaseRow.getRecord().get(rowType.getFieldName(i)),
+                                rowType.getFieldType(i)));
+            }
         }
         out.collect(row);
         if (kingBaseRow.getOp().equals(KingBaseOp.UPDATE)) {

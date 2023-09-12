@@ -35,13 +35,29 @@ public class MysqlColumnConverter {
             new MysqlDataTypeConvertor();
 
     public static Column convert(io.debezium.relational.Column column) {
+        SeaTunnelDataType datatype = convertDataType(column);
+        long longColumnLength;
+        switch (datatype.getSqlType()) {
+            case STRING:
+                longColumnLength = column.length() * 3;
+                break;
+            default:
+                longColumnLength = column.length();
+                break;
+        }
         return PhysicalColumn.of(
                 column.name(),
-                convertDataType(column),
+                datatype,
                 column.length(),
                 column.isOptional(),
                 column.defaultValue(),
-                null);
+                null,
+                column.typeName(),
+                false,
+                false,
+                null,
+                null,
+                longColumnLength);
     }
 
     public static SeaTunnelDataType convertDataType(io.debezium.relational.Column column) {

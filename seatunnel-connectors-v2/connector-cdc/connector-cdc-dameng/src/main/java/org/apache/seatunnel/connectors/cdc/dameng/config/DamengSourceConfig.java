@@ -21,6 +21,7 @@ import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.config.StartupConfig;
 import org.apache.seatunnel.connectors.cdc.base.config.StopConfig;
 
+import io.debezium.config.Configuration;
 import io.debezium.connector.dameng.DamengConnectorConfig;
 import io.debezium.relational.RelationalTableFilters;
 
@@ -80,6 +81,10 @@ public class DamengSourceConfig extends JdbcSourceConfig {
     @Override
     public DamengConnectorConfig getDbzConnectorConfig() {
         return new DamengConnectorConfig(getDbzConfiguration());
+    }
+
+    public Configuration getOriginDbzConnectorConfig() {
+        return super.getDbzConfiguration();
     }
 
     public RelationalTableFilters getTableFilters() {

@@ -19,6 +19,8 @@ package org.apache.seatunnel.connectors.cdc.dameng.source.offset;
 
 import org.apache.seatunnel.connectors.cdc.base.source.offset.Offset;
 
+import org.apache.commons.lang3.StringUtils;
+
 import io.debezium.connector.dameng.Scn;
 import io.debezium.connector.dameng.SourceInfo;
 
@@ -26,28 +28,37 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class LogMinerOffset extends Offset {
+    private static final long serialVersionUID = 1L;
+
+    public static final String SCN_KEY = "scn";
+    public static final String COMMIT_SCN_KEY = "commit_scn";
+    public static final String LCR_POSITION_KEY = "lcr_position";
     public static final LogMinerOffset INITIAL_OFFSET = new LogMinerOffset(Scn.valueOf(0));
     public static final LogMinerOffset NO_STOPPING_OFFSET =
             new LogMinerOffset(Scn.valueOf(Long.MAX_VALUE));
-
-    public LogMinerOffset(Scn scn) {
-        this(scn, null, null);
-    }
-
-    public LogMinerOffset(Scn changeScn, Scn commitScn, Long eventSerialNo) {
-        this(createOffsetMap(changeScn, commitScn, eventSerialNo));
-    }
 
     public LogMinerOffset(Map<String, String> offsetMap) {
         this.offset = offsetMap;
     }
 
-    public Scn getScn() {
-        return Scn.valueOf(offset.get(SourceInfo.SCN_KEY));
+    public LogMinerOffset(Scn scn) {
+        this(scn, null, null);
     }
 
-    public Scn getCommitScn() {
-        return Scn.valueOf(offset.get(SourceInfo.COMMIT_SCN_KEY));
+    public LogMinerOffset(Scn changeScn, Scn commitScn, String lcrPosition) {
+        this(createOffsetMap(changeScn, commitScn, lcrPosition));
+    }
+
+    public String getScn() {
+        return offset.get(SourceInfo.SCN_KEY);
+    }
+
+    public String getCommitScn() {
+        return offset.get(SourceInfo.COMMIT_SCN_KEY);
+    }
+
+    public String getLcrPosition() {
+        return offset.get(LCR_POSITION_KEY);
     }
 
     @Override
@@ -63,9 +74,19 @@ public class LogMinerOffset extends Offset {
             return -1;
         }
 
-        Scn thisChangeScn = this.getScn();
-        Scn thatChangeScn = that.getScn();
-        return thisChangeScn.compareTo(thatChangeScn);
+        String scnStr = this.getScn();
+        String targetScnStr = that.getScn();
+        if (StringUtils.isNotEmpty(targetScnStr)) {
+            if (StringUtils.isNotEmpty(scnStr)) {
+                Scn scn = Scn.valueOf(scnStr);
+                Scn targetScn = Scn.valueOf(targetScnStr);
+                return scn.compareTo(targetScn);
+            }
+            return -1;
+        } else if (StringUtils.isNotEmpty(scnStr)) {
+            return 1;
+        }
+        return 0;
     }
 
     @SuppressWarnings("checkstyle:EqualsHashCode")
@@ -82,17 +103,12 @@ public class LogMinerOffset extends Offset {
     }
 
     private static Map<String, String> createOffsetMap(
-            Scn changeScn, Scn commitScn, Long eventSerialNo) {
+            Scn changeScn, Scn commitScn, String lcrPosition) {
         Map<String, String> offsetMap = new HashMap<>();
-        if (changeScn != null) {
-            offsetMap.put(SourceInfo.SCN_KEY, changeScn.toString());
-        }
-        if (commitScn != null) {
-            offsetMap.put(SourceInfo.COMMIT_SCN_KEY, commitScn.toString());
-        }
-        if (eventSerialNo != null) {
-            offsetMap.put(SourceInfo.EVENT_SERIAL_NO_KEY, String.valueOf(eventSerialNo));
-        }
+        offsetMap.put(SCN_KEY, String.valueOf(changeScn.longValue()));
+        offsetMap.put(
+                COMMIT_SCN_KEY, String.valueOf(commitScn == null ? 0 : commitScn.longValue()));
+        offsetMap.put(LCR_POSITION_KEY, lcrPosition);
         return offsetMap;
     }
 }

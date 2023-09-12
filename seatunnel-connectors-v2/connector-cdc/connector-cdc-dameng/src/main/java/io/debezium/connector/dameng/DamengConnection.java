@@ -17,50 +17,50 @@
 
 package io.debezium.connector.dameng;
 
-import dm.jdbc.driver.DmDriver;
+import io.debezium.DebeziumException;
 import io.debezium.config.Configuration;
-import io.debezium.connector.dameng.logminer.LogContent;
-import io.debezium.connector.dameng.logminer.LogFile;
-import io.debezium.jdbc.JdbcConfiguration;
+import io.debezium.config.Field;
 import io.debezium.jdbc.JdbcConnection;
+import io.debezium.relational.Column;
 import io.debezium.relational.RelationalTableFilters;
+import io.debezium.relational.TableEditor;
 import io.debezium.relational.TableId;
+import io.debezium.relational.Tables;
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.Clob;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
 @SuppressWarnings("MagicNumber")
 public class DamengConnection extends JdbcConnection {
-    private static final String URL_PATTERN =
-            "jdbc:dm://${"
-                    + JdbcConfiguration.HOSTNAME
-                    + "}:${"
-                    + JdbcConfiguration.PORT
-                    + "}/${"
-                    + JdbcConfiguration.DATABASE
-                    + "}?useUnicode=true&characterEncoding=PG_UTF8";
 
-    private static final JdbcConnection.ConnectionFactory FACTORY =
-            JdbcConnection.patternBasedFactory(
-                    URL_PATTERN,
-                    DmDriver.class.getName(),
-                    DamengConnection.class.getClassLoader(),
-                    JdbcConfiguration.PORT.withDefault(
-                            DamengConnectorConfig.PORT.defaultValueAsString()));
+    private static final Field URL = Field.create("url", "Raw JDBC url");
 
     public DamengConnection(Configuration config) {
-        this(config, FACTORY);
+        this(config, resolveConnectionFactory(config));
     }
 
     public DamengConnection(Configuration config, ConnectionFactory connectionFactory) {
         super(config, connectionFactory);
+    }
+
+    public DamengConnection(Configuration config, Supplier<ClassLoader> classLoaderSupplier) {
+        super(config, resolveConnectionFactory(config), classLoaderSupplier);
+    }
+
+    public DamengConnection(
+            Configuration config,
+            ConnectionFactory connectionFactory,
+            Supplier<ClassLoader> classLoaderSupplier) {
+        super(config, connectionFactory, classLoaderSupplier);
     }
 
     @Override
@@ -69,7 +69,7 @@ public class DamengConnection extends JdbcConnection {
     }
 
     public Scn currentCheckpointLsn() throws SQLException {
-        String selectCurrentCheckpointLsnSQL = "SELECT CKPT_LSN FROM V$RLOG";
+        String selectCurrentCheckpointLsnSQL = "SELECT FILE_LSN FROM V$RLOG";
         JdbcConnection.ResultSetMapper<Scn> mapper =
                 rs -> {
                     rs.next();
@@ -92,7 +92,8 @@ public class DamengConnection extends JdbcConnection {
         return queryAndMap(selectEarliestLsnSQL, mapper);
     }
 
-    public List<TableId> listTables(RelationalTableFilters tableFilters) throws SQLException {
+    public List<TableId> listTables(RelationalTableFilters tableFilters, String database)
+            throws SQLException {
         String sql = "SELECT OWNER, TABLE_NAME FROM ALL_TABLES";
         JdbcConnection.ResultSetMapper<List<TableId>> mapper =
                 rs -> {
@@ -101,7 +102,7 @@ public class DamengConnection extends JdbcConnection {
                         String owner = rs.getString(1);
                         String table = rs.getString(2);
 
-                        TableId tableId = new TableId(null, owner, table);
+                        TableId tableId = new TableId(database, owner, table);
                         if (tableFilters == null
                                 || tableFilters.dataCollectionFilter().isIncluded(tableId)) {
                             capturedTableIds.add(tableId);
@@ -116,6 +117,43 @@ public class DamengConnection extends JdbcConnection {
         return queryAndMap(sql, mapper);
     }
 
+    @Override
+    public void readSchema(
+            Tables tables,
+            String databaseCatalog,
+            String schemaNamePattern,
+            Tables.TableFilter tableFilter,
+            Tables.ColumnNameFilter columnFilter,
+            boolean removeTablesNotFoundInJdbc)
+            throws SQLException {
+        super.readSchema(
+                tables,
+                null,
+                schemaNamePattern,
+                tableFilter,
+                columnFilter,
+                removeTablesNotFoundInJdbc);
+
+        Set<TableId> tableIds =
+                tables.tableIds().stream()
+                        .filter(x -> schemaNamePattern.equals(x.schema()))
+                        .collect(Collectors.toSet());
+
+        for (TableId tableId : tableIds) {
+            // super.readSchema() populates ids without the catalog; hence we apply the filtering
+            // only
+            // here and if a table is included, overwrite it with a new id including the catalog
+            TableId tableIdWithCatalog =
+                    new TableId(databaseCatalog, tableId.schema(), tableId.table());
+
+            if (tableFilter.isIncluded(tableIdWithCatalog)) {
+                overrideDamengSpecificColumnTypes(tables, tableId, tableIdWithCatalog);
+            }
+
+            tables.removeTable(tableId);
+        }
+    }
+
     public boolean isCaseSensitive() throws SQLException {
         String sql = "SELECT SF_GET_CASE_SENSITIVE_FLAG()";
         JdbcConnection.ResultSetMapper<Boolean> mapper =
@@ -124,6 +162,37 @@ public class DamengConnection extends JdbcConnection {
                     return rs.getInt(1) == 1;
                 };
         return queryAndMap(sql, mapper);
+    }
+
+    public String getTableMetadataDdl(TableId tableId) throws SQLException {
+        return queryAndMap(
+                "SELECT dbms_metadata.get_ddl('TABLE','"
+                        + tableId.table()
+                        + "','"
+                        + tableId.schema()
+                        + "') FROM DUAL",
+                rs -> {
+                    if (!rs.next()) {
+                        throw new DebeziumException(
+                                "Could not get DDL metadata for table: " + tableId);
+                    }
+
+                    Object res = rs.getObject(1);
+                    return ((Clob) res).getSubString(1, (int) ((Clob) res).length());
+                });
+    }
+
+    public Scn getMaxArchiveLogScn() throws SQLException {
+        String query =
+                "SELECT MAX(NEXT_CHANGE#) FROM V$ARCHIVED_LOG WHERE NAME IS NOT NULL AND ARCHIVED = 'YES' AND STATUS = 'A'";
+        return queryAndMap(
+                query,
+                (rs) -> {
+                    if (rs.next()) {
+                        return Scn.valueOf(rs.getString(1));
+                    }
+                    throw new DebeziumException("Could not obtain maximum archive log scn.");
+                });
     }
 
     public Scn getFirstScn(Scn firstChange, Scn nextChange) throws SQLException {
@@ -149,100 +218,6 @@ public class DamengConnection extends JdbcConnection {
                     return Scn.valueOf(0);
                 };
         return prepareQueryAndMap(sql, preparer, mapper);
-    }
-
-    public Optional<LogFile> getLogFile(Scn firstChange, Scn nextChange) throws SQLException {
-        String sql =
-                "SELECT "
-                        + "   NAME, FIRST_CHANGE#, NEXT_CHANGE#, SEQUENCE# "
-                        + "FROM "
-                        + "(SELECT * FROM v$archived_log "
-                        + "WHERE (FIRST_CHANGE# >= ? AND NEXT_CHANGE# > ? AND NAME IS NOT NULL AND STATUS='A') "
-                        + "ORDER BY SEQUENCE#"
-                        + ") t "
-                        + "WHERE ROWNUM <= 1";
-        StatementPreparer preparer =
-                statement -> {
-                    statement.setBigDecimal(1, firstChange.bigDecimalValue());
-                    statement.setBigDecimal(2, nextChange.bigDecimalValue());
-                };
-        ResultSetMapper<Optional<LogFile>> mapper =
-                rs -> {
-                    LogFile logFile = null;
-                    if (rs.next()) {
-                        logFile =
-                                LogFile.builder()
-                                        .name(rs.getString(1))
-                                        .firstScn(Scn.valueOf(rs.getBigDecimal(2)))
-                                        .nextScn(Scn.valueOf(rs.getBigDecimal(3)))
-                                        .sequence(rs.getLong(4))
-                                        .build();
-                    }
-                    return Optional.ofNullable(logFile);
-                };
-        return prepareQueryAndMap(sql, preparer, mapper);
-    }
-
-    public DamengConnection addLogFile(LogFile file) throws SQLException {
-        String sql =
-                "DBMS_LOGMNR.ADD_LOGFILE(logfilename=>'"
-                        + file.getName()
-                        + "', options=>DBMS_LOGMNR.ADDFILE)";
-        execute(sql);
-        return this;
-    }
-
-    public DamengConnection startLogMiner(Scn startScn) throws SQLException {
-        execute(
-                "DBMS_LOGMNR.START_LOGMNR(STARTSCN => "
-                        + startScn.toString()
-                        + ", OPTIONS => 2130)");
-        return this;
-    }
-
-    public DamengConnection endLogMiner() throws SQLException {
-        execute("DBMS_LOGMNR.END_LOGMNR()");
-        return this;
-    }
-
-    public DamengConnection readLogContent(
-            Scn startScn, String[] schemas, String[] tables, Consumer<LogContent> consumer)
-            throws SQLException {
-        ResultSetMapper<LogContent> mapper =
-                rs ->
-                        LogContent.builder()
-                                .scn(Scn.valueOf(rs.getBigDecimal(1)))
-                                .startScn(
-                                        Optional.ofNullable(rs.getBigDecimal(2))
-                                                .map(e -> Scn.valueOf(e))
-                                                .orElse(null))
-                                .commitScn(
-                                        Optional.ofNullable(rs.getBigDecimal(3))
-                                                .map(e -> Scn.valueOf(e))
-                                                .orElse(null))
-                                .timestamp(rs.getTimestamp(4))
-                                .startTimestamp(rs.getTimestamp(5))
-                                .commitTimestamp(rs.getTimestamp(6))
-                                .xid(rs.getString(7))
-                                .rollBack(rs.getBoolean(8))
-                                .operation(rs.getString(9))
-                                .operationCode(rs.getInt(10))
-                                .segOwner(rs.getString(11))
-                                .tableName(rs.getString(12))
-                                .sqlRedo(rs.getString(13))
-                                .sqlUndo(rs.getString(14))
-                                .ssn(rs.getInt(15))
-                                .csf(rs.getInt(16))
-                                .status(rs.getInt(17))
-                                .build();
-        ResultSetConsumer resultSetConsumer =
-                rs -> {
-                    while (rs.next()) {
-                        LogContent logContent = mapper.apply(rs);
-                        consumer.accept(logContent);
-                    }
-                };
-        return readLogContent(startScn, schemas, tables, resultSetConsumer);
     }
 
     private static String join(String[] strings, String around, String splitter) {
@@ -276,5 +251,38 @@ public class DamengConnection extends JdbcConnection {
                 };
         prepareQuery(sql, preparer, consumer);
         return this;
+    }
+
+    private static ConnectionFactory resolveConnectionFactory(Configuration config) {
+        return JdbcConnection.patternBasedFactory(config.getString(URL));
+    }
+
+    private void overrideDamengSpecificColumnTypes(
+            Tables tables, TableId tableId, TableId tableIdWithCatalog) {
+        TableEditor editor = tables.editTable(tableId);
+        editor.tableId(tableIdWithCatalog);
+
+        List<String> columnNames = new ArrayList<>(editor.columnNames());
+        for (String columnName : columnNames) {
+            Column column = editor.columnWithName(columnName);
+            if (column.jdbcType() == Types.TIMESTAMP) {
+                editor.addColumn(
+                        column.edit()
+                                .length(column.scale().orElse(Column.UNSET_INT_VALUE))
+                                .scale(null)
+                                .create());
+            }
+            // NUMBER columns without scale value have it set to -127 instead of null;
+            // let's rectify that
+            else if (column.jdbcType() == 2) {
+                column.scale()
+                        .filter(s -> s == -127)
+                        .ifPresent(
+                                s -> {
+                                    editor.addColumn(column.edit().scale(null).create());
+                                });
+            }
+        }
+        tables.overwriteTable(editor.create());
     }
 }
