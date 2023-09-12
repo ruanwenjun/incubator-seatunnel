@@ -30,7 +30,6 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.JdbcOutputFormat;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.JdbcOutputFormatBuilder;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.connection.SimpleJdbcConnectionPoolProviderProxy;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.state.JdbcSinkState;
@@ -69,15 +68,10 @@ public class JdbcSinkWriter
         this.dialect = dialect;
         this.rowType = rowType;
         this.primaryKeyIndex = primaryKeyIndex;
-        this.connectionProvider =
-                new SimpleJdbcConnectionProvider(jdbcSinkConfig.getJdbcConnectionConfig());
-        this.outputFormat =
-                new JdbcOutputFormatBuilder(dialect, connectionProvider, jdbcSinkConfig, rowType)
-                        .build();
     }
 
     @Override
-    public Optional<MultiTableResourceManager<ConnectionPoolManager>> initMultiTableResourceManager(
+    public MultiTableResourceManager<ConnectionPoolManager> initMultiTableResourceManager(
             int tableSize, int queueSize) {
         HikariDataSource ds = new HikariDataSource();
         ds.setIdleTimeout(30 * 1000);
@@ -86,17 +80,16 @@ public class JdbcSinkWriter
         ds.setUsername(jdbcSinkConfig.getJdbcConnectionConfig().getUsername().get());
         ds.setPassword(jdbcSinkConfig.getJdbcConnectionConfig().getPassword().get());
         ds.setAutoCommit(jdbcSinkConfig.getJdbcConnectionConfig().isAutoCommit());
-        return Optional.of(new JdbcMultiTableResourceManager(new ConnectionPoolManager(ds)));
+        return new JdbcMultiTableResourceManager(new ConnectionPoolManager(ds));
     }
 
     @Override
     public void setMultiTableResourceManager(
-            Optional<MultiTableResourceManager<ConnectionPoolManager>> multiTableResourceManager,
+            MultiTableResourceManager<ConnectionPoolManager> multiTableResourceManager,
             int queueIndex) {
-        connectionProvider.closeConnection();
         this.connectionProvider =
                 new SimpleJdbcConnectionPoolProviderProxy(
-                        multiTableResourceManager.get().getSharedResource().get(),
+                        multiTableResourceManager.getSharedResource().get(),
                         jdbcSinkConfig.getJdbcConnectionConfig(),
                         queueIndex);
         this.outputFormat =

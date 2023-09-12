@@ -48,7 +48,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -71,25 +70,17 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
     }
 
     @Override
-    public void init() {
-        resource = CommitterResource.createSingleTableResource(conf);
-    }
-
-    @Override
-    public Optional<MultiTableResourceManager<CommitterResource>> initMultiTableResourceManager(
+    public MultiTableResourceManager<CommitterResource> initMultiTableResourceManager(
             int tableSize, int queueSize) {
         CommitterResource resource = CommitterResource.createResource(conf);
-        return Optional.of(new CommitterResourceManager(resource));
+        return new CommitterResourceManager(resource);
     }
 
     @Override
     public void setMultiTableResourceManager(
-            Optional<MultiTableResourceManager<CommitterResource>> multiTableResourceManager,
+            MultiTableResourceManager<CommitterResource> multiTableResourceManager,
             int queueIndex) {
-        if (resource != null) {
-            resource.closeSingleTableResource();
-        }
-        this.resource = multiTableResourceManager.get().getSharedResource().get();
+        this.resource = multiTableResourceManager.getSharedResource().get();
     }
 
     @Override

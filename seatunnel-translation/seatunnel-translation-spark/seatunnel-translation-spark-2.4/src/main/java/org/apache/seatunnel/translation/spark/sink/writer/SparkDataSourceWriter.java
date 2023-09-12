@@ -17,8 +17,10 @@
 
 package org.apache.seatunnel.translation.spark.sink.writer;
 
+import org.apache.seatunnel.api.sink.MultiTableResourceManager;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
+import org.apache.seatunnel.api.sink.SupportResourceShare;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -44,13 +46,24 @@ public class SparkDataSourceWriter<StateT, CommitInfoT, AggregatedCommitInfoT>
     @Nullable protected final SinkAggregatedCommitter<CommitInfoT, AggregatedCommitInfoT>
             sinkAggregatedCommitter;
 
+    private MultiTableResourceManager resourceManager;
+
     public SparkDataSourceWriter(
             SeaTunnelSink<SeaTunnelRow, StateT, CommitInfoT, AggregatedCommitInfoT> sink)
             throws IOException {
         this.sink = sink;
         this.sinkAggregatedCommitter = sink.createAggregatedCommitter().orElse(null);
         if (sinkAggregatedCommitter != null) {
+            if (this.sinkAggregatedCommitter instanceof SupportResourceShare) {
+                resourceManager =
+                        ((SupportResourceShare) this.sinkAggregatedCommitter)
+                                .initMultiTableResourceManager(1, 1);
+            }
             sinkAggregatedCommitter.init();
+            if (resourceManager != null) {
+                ((SupportResourceShare) this.sinkAggregatedCommitter)
+                        .setMultiTableResourceManager(resourceManager, 0);
+            }
         }
     }
 

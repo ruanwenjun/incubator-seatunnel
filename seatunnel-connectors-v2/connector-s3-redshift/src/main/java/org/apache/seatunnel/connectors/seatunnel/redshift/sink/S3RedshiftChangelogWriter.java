@@ -76,7 +76,6 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
             S3RedshiftConf s3RedshiftConf) {
         super(writeStrategy, hadoopConf, context, jobId, fileSinkStates);
         this.s3RedshiftConf = s3RedshiftConf;
-        this.resource = WriterResource.createSingleTableResource(s3RedshiftConf);
         if (s3RedshiftConf.isAppendOnlyMode()) {
             this.appendOnly = true;
             this.partitionField = Optional.empty();
@@ -128,21 +127,15 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
     }
 
     @Override
-    public Optional<MultiTableResourceManager<WriterResource>> initMultiTableResourceManager(
+    public MultiTableResourceManager<WriterResource> initMultiTableResourceManager(
             int tableSize, int queueSize) {
-        return Optional.of(
-                new WriterResourceManager(
-                        WriterResource.createResource(s3RedshiftConf, queueSize)));
+        return new WriterResourceManager(WriterResource.createResource(s3RedshiftConf, queueSize));
     }
 
     @Override
     public void setMultiTableResourceManager(
-            Optional<MultiTableResourceManager<WriterResource>> multiTableResourceManager,
-            int queueIndex) {
-        if (resource != null) {
-            resource.closeSingleTableResource();
-        }
-        this.resource = multiTableResourceManager.get().getSharedResource().get();
+            MultiTableResourceManager<WriterResource> multiTableResourceManager, int queueIndex) {
+        this.resource = multiTableResourceManager.getSharedResource().get();
     }
 
     private synchronized SeaTunnelRowType enhanceRowType(SeaTunnelRowType rowType) {

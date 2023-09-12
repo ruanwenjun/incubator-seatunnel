@@ -50,7 +50,7 @@ public class MultiTableSinkWriter
     private final Random random = new Random();
     private final List<BlockingQueue<SeaTunnelRow>> blockingQueues = new ArrayList<>();
     private final ExecutorService executorService;
-    private Optional<? extends MultiTableResourceManager<?>> resourceManager = Optional.empty();
+    private MultiTableResourceManager resourceManager;
     private volatile boolean submitted = false;
 
     public MultiTableSinkWriter(
@@ -106,7 +106,7 @@ public class MultiTableSinkWriter
                     writerMap.entrySet()) {
                 SupportMultiTableSinkWriter<?> sink =
                         ((SupportMultiTableSinkWriter<?>) entry.getValue());
-                sink.setMultiTableResourceManager((Optional) resourceManager, i);
+                sink.setMultiTableResourceManager(resourceManager, i);
                 sinkPrimaryKeys.put(entry.getKey().getTableIdentifier(), sink.primaryKey());
             }
         }
@@ -250,7 +250,9 @@ public class MultiTableSinkWriter
             }
         }
         try {
-            resourceManager.ifPresent(MultiTableResourceManager::close);
+            if (resourceManager != null) {
+                resourceManager.close();
+            }
         } catch (Throwable e) {
             log.error("close resourceManager error", e);
         }
