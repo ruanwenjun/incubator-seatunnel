@@ -47,12 +47,6 @@ public interface BaseDwsGaussDBOption {
                     .defaultValue(new HashMap<>())
                     .withDescription("jdbc properties, eg: " + "{\n" + "ssl=true\n" + "}");
 
-    Option<String> XA_DRIVER_CLASS_NAME =
-            Options.key("xa_data_source_class_name")
-                    .stringType()
-                    .defaultValue("com.huawei.gauss200.jdbc.xa.PGXADataSource")
-                    .withDescription("XA class name");
-
     Option<String> TABLE_PREFIX =
             Options.key("tablePrefix")
                     .stringType()

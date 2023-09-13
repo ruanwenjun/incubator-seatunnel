@@ -68,7 +68,7 @@ public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
     public OptionRule getOptionRule() {
         return OptionRule.builder()
                 .required(URL, DRIVER, SAVE_MODE)
-                .optional(USER, PASSWORD, PROPERTIES, XA_DRIVER_CLASS_NAME, WRITE_MODE, BATCH_SIZE)
+                .optional(USER, PASSWORD, PROPERTIES, WRITE_MODE, BATCH_SIZE)
                 .conditional(WRITE_MODE, WriteMode.USING_TEMPORARY_TABLE, PRIMARY_KEYS)
                 .build();
     }
