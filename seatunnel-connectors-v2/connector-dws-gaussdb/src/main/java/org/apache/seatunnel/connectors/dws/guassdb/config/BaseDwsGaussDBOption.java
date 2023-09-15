@@ -4,9 +4,7 @@ import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public interface BaseDwsGaussDBOption {
@@ -61,11 +59,8 @@ public interface BaseDwsGaussDBOption {
                     .withDescription(
                             "The table suffix name added when the table is automatically created");
 
-    Option<List<String>> PRIMARY_KEYS =
-            Options.key("primary_keys")
-                    .listType()
-                    .defaultValue(new ArrayList<>())
-                    .withDescription("primary keys");
+    Option<String> PRIMARY_KEY =
+            Options.key("primary_key").stringType().noDefaultValue().withDescription("primary key");
 
     OptionRule getOptionRule();
 }

@@ -3,10 +3,9 @@ package org.apache.seatunnel.connectors.dws.guassdb.sink.writer;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 
-import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -19,14 +18,11 @@ public class DwsGaussDBMemoryTable {
 
     private final SeaTunnelRowType seaTunnelRowType;
 
-    private final List<String> primaryKeys;
-
     private final Function<SeaTunnelRow, String> primaryKeyExtractor;
 
-    public DwsGaussDBMemoryTable(SeaTunnelRowType seaTunnelRowType, List<String> primaryKeys) {
+    public DwsGaussDBMemoryTable(SeaTunnelRowType seaTunnelRowType, String primaryKey) {
         this.seaTunnelRowType = seaTunnelRowType;
-        this.primaryKeys = primaryKeys;
-        this.primaryKeyExtractor = getPrimaryKeyExtractor(seaTunnelRowType, primaryKeys);
+        this.primaryKeyExtractor = getPrimaryKeyExtractor(seaTunnelRowType, primaryKey);
     }
 
     public void write(SeaTunnelRow element) {
@@ -61,32 +57,23 @@ public class DwsGaussDBMemoryTable {
     }
 
     private Function<SeaTunnelRow, String> getPrimaryKeyExtractor(
-            SeaTunnelRowType seaTunnelRowType, List<String> primaryKeys) {
-        if (CollectionUtils.isEmpty(primaryKeys)) {
+            SeaTunnelRowType seaTunnelRowType, String primaryKey) {
+        if (StringUtils.isEmpty(primaryKey)) {
             throw new IllegalArgumentException("The primary key is empty");
         }
         String[] fieldNames = seaTunnelRowType.getFieldNames();
-        int[] primaryKeyIndexes = new int[primaryKeys.size()];
-        for (int i = 0; i < primaryKeys.size(); i++) {
-            primaryKeyIndexes[i] = -1;
-            String primaryKey = primaryKeys.get(i);
-            for (int j = 0; j < fieldNames.length; j++) {
-                if (primaryKey.equals(fieldNames[j])) {
-                    primaryKeyIndexes[i] = j;
-                    break;
-                }
-            }
-            if (primaryKeyIndexes[i] == -1) {
-                throw new IllegalArgumentException(
-                        "The primary key: " + primaryKey + " in not exist in the table");
+        int primaryKeyIndex = -1;
+        for (int j = 0; j < fieldNames.length; j++) {
+            if (primaryKey.equals(fieldNames[j])) {
+                primaryKeyIndex = j;
+                break;
             }
         }
-        return (row) -> {
-            StringBuilder primaryKeyBuilder = new StringBuilder();
-            for (int primaryKeyIndex : primaryKeyIndexes) {
-                primaryKeyBuilder.append(row.getField(primaryKeyIndex));
-            }
-            return primaryKeyBuilder.toString();
-        };
+        if (primaryKeyIndex == -1) {
+            throw new IllegalArgumentException(
+                    "The primary key: " + primaryKey + " in not exist in the table");
+        }
+        final int finalPrimaryKeyIndex = primaryKeyIndex;
+        return (row) -> String.valueOf(row.getField(finalPrimaryKeyIndex));
     }
 }

@@ -24,7 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption.PRIMARY_KEYS;
+import static org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption.PRIMARY_KEY;
 
 @Slf4j
 public class DwsGaussDBUsingTemporaryTableSinkWriter
@@ -35,7 +35,7 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
     private final transient DwsGaussDBCatalog dwsGaussDBCatalog;
     private final DwsGaussSqlGenerator sqlGenerator;
     private final SeaTunnelRowType seaTunnelRowType;
-    private final List<String> primaryKeys;
+    private final String primaryKey;
 
     private final SnapshotIdManager snapshotIdManager;
 
@@ -51,9 +51,9 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
                         .createCatalog(catalogTable.getCatalogName(), readonlyConfig);
         this.sqlGenerator = sqlGenerator;
         this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
-        this.primaryKeys = readonlyConfig.get(PRIMARY_KEYS);
+        this.primaryKey = readonlyConfig.get(PRIMARY_KEY);
         this.snapshotIdManager = new SnapshotIdManager();
-        this.dwsGaussDBMemoryTable = new DwsGaussDBMemoryTable(seaTunnelRowType, primaryKeys);
+        this.dwsGaussDBMemoryTable = new DwsGaussDBMemoryTable(seaTunnelRowType, primaryKey);
         this.copyManager = new CopyManager(dwsGaussDBCatalog.getDefaultConnection());
     }
 

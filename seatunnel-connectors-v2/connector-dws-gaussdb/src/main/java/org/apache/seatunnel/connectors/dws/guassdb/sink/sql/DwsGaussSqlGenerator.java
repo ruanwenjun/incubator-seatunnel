@@ -8,7 +8,7 @@ import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.connectors.dws.guassdb.catalog.DwsGaussDBDataTypeConvertor;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption;
 
-import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -22,7 +22,7 @@ public class DwsGaussSqlGenerator implements Serializable {
     private final CatalogTable catalogTable;
     private final DwsGaussDBSinkOption.FieldIdeEnum fieldIdeEnum;
     // todo: use primary key in catalog table
-    private final List<String> primaryKeys;
+    private final String primaryKey;
     private final String schemaName;
     private final String templateTableName;
 
@@ -33,14 +33,13 @@ public class DwsGaussSqlGenerator implements Serializable {
     private final DwsGaussDBDataTypeConvertor dwsGaussDBDataTypeConvertor;
 
     public DwsGaussSqlGenerator(
-            List<String> primaryKeys,
+            String primaryKey,
             DwsGaussDBSinkOption.FieldIdeEnum fieldIdeEnum,
             CatalogTable catalogTable) {
-        if (CollectionUtils.isNotEmpty(primaryKeys)) {
-            this.primaryKeys =
-                    primaryKeys.stream().map(this::getIDEString).collect(Collectors.toList());
+        if (StringUtils.isNotEmpty(primaryKey)) {
+            this.primaryKey = getIDEString(primaryKey);
         } else {
-            this.primaryKeys = primaryKeys;
+            this.primaryKey = primaryKey;
         }
         this.fieldIdeEnum = fieldIdeEnum;
         this.catalogTable = catalogTable;
@@ -90,7 +89,6 @@ public class DwsGaussSqlGenerator implements Serializable {
         // inject table
         String targetTable = "\"" + schemaName + "\".\"" + targetTableName + "\"";
         String temporaryTable = "\"" + schemaName + "\".\"" + templateTableName + "\"";
-        String primaryKey = primaryKeys.get(0);
 
         List<String> updateColumns = new ArrayList<>();
         List<Column> columns = catalogTable.getTableSchema().getColumns();
@@ -159,7 +157,6 @@ public class DwsGaussSqlGenerator implements Serializable {
 
     public String getDeleteRowsInTargetTableSql(String currentSnapshotId) {
         // todo: only support one primary key
-        String primaryKey = primaryKeys.get(0);
         return "DELETE FROM \""
                 + schemaName
                 + "\".\""
@@ -276,8 +273,8 @@ public class DwsGaussSqlGenerator implements Serializable {
         }
 
         // Add primary key directly after the column if it is a primary key
-        if (CollectionUtils.isNotEmpty(primaryKeys)) {
-            if (primaryKeys.get(0).equals(getIDEString(column.getName()))) {
+        if (StringUtils.isNotEmpty(primaryKey)) {
+            if (primaryKey.equals(getIDEString(column.getName()))) {
                 columnSql.append(" PRIMARY KEY");
             }
         }

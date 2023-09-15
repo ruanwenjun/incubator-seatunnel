@@ -57,9 +57,7 @@ public class DwsGaussSqlGeneratorTest {
                         tableIdentifier, tableSchema, new HashMap<>(), new ArrayList<>(), "");
         dwsGaussSqlGenerator =
                 new DwsGaussSqlGenerator(
-                        Lists.newArrayList("id"),
-                        DwsGaussDBSinkOption.FieldIdeEnum.ORIGINAL,
-                        catalogTable);
+                        "id", DwsGaussDBSinkOption.FieldIdeEnum.ORIGINAL, catalogTable);
     }
 
     @Test

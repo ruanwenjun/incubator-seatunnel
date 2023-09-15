@@ -28,7 +28,7 @@ import java.util.Map;
 
 import static org.apache.seatunnel.api.table.catalog.CatalogTableUtil.SCHEMA;
 import static org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption.DATABASE;
-import static org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption.PRIMARY_KEYS;
+import static org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption.PRIMARY_KEY;
 import static org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption.TABLE;
 import static org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption.TABLE_PREFIX;
 import static org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption.TABLE_SUFFIX;
@@ -62,6 +62,7 @@ public class DwsGaussDBSinkFactory
         Map<String, String> catalogOptions = config.get(CatalogOptions.CATALOG_OPTIONS);
         if (config.getOptional(TABLE).isPresent()) {
             catalogOptions.put(TABLE.key(), config.get(TABLE));
+            catalogOptions.put(PRIMARY_KEY.key(), config.get(PRIMARY_KEY));
         } else {
             String prefix = catalogOptions.get(TABLE_PREFIX.key());
             String suffix = catalogOptions.get(TABLE_SUFFIX.key());
@@ -105,7 +106,7 @@ public class DwsGaussDBSinkFactory
 
             PrimaryKey primaryKey = catalogTable.getTableSchema().getPrimaryKey();
             if (primaryKey != null && !CollectionUtils.isEmpty(primaryKey.getColumnNames())) {
-                map.put(PRIMARY_KEYS.key(), String.join(",", primaryKey.getColumnNames()));
+                map.put(PRIMARY_KEY.key(), String.join(",", primaryKey.getColumnNames()));
             }
             config = ReadonlyConfig.fromMap(new HashMap<>(map));
         }

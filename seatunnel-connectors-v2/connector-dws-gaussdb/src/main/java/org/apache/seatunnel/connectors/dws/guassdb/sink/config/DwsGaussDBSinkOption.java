@@ -6,10 +6,6 @@ import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption;
 
-import com.google.common.collect.Lists;
-
-import java.util.List;
-
 public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
 
     public static final Option<DataSaveMode> SAVE_MODE =
@@ -27,11 +23,11 @@ public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
                     .defaultValue(WriteMode.APPEND_ONLY)
                     .withDescription("write_node");
 
-    public static final Option<List<String>> PRIMARY_KEYS =
-            Options.key("primary_keys")
-                    .listType(String.class)
-                    .defaultValue(Lists.newArrayList("id"))
-                    .withDescription("primary_keys");
+    public static final Option<String> PRIMARY_KEY =
+            Options.key("primary_key")
+                    .stringType()
+                    .defaultValue("id")
+                    .withDescription("primary_key");
 
     public static final Option<FieldIdeEnum> FIELD_IDE =
             Options.key("field_ide")
@@ -69,7 +65,7 @@ public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
         return OptionRule.builder()
                 .required(URL, DRIVER, SAVE_MODE)
                 .optional(USER, PASSWORD, PROPERTIES, WRITE_MODE, BATCH_SIZE)
-                .conditional(WRITE_MODE, WriteMode.USING_TEMPORARY_TABLE, PRIMARY_KEYS)
+                .conditional(WRITE_MODE, WriteMode.USING_TEMPORARY_TABLE, PRIMARY_KEY)
                 .build();
     }
 }
