@@ -2,6 +2,7 @@ package org.apache.seatunnel.connectors.dws.guassdb.sink.writer;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.dws.guassdb.catalog.DwsGaussDBCatalog;
@@ -26,7 +27,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  * data to the table, it will not guarantee the exactly-once.
  */
 public class DwsGaussDBAppendOnlySinkWriter
-        implements SinkWriter<SeaTunnelRow, DwsGaussDBSinkCommitInfo, DwsGaussDBSinkState> {
+        implements SinkWriter<SeaTunnelRow, DwsGaussDBSinkCommitInfo, DwsGaussDBSinkState>,
+                SupportMultiTableSinkWriter {
 
     private final String tableName;
     private final transient DwsGaussDBCatalog dwsGaussDBCatalog;
