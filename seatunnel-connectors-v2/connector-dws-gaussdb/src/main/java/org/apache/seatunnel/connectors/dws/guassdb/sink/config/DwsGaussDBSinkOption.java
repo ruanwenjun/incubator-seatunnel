@@ -32,7 +32,7 @@ public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
     public static final Option<FieldIdeEnum> FIELD_IDE =
             Options.key("field_ide")
                     .enumType(FieldIdeEnum.class)
-                    .noDefaultValue()
+                    .defaultValue(FieldIdeEnum.ORIGINAL)
                     .withDescription("Whether case conversion is required");
 
     public static final Option<Integer> BATCH_SIZE =

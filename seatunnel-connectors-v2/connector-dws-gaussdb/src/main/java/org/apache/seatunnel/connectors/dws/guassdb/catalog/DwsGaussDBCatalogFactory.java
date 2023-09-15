@@ -20,7 +20,7 @@ public class DwsGaussDBCatalogFactory implements CatalogFactory {
     public DwsGaussDBCatalog createCatalog(String catalogName, ReadonlyConfig options) {
         String urlWithDatabase = options.get(DwsGaussDBSinkOption.URL);
         Preconditions.checkArgument(
-                StringUtils.isNoneBlank(urlWithDatabase),
+                StringUtils.isNotEmpty(urlWithDatabase),
                 "Miss config url! Please check your config.");
         JdbcUrlUtil.UrlInfo urlInfo = JdbcUrlUtil.getUrlInfo(urlWithDatabase);
         Optional<String> defaultDatabase = urlInfo.getDefaultDatabase();

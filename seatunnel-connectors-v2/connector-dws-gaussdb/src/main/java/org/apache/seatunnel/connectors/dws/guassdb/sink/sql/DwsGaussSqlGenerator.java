@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class DwsGaussSqlGenerator implements Serializable {
 
     private final CatalogTable catalogTable;
@@ -36,12 +38,12 @@ public class DwsGaussSqlGenerator implements Serializable {
             String primaryKey,
             DwsGaussDBSinkOption.FieldIdeEnum fieldIdeEnum,
             CatalogTable catalogTable) {
+        this.fieldIdeEnum = checkNotNull(fieldIdeEnum);
         if (StringUtils.isNotEmpty(primaryKey)) {
             this.primaryKey = getIDEString(primaryKey);
         } else {
             this.primaryKey = primaryKey;
         }
-        this.fieldIdeEnum = fieldIdeEnum;
         this.catalogTable = catalogTable;
         this.schemaName =
                 Optional.ofNullable(catalogTable.getTableId().getSchemaName())

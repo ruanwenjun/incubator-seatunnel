@@ -118,8 +118,10 @@ public class DwsGaussDBSinkFactory
             schemaName = split[0];
             tableName = split[1];
         } else {
-            schemaName = config.get(BaseDwsGaussDBOption.DATABASE_SCHEMA);
             tableName = split[0];
+        }
+        if (StringUtils.isNotEmpty(config.get(BaseDwsGaussDBOption.DATABASE_SCHEMA))) {
+            schemaName = config.get(BaseDwsGaussDBOption.DATABASE_SCHEMA);
         }
         TableIdentifier tableIdentifier =
                 TableIdentifier.of(
