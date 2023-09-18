@@ -98,10 +98,10 @@ public class DwsGaussDBSaveModeHandler {
 
     private void customProcessing(DwsGaussDBCatalog dwsGaussDBCatalog) {
         String customSql = readonlyConfig.get(CUSTOM_SQL);
-        if (StringUtils.isNotEmpty(customSql)) {
+        if (StringUtils.isEmpty(customSql)) {
             throw new IllegalArgumentException("The custom_sql is empty");
         }
-        dwsGaussDBCatalog.executeUpdateSql(customSql);
+        dwsGaussDBCatalog.executeSql(customSql);
         log.info("Execute custom sql success: {}", customSql);
     }
 

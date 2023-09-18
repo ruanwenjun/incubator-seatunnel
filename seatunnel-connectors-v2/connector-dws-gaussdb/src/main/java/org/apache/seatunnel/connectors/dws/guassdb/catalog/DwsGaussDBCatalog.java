@@ -405,6 +405,15 @@ public class DwsGaussDBCatalog implements Catalog, Serializable {
         }
     }
 
+    public boolean executeSql(String sql) {
+        BaseConnection connection = getDefaultConnection();
+        try (Statement preparedStatement = connection.createStatement()) {
+            return preparedStatement.execute(sql);
+        } catch (SQLException e) {
+            throw new RuntimeException("Execute Sql: " + sql + " failed", e);
+        }
+    }
+
     public int queryDataCount(String sql) {
         BaseConnection connection = getDefaultConnection();
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql);
