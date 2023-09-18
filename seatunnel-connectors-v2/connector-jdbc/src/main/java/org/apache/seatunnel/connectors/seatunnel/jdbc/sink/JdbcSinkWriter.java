@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.sink;
 import org.apache.seatunnel.api.sink.MultiTableResourceManager;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
+import org.apache.seatunnel.api.table.event.SchemaChangeEvent;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.exception.CommonErrorCode;
@@ -39,7 +40,9 @@ import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -155,6 +158,24 @@ public class JdbcSinkWriter
                     CommonErrorCode.WRITER_OPERATION_FAILED, "unable to close JDBC sink write", e);
         } finally {
             outputFormat.close();
+        }
+    }
+
+    @Override
+    public void applySchemaChange(SchemaChangeEvent event) {
+        log.info("received schema change event: " + event);
+        final List<String> sqlList =
+                dialect.getSQLFromSchemaChangeEvent(jdbcSinkConfig.getTable(), event);
+        try {
+            Connection connection = connectionProvider.getConnection();
+            Statement statement = connection.createStatement();
+            for (String sql : sqlList) {
+                statement.execute(sql);
+            }
+        } catch (Exception throwables) {
+            log.error("schema change error :", throwables);
+            throw new JdbcConnectorException(
+                    CommonErrorCode.WRITER_OPERATION_FAILED, "schema change error", throwables);
         }
     }
 }
