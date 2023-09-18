@@ -36,6 +36,8 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.executor.JdbcBatc
 import org.apache.seatunnel.connectors.seatunnel.jdbc.state.JdbcSinkState;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.state.XidInfo;
 
+import org.apache.commons.collections4.CollectionUtils;
+
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
 
@@ -166,6 +168,9 @@ public class JdbcSinkWriter
         log.info("received schema change event: " + event);
         final List<String> sqlList =
                 dialect.getSQLFromSchemaChangeEvent(jdbcSinkConfig.getTable(), event);
+        if (CollectionUtils.isEmpty(sqlList)) {
+            return;
+        }
         try {
             Connection connection = connectionProvider.getConnection();
             Statement statement = connection.createStatement();
