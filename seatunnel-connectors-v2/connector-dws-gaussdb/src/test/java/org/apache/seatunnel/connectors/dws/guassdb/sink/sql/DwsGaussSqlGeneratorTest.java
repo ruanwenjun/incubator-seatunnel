@@ -140,6 +140,12 @@ public class DwsGaussSqlGeneratorTest {
     }
 
     @Test
+    void getDeleteTargetTableSql() {
+        String deleteTargetTableSql = dwsGaussSqlGenerator.getDeleteTargetTableSql();
+        Assertions.assertEquals("DELETE FROM \"public\".\"t_st_users\"", deleteTargetTableSql);
+    }
+
+    @Test
     void getDropTemporaryTableSql() {
         String dropTemporaryTableSql = dwsGaussSqlGenerator.getDropTemporaryTableSql();
         Assertions.assertEquals(

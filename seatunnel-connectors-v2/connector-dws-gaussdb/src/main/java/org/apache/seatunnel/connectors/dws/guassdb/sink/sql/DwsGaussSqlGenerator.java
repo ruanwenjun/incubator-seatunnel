@@ -142,7 +142,7 @@ public class DwsGaussSqlGenerator implements Serializable {
     }
 
     public String getDeleteTargetTableSql() {
-        return "DELETE FROM \"" + schemaName + "\".\"" + targetTableName;
+        return "DELETE FROM \"" + schemaName + "\".\"" + targetTableName + "\"";
     }
 
     public String getDropTemporaryTableSql() {
