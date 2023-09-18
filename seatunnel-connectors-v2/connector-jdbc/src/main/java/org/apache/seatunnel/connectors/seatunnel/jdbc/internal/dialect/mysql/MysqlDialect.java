@@ -17,17 +17,34 @@
 
 package org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.mysql;
 
+import org.apache.seatunnel.api.table.catalog.Column;
 import org.apache.seatunnel.api.table.catalog.TablePath;
+import org.apache.seatunnel.api.table.event.AlterTableAddColumnEvent;
+import org.apache.seatunnel.api.table.event.AlterTableChangeColumnEvent;
+import org.apache.seatunnel.api.table.event.AlterTableColumnsEvent;
+import org.apache.seatunnel.api.table.event.AlterTableDropColumnEvent;
+import org.apache.seatunnel.api.table.event.AlterTableModifyColumnEvent;
+import org.apache.seatunnel.api.table.event.SchemaChangeEvent;
+import org.apache.seatunnel.api.table.type.DecimalType;
+import org.apache.seatunnel.api.table.type.SqlType;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MysqlDataTypeConvertor;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.converter.JdbcRowConverter;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialectTypeMapper;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dialectenum.FieldIdeEnum;
 
+import org.apache.commons.lang3.StringUtils;
+
+import com.mysql.cj.MysqlType;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -97,5 +114,144 @@ public class MysqlDialect implements JdbcDialect {
     @Override
     public String extractTableName(TablePath tablePath) {
         return tablePath.getTableName();
+    }
+
+    @Override
+    public List<String> getSQLFromSchemaChangeEvent(String tableName, SchemaChangeEvent event) {
+        List<String> sqlList = new ArrayList<>();
+        if (event instanceof AlterTableColumnsEvent) {
+            ((AlterTableColumnsEvent) event)
+                    .getEvents()
+                    .forEach(
+                            column -> {
+                                if (column instanceof AlterTableChangeColumnEvent) {
+                                    String sql =
+                                            String.format(
+                                                    "alter table %s CHANGE %s %s",
+                                                    tableName,
+                                                    ((AlterTableChangeColumnEvent) column)
+                                                            .getOldColumn(),
+                                                    this.buildColumnIdentifySql(
+                                                            ((AlterTableAddColumnEvent) column)
+                                                                    .getColumn(),
+                                                            fieldIde));
+                                    sqlList.add(sql);
+                                } else if (column instanceof AlterTableModifyColumnEvent) {
+                                    String sql =
+                                            String.format(
+                                                    "alter table %s MODIFY COLUMN %s",
+                                                    tableName,
+                                                    this.buildColumnIdentifySql(
+                                                            ((AlterTableAddColumnEvent) column)
+                                                                    .getColumn(),
+                                                            fieldIde));
+                                    sqlList.add(sql);
+                                } else if (column instanceof AlterTableAddColumnEvent) {
+                                    String sql =
+                                            String.format(
+                                                    "alter table %s add column %s ",
+                                                    tableName,
+                                                    this.buildColumnIdentifySql(
+                                                            ((AlterTableAddColumnEvent) column)
+                                                                    .getColumn(),
+                                                            fieldIde));
+                                    sqlList.add(sql);
+                                } else if (column instanceof AlterTableDropColumnEvent) {
+                                    String sql =
+                                            String.format(
+                                                    "alter table %s drop column %s",
+                                                    tableName,
+                                                    ((AlterTableDropColumnEvent) column)
+                                                            .getColumn());
+                                    sqlList.add(sql);
+                                } else {
+                                    throw new UnsupportedOperationException(
+                                            "Unsupported event: " + event);
+                                }
+                            });
+        }
+        return sqlList;
+    }
+
+    private String buildColumnIdentifySql(Column column, String fieldIde) {
+        final MysqlDataTypeConvertor mysqlDataTypeConvertor = new MysqlDataTypeConvertor();
+        final List<String> columnSqls = new ArrayList<>();
+        columnSqls.add(CatalogUtils.quoteIdentifier(column.getName(), fieldIde, "`"));
+        boolean isSupportDef = true;
+        // Column name
+        SqlType dataType = column.getDataType().getSqlType();
+        boolean isBytes = StringUtils.equals(dataType.name(), SqlType.BYTES.name());
+        Long columnLength = column.getLongColumnLength();
+        if (isBytes) {
+            Long bitLen = column.getBitLen() == null ? columnLength : column.getBitLen();
+            if (bitLen >= 0 && bitLen <= 64) {
+                columnSqls.add(MysqlType.BIT.getName());
+                columnSqls.add("(" + (bitLen == 0 ? 1 : bitLen) + ")");
+            } else {
+                bitLen = bitLen == -1 ? bitLen : bitLen >> 3;
+                if (bitLen >= 0 && bitLen <= 255) {
+                    columnSqls.add(MysqlType.TINYBLOB.getName());
+                } else if (bitLen <= 16383) {
+                    columnSqls.add(MysqlType.BLOB.getName());
+                } else if (bitLen <= 16777215) {
+                    columnSqls.add(MysqlType.MEDIUMBLOB.getName());
+                } else {
+                    columnSqls.add(MysqlType.LONGBLOB.getName());
+                }
+                isSupportDef = false;
+            }
+        } else {
+            if (columnLength >= 16383 && columnLength <= 65535) {
+                columnSqls.add(MysqlType.TEXT.getName());
+                isSupportDef = false;
+            } else if (columnLength >= 65535 && columnLength <= 16777215) {
+                columnSqls.add(MysqlType.MEDIUMTEXT.getName());
+                isSupportDef = false;
+            } else if (columnLength > 16777215 || columnLength == -1) {
+                columnSqls.add(MysqlType.LONGTEXT.getName());
+                isSupportDef = false;
+            } else {
+                // Column type
+                columnSqls.add(
+                        mysqlDataTypeConvertor
+                                .toConnectorType(column.getDataType(), null)
+                                .getName());
+                // Column length
+                // add judge is need column legth
+                if (column.getColumnLength() != null) {
+                    final String name =
+                            mysqlDataTypeConvertor
+                                    .toConnectorType(column.getDataType(), null)
+                                    .getName();
+                    String fieSql = "";
+                    List<String> list = new ArrayList<>();
+                    list.add(MysqlType.VARCHAR.getName());
+                    list.add(MysqlType.CHAR.getName());
+                    list.add(MysqlType.BIGINT.getName());
+                    list.add(MysqlType.INT.getName());
+                    if (StringUtils.equals(name, MysqlType.DECIMAL.getName())) {
+                        DecimalType decimalType = (DecimalType) column.getDataType();
+                        fieSql =
+                                String.format(
+                                        "(%d, %d)",
+                                        decimalType.getPrecision(), decimalType.getScale());
+                        columnSqls.add(fieSql);
+                    } else if (list.contains(name)) {
+                        fieSql = "(" + column.getColumnLength() + ")";
+                        columnSqls.add(fieSql);
+                    }
+                }
+            }
+        }
+        // nullable
+        if (column.isNullable()) {
+            columnSqls.add("NULL");
+        } else {
+            columnSqls.add("NOT NULL");
+        }
+        if (column.getComment() != null) {
+            columnSqls.add("COMMENT '" + column.getComment() + "'");
+        }
+        return String.join(" ", columnSqls);
     }
 }
