@@ -117,7 +117,7 @@ public class MysqlDialect implements JdbcDialect {
     }
 
     @Override
-    public List<String> getSQLFromSchemaChangeEvent(String tableName, SchemaChangeEvent event) {
+    public List<String> getSQLFromSchemaChangeEvent(TablePath tablePath, SchemaChangeEvent event) {
         List<String> sqlList = new ArrayList<>();
         if (event instanceof AlterTableColumnsEvent) {
             ((AlterTableColumnsEvent) event)
@@ -128,7 +128,7 @@ public class MysqlDialect implements JdbcDialect {
                                     String sql =
                                             String.format(
                                                     "alter table %s CHANGE %s %s",
-                                                    tableName,
+                                                    tablePath.getFullName(),
                                                     ((AlterTableChangeColumnEvent) column)
                                                             .getOldColumn(),
                                                     this.buildColumnIdentifySql(
@@ -140,7 +140,7 @@ public class MysqlDialect implements JdbcDialect {
                                     String sql =
                                             String.format(
                                                     "alter table %s MODIFY COLUMN %s",
-                                                    tableName,
+                                                    tablePath.getFullName(),
                                                     this.buildColumnIdentifySql(
                                                             ((AlterTableAddColumnEvent) column)
                                                                     .getColumn(),
@@ -150,7 +150,7 @@ public class MysqlDialect implements JdbcDialect {
                                     String sql =
                                             String.format(
                                                     "alter table %s add column %s ",
-                                                    tableName,
+                                                    tablePath.getFullName(),
                                                     this.buildColumnIdentifySql(
                                                             ((AlterTableAddColumnEvent) column)
                                                                     .getColumn(),
@@ -160,7 +160,7 @@ public class MysqlDialect implements JdbcDialect {
                                     String sql =
                                             String.format(
                                                     "alter table %s drop column %s",
-                                                    tableName,
+                                                    tablePath.getFullName(),
                                                     ((AlterTableDropColumnEvent) column)
                                                             .getColumn());
                                     sqlList.add(sql);
