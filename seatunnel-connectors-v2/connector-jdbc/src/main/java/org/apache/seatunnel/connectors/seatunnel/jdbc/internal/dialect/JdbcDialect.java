@@ -243,7 +243,7 @@ public interface JdbcDialect extends Serializable {
         }
     }
 
-    default List<String> getSQLFromSchemaChangeEvent(String tableName, SchemaChangeEvent event) {
+    default List<String> getSQLFromSchemaChangeEvent(TablePath tablePath, SchemaChangeEvent event) {
         return null;
     }
 }

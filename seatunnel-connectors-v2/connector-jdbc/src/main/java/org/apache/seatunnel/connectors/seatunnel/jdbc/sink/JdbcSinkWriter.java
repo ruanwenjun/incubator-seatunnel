@@ -20,7 +20,9 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.sink;
 import org.apache.seatunnel.api.sink.MultiTableResourceManager;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.event.SchemaChangeEvent;
+import org.apache.seatunnel.api.table.event.handler.DataTypeChangeEventDispatcher;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.exception.CommonErrorCode;
@@ -32,13 +34,13 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.JdbcOutputFormatB
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.connection.SimpleJdbcConnectionPoolProviderProxy;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.state.JdbcSinkState;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.state.XidInfo;
 
 import org.apache.commons.collections4.CollectionUtils;
 
 import com.zaxxer.hikari.HikariDataSource;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -53,10 +55,10 @@ import java.util.Optional;
 public class JdbcSinkWriter
         implements SinkWriter<SeaTunnelRow, XidInfo, JdbcSinkState>,
                 SupportMultiTableSinkWriter<ConnectionPoolManager> {
-    private JdbcOutputFormat<SeaTunnelRow, JdbcBatchStatementExecutor<SeaTunnelRow>> outputFormat;
+    private JdbcOutputFormat outputFormat;
     private final SinkWriter.Context context;
     private final JdbcDialect dialect;
-    private final SeaTunnelRowType rowType;
+    private SeaTunnelRowType rowType;
     private JdbcConnectionProvider connectionProvider;
     private transient boolean isOpen;
     private final Integer primaryKeyIndex;
@@ -163,11 +165,29 @@ public class JdbcSinkWriter
         }
     }
 
+    @SneakyThrows
     @Override
     public void applySchemaChange(SchemaChangeEvent event) {
         log.info("received schema change event: " + event);
+        try {
+            outputFormat.close();
+            final DataTypeChangeEventDispatcher dataTypeChangeEventDispatcher =
+                    new DataTypeChangeEventDispatcher();
+            dataTypeChangeEventDispatcher.reset(rowType);
+            rowType = dataTypeChangeEventDispatcher.handle(event);
+            outputFormat =
+                    new JdbcOutputFormatBuilder(
+                                    dialect, connectionProvider, jdbcSinkConfig, rowType)
+                            .build();
+            outputFormat.open();
+        } catch (Exception e) {
+            throw new JdbcConnectorException(
+                    CommonErrorCode.WRITER_OPERATION_FAILED, " rebuild outputFormat fail", e);
+        }
         final List<String> sqlList =
-                dialect.getSQLFromSchemaChangeEvent(jdbcSinkConfig.getTable(), event);
+                dialect.getSQLFromSchemaChangeEvent(
+                        TablePath.of(jdbcSinkConfig.getDatabase(), jdbcSinkConfig.getTable()),
+                        event);
         if (CollectionUtils.isEmpty(sqlList)) {
             return;
         }
