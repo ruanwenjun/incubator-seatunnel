@@ -48,6 +48,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -55,6 +56,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -235,6 +237,18 @@ public class DamengValueConverters extends JdbcValueConverters {
         return super.converter(column, fieldDefn);
     }
 
+    @Override
+    protected Object convertTime(Column column, Field fieldDefn, Object data) {
+        if (data instanceof java.sql.Time) {
+            java.sql.Time time = (java.sql.Time) data;
+            long millis = (int) (time.getTime() % TimeUnit.SECONDS.toMillis(1));
+            int nanosOfSecond = (int) (millis * TimeUnit.MILLISECONDS.toNanos(1));
+            return LocalTime.of(
+                    time.getHours(), time.getMinutes(), time.getSeconds(), nanosOfSecond);
+        }
+        return super.convertTime(column, fieldDefn, data);
+    }
+
     private ValueConverter getNumericConverter(Column column, Field fieldDefn) {
         if (column.scale().isPresent()) {
             Integer scale = column.scale().get();
@@ -385,6 +399,10 @@ public class DamengValueConverters extends JdbcValueConverters {
 
     @Override
     protected Object convertDecimal(Column column, Field fieldDefn, Object data) {
+        if (data instanceof Float) {
+            // avoid error of scale when converting float to BigDecimal
+            data = new BigDecimal(data.toString());
+        }
         if (data instanceof String) {
             // In the case when the value is of String, convert it to a BigDecimal so that we can
             // then

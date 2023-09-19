@@ -223,20 +223,53 @@ public class DamengCatalog extends AbstractJdbcCatalog {
 
                     SeaTunnelDataType<?> type =
                             fromJdbcType(typeName, columnPrecision, columnScale);
+                    long bitLen = 0;
+                    long longColumnLength = 0;
+                    switch (typeName) {
+                        case DamengDataTypeConvertor.DM_BIT:
+                            bitLen = columnLength;
+                            break;
+                        case DamengDataTypeConvertor.DM_DECIMAL:
+                        case DamengDataTypeConvertor.DM_TIMESTAMP:
+                        case DamengDataTypeConvertor.DM_DATETIME:
+                        case DamengDataTypeConvertor.DM_TIME:
+                            columnLength = columnScale;
+                            break;
+                        case DamengDataTypeConvertor.DM_CHAR:
+                        case DamengDataTypeConvertor.DM_CHARACTER:
+                        case DamengDataTypeConvertor.DM_VARCHAR:
+                        case DamengDataTypeConvertor.DM_VARCHAR2:
+                        case DamengDataTypeConvertor.DM_LONGVARCHAR:
+                        case DamengDataTypeConvertor.DM_CLOB:
+                        case DamengDataTypeConvertor.DM_TEXT:
+                        case DamengDataTypeConvertor.DM_LONG:
+                            longColumnLength = columnLength;
+                            break;
+                        case DamengDataTypeConvertor.DM_BINARY:
+                        case DamengDataTypeConvertor.DM_VARBINARY:
+                        case DamengDataTypeConvertor.DM_BLOB:
+                        case DamengDataTypeConvertor.DM_BFILE:
+                        case DamengDataTypeConvertor.DM_IMAGE:
+                        case DamengDataTypeConvertor.DM_LONGVARBINARY:
+                            bitLen = columnLength;
+                            break;
+                        default:
+                            break;
+                    }
                     PhysicalColumn physicalColumn =
                             PhysicalColumn.of(
                                     columnName,
                                     type,
-                                    0,
+                                    ((int) columnLength),
                                     isNullable,
                                     defaultValue,
                                     columnComment,
                                     typeName,
                                     false,
                                     false,
-                                    0L,
+                                    bitLen,
                                     null,
-                                    columnLength);
+                                    longColumnLength);
                     columns.add(physicalColumn);
                 }
             }

@@ -256,7 +256,7 @@ public class DamengSnapshotSplitReadTask extends AbstractSnapshotChangeEventSour
         ValueConverter valueConverter = valueConverters.converter(actualColumn, field);
 
         Object original = rs.getObject(columnIndex);
-        Object converted = valueConverter.convert(rs.getObject(columnIndex));
+        Object converted = valueConverter.convert(original);
         return converted;
     }
 
