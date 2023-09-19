@@ -48,7 +48,7 @@ public class Oracle9BridgeSnapshotFetchTask implements FetchTask<SourceSplitBase
                         sourceFetchTaskContext.getConnection(),
                         sourceFetchTaskContext.getDispatcher(),
                         split,
-                        Oracle9BridgeClientFactory.createStartedSocketClient(
+                        Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
                                 oracle9BridgeSourceConfig.getOracle9BridgeHost(),
                                 oracle9BridgeSourceConfig.getOracle9BridgePort()));
 

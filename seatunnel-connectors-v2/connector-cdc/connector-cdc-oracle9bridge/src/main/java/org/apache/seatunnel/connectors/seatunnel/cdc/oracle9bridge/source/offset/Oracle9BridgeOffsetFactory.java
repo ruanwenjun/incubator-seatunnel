@@ -55,7 +55,7 @@ public class Oracle9BridgeOffsetFactory extends OffsetFactory {
     public Offset earliest() {
         // todo: How to query the earliest fzs number from the oracle9bridge server?
         Oracle9BridgeClient oracle9BridgeClient =
-                Oracle9BridgeClientFactory.createSocketClient(
+                Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
                         sourceConfig.getOracle9BridgeHost(), sourceConfig.getOracle9BridgePort());
         List<String> tables =
                 dialect.discoverDataCollections(sourceConfig).stream()
@@ -95,7 +95,7 @@ public class Oracle9BridgeOffsetFactory extends OffsetFactory {
     @Override
     public Offset latest() {
         Oracle9BridgeClient oracle9BridgeClient =
-                Oracle9BridgeClientFactory.createSocketClient(
+                Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
                         sourceConfig.getOracle9BridgeHost(), sourceConfig.getOracle9BridgePort());
         List<String> tables =
                 dialect.discoverDataCollections(sourceConfig).stream()

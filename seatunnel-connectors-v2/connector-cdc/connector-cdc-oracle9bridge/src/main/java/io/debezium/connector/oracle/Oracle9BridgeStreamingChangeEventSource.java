@@ -81,7 +81,7 @@ public class Oracle9BridgeStreamingChangeEventSource
                     offsetContext.getScn().longValue());
             long pollInterval = sourceConfig.getDbzConnectorConfig().getPollInterval().toMillis();
             Oracle9BridgeClient oracle9BridgeClient =
-                    Oracle9BridgeClientFactory.createStartedSocketClient(
+                    Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
                             sourceConfig.getOracle9BridgeHost(),
                             sourceConfig.getOracle9BridgePort());
             Integer currentFzsFileNumber = offsetContext.getFzsFileNumber();
