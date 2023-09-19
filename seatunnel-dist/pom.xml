@@ -289,6 +289,12 @@
                 </dependency>
                 <dependency>
                     <groupId>org.apache.seatunnel</groupId>
+                    <artifactId>connector-cdc-oracle9bridge</artifactId>
+                    <version>${project.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.seatunnel</groupId>
                     <artifactId>connector-cdc-dameng</artifactId>
                     <version>${project.version}</version>
                     <scope>provided</scope>

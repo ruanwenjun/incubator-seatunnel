@@ -227,6 +227,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     @Override
     public List<String> listTables(String databaseName)
             throws CatalogException, DatabaseNotExistException {
+        long startTime = System.currentTimeMillis();
         if (!databaseExists(databaseName)) {
             throw new DatabaseNotExistException(this.catalogName, databaseName);
         }
@@ -247,7 +248,10 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                 }
                 tables.add(rs.getString(1) + "." + rs.getString(2));
             }
-
+            log.debug(
+                    "OracleCatalog listTables for database: {} success cost: {}/ms",
+                    databaseName,
+                    System.currentTimeMillis() - startTime);
             return tables;
         } catch (Exception e) {
             throw new CatalogException(
@@ -258,6 +262,8 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     @Override
     public CatalogTable getTable(TablePath tablePath)
             throws CatalogException, TableNotExistException {
+        long startTime = System.currentTimeMillis();
+
         if (!tableExists(tablePath)) {
             throw new TableNotExistException(catalogName, tablePath);
         }
@@ -300,14 +306,19 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                                 tablePath.getDatabaseName(),
                                 tablePath.getSchemaName(),
                                 tablePath.getTableName());
-                return CatalogTable.of(
-                        tableIdentifier,
-                        builder.build(),
-                        buildConnectorOptions(tablePath),
-                        Collections.emptyList(),
-                        "");
+                CatalogTable catalogTable =
+                        CatalogTable.of(
+                                tableIdentifier,
+                                builder.build(),
+                                buildConnectorOptions(tablePath),
+                                Collections.emptyList(),
+                                "");
+                log.info(
+                        "OracleCatalog get CatalogTable for: {} success cost {}/ms",
+                        tablePath,
+                        System.currentTimeMillis() - startTime);
+                return catalogTable;
             }
-
         } catch (Exception e) {
             throw new CatalogException(
                     String.format("Failed getting table %s", tablePath.getFullName()), e);

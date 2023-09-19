@@ -944,6 +944,16 @@
         <url>https://github.com/apache/seatunnel/issues</url>
     </issueManagement>
 
+    <repositories>
+        <repository>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/whaleops/*</url>
+        </repository>
+    </repositories>
+
     <profiles>
         <profile>
             <id>release</id>
