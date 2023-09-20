@@ -207,7 +207,7 @@ public class MysqlDialect implements JdbcDialect {
             } else if (columnLength >= 65535 && columnLength <= 16777215) {
                 columnSqls.add(MysqlType.MEDIUMTEXT.getName());
                 isSupportDef = false;
-            } else if (columnLength > 16777215 || columnLength == -1) {
+            } else if (columnLength > 16777215) {
                 columnSqls.add(MysqlType.LONGTEXT.getName());
                 isSupportDef = false;
             } else {
@@ -229,6 +229,7 @@ public class MysqlDialect implements JdbcDialect {
                     list.add(MysqlType.CHAR.getName());
                     list.add(MysqlType.BIGINT.getName());
                     list.add(MysqlType.INT.getName());
+                    list.add(MysqlType.SMALLINT.getName());
                     if (StringUtils.equals(name, MysqlType.DECIMAL.getName())) {
                         DecimalType decimalType = (DecimalType) column.getDataType();
                         fieSql =
@@ -238,13 +239,16 @@ public class MysqlDialect implements JdbcDialect {
                         columnSqls.add(fieSql);
                     } else if (list.contains(name)) {
                         if (MysqlType.VARCHAR.getName().equals(name)
-                                && column.getLongColumnLength() <= 0) {
+                                && column.getColumnLength() <= 0) {
                             fieSql = "(" + "16367" + ")";
                         } else if (MysqlType.CHAR.getName().equals(name)
-                                && column.getLongColumnLength() <= 0) {
+                                && column.getColumnLength() <= 0) {
                             fieSql = "(" + "255" + ")";
+                        } else if (MysqlType.SMALLINT.getName().equals(name)
+                                && column.getColumnLength() <= 0) {
+                            fieSql = "(" + "6" + ")";
                         } else {
-                            fieSql = "(" + column.getLongColumnLength() + ")";
+                            fieSql = "(" + column.getColumnLength() + ")";
                         }
                         columnSqls.add(fieSql);
                     }
