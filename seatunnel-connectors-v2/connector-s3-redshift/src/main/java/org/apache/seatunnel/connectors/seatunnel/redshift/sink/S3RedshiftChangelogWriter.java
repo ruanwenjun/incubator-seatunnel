@@ -318,7 +318,6 @@ public class S3RedshiftChangelogWriter extends BaseFileSinkWriter
                 log.error("Close flush memory table failed", e);
             }
         }
-        resource.closeSingleTableResource();
         super.close();
     }
 

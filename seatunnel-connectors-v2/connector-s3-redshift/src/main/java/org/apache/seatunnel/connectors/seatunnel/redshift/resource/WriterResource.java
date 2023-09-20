@@ -28,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 @Getter
 @AllArgsConstructor
 public class WriterResource implements AutoCloseable {
-    private final boolean singleTableMode;
     private final RedshiftJdbcClient redshiftJdbcClient;
 
     @Override
@@ -38,19 +37,8 @@ public class WriterResource implements AutoCloseable {
         }
     }
 
-    public void closeSingleTableResource() {
-        if (singleTableMode) {
-            close();
-        }
-    }
-
-    public static WriterResource createSingleTableResource(S3RedshiftConf conf) {
-        log.info("Create writer single-table resource");
-        return new WriterResource(true, RedshiftJdbcClient.newSingleConnection(conf));
-    }
-
     public static WriterResource createResource(S3RedshiftConf conf, int workerSize) {
         log.info("Create writer resource with worker size: {}", workerSize);
-        return new WriterResource(false, RedshiftJdbcClient.newConnectionPool(conf, workerSize));
+        return new WriterResource(RedshiftJdbcClient.newConnectionPool(conf, workerSize));
     }
 }

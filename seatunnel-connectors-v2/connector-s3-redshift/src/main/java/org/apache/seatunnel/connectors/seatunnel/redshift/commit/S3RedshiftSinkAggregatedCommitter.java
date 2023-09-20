@@ -131,9 +131,6 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
     @Override
     public void close() throws IOException {
         super.close();
-        if (resource != null) {
-            resource.closeSingleTableResource();
-        }
     }
 
     @Override
@@ -243,7 +240,11 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
         List<FileAggregatedCommitInfo> errorCommitInfos = new ArrayList<>();
         for (FileAggregatedCommitInfo commitInfo : commitInfos) {
             try {
-                commitS3FilesToRedshiftTable(commitInfo, appendOnlyCommit, restore);
+                if (appendOnlyCommit) {
+                    parallelCommitS3FilesToRedshiftTable(commitInfo, restore);
+                } else {
+                    commitS3FilesToRedshiftTable(commitInfo, restore);
+                }
             } catch (Exception e) {
                 log.error("commit aggregatedCommitInfo error ", e);
                 errorCommitInfos.add(commitInfo);
@@ -254,12 +255,35 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
         return errorCommitInfos;
     }
 
-    private void commitS3FilesToRedshiftTable(
-            FileAggregatedCommitInfo commitInfo, boolean appendOnlyCommit, boolean restore)
+    private void commitS3FilesToRedshiftTable(FileAggregatedCommitInfo commitInfo, boolean restore)
             throws Exception {
         LinkedHashMap<String, LinkedHashMap<String, String>> transactionGroup =
                 commitInfo.getTransactionMap();
+        for (Map.Entry<String, LinkedHashMap<String, String>> transaction :
+                transactionGroup.entrySet()) {
+            String transactionDir = transaction.getKey();
+            if (restore && !fileSystemUtils.fileExist(transactionDir)) {
+                log.warn("skip not exist transaction directory {}", transactionDir);
+                return;
+            }
 
+            LinkedHashMap<String, String> temporaryFiles = transaction.getValue();
+            if (!temporaryFiles.isEmpty()) {
+                commitS3FilesToRedshiftTable(temporaryFiles, restore);
+            }
+
+            // second delete transaction directory
+            fileSystemUtils.deleteFile(transactionDir);
+            log.info("delete transaction directory {} on merge commit", transaction.getKey());
+        }
+    }
+
+    private void parallelCommitS3FilesToRedshiftTable(
+            FileAggregatedCommitInfo commitInfo, boolean restore) throws Exception {
+        LinkedHashMap<String, LinkedHashMap<String, String>> transactionGroup =
+                commitInfo.getTransactionMap();
+
+        log.info("Parallel commit transactions {}", transactionGroup.keySet());
         Map<String, Future<Throwable>> taskFutures = new HashMap<>();
         CountDownLatch taskAwaits = new CountDownLatch(transactionGroup.size());
         for (Map.Entry<String, LinkedHashMap<String, String>> transaction :
@@ -281,12 +305,7 @@ public class S3RedshiftSinkAggregatedCommitter extends FileSinkAggregatedCommitt
                                             LinkedHashMap<String, String> temporaryFiles =
                                                     transaction.getValue();
                                             if (!temporaryFiles.isEmpty()) {
-                                                if (appendOnlyCommit) {
-                                                    copyS3FileToRedshiftTable(transactionDir);
-                                                } else {
-                                                    commitS3FilesToRedshiftTable(
-                                                            temporaryFiles, restore);
-                                                }
+                                                copyS3FileToRedshiftTable(transactionDir);
                                             }
 
                                             // second delete transaction directory

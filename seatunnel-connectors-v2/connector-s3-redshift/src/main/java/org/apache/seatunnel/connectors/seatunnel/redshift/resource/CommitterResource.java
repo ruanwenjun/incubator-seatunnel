@@ -26,13 +26,14 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Getter
 @AllArgsConstructor
 public class CommitterResource implements AutoCloseable {
-    private final boolean singleTableMode;
     private final RedshiftJdbcClient redshiftJdbcClient;
     private final ExecutorService commitWorker;
 
@@ -46,39 +47,23 @@ public class CommitterResource implements AutoCloseable {
         }
     }
 
-    public void closeSingleTableResource() {
-        if (singleTableMode) {
-            close();
-        }
-    }
-
-    public static CommitterResource createSingleTableResource(S3RedshiftConf conf) {
-        log.info(
-                "Create committer single-table resource with worker size: {}",
-                conf.getRedshiftS3FileCommitWorkerSize());
-        return new CommitterResource(
-                true,
-                RedshiftJdbcClient.newConnectionPool(
-                        conf, conf.getRedshiftS3FileCommitWorkerSize()),
-                Executors.newFixedThreadPool(
-                        conf.getRedshiftS3FileCommitWorkerSize(),
-                        new ThreadFactoryBuilder()
-                                .setNameFormat("s3-redshift-commit-worker-%d")
-                                .build()));
-    }
-
     public static CommitterResource createResource(S3RedshiftConf conf) {
         log.info(
                 "Create committer resource with worker size: {}",
                 conf.getRedshiftS3FileCommitWorkerSize());
         return new CommitterResource(
-                false,
                 RedshiftJdbcClient.newConnectionPool(
                         conf, conf.getRedshiftS3FileCommitWorkerSize()),
-                Executors.newFixedThreadPool(
-                        conf.getRedshiftS3FileCommitWorkerSize(),
-                        new ThreadFactoryBuilder()
-                                .setNameFormat("s3-redshift-commit-worker-%d")
-                                .build()));
+                createCommitWorker(conf.getRedshiftS3FileCommitWorkerSize()));
+    }
+
+    private static ExecutorService createCommitWorker(int workerSize) {
+        return new ThreadPoolExecutor(
+                0,
+                workerSize,
+                30L,
+                TimeUnit.MINUTES,
+                new SynchronousQueue<Runnable>(),
+                new ThreadFactoryBuilder().setNameFormat("s3-redshift-commit-worker-%d").build());
     }
 }
