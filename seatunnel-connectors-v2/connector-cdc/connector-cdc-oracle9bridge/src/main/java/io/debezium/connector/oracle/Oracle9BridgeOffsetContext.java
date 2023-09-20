@@ -188,7 +188,7 @@ public class Oracle9BridgeOffsetContext implements OffsetContext {
             boolean snapshotCompleted = Boolean.TRUE.equals(offset.get(SNAPSHOT_COMPLETED_KEY));
 
             String fzsFileNumberStr = (String) offset.get(SourceInfo.FZS_FILE_NUMBER_KEY);
-            int fzsFileNumber = 0;
+            Integer fzsFileNumber = null;
             if (fzsFileNumberStr != null) {
                 fzsFileNumber = Integer.parseInt(fzsFileNumberStr);
             }

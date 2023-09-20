@@ -80,6 +80,7 @@ public class Oracle9BridgeIncrementalSplitFetchTask
             if (currentOffset.isAtOrAfter(split.getStopOffset())) {
                 // send incremental end event
                 try {
+                    log.info("Current offset is after split stopOffset: {}", split.getStopOffset());
                     eventDispatcher.dispatchWatermarkEvent(
                             offsetContext.getPartition(), split, currentOffset, WatermarkKind.END);
                 } catch (InterruptedException e) {
@@ -90,6 +91,11 @@ public class Oracle9BridgeIncrementalSplitFetchTask
                 // tell fetcher the fzs task finished
                 ((Oracle9BridgeSnapshotFetchTask.SnapshotScnSplitChangeEventSourceContext) context)
                         .finished();
+            } else {
+                log.debug(
+                        "Current offset: {} is before than split stopOffset: {}",
+                        currentOffset,
+                        split.getStopOffset());
             }
         }
     }

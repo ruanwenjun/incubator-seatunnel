@@ -137,21 +137,38 @@ public class Oracle9BridgeClientUtils {
                             + " , Please check if the fzs file is missing");
         }
         int minFzsFileNumber = 0;
-        while (minFzsFileNumber < maxTransactionFileNumber) {
-            int mid = (minFzsFileNumber + maxTransactionFileNumber) / 2;
+        while (minFzsFileNumber <= maxTransactionFileNumber) {
             List<OracleTransactionData> oracleTransactionData =
                     fetchOracleTransactionData(
                             oracle9BridgeClient,
                             new OracleTransactionDataFetchRequest(
-                                    fetchRequest.getTableOwner(), fetchRequest.getTable(), mid));
+                                    fetchRequest.getTableOwner(),
+                                    fetchRequest.getTable(),
+                                    minFzsFileNumber));
             if (CollectionUtils.isNotEmpty(oracleTransactionData)) {
-                maxTransactionFileNumber = mid;
-            } else {
-                minFzsFileNumber = mid + 1;
+                return minFzsFileNumber;
             }
+            minFzsFileNumber++;
         }
-        log.info("Current min fzs file number: {}", minFzsFileNumber);
-        minFzsFileNumber = Math.max(minFzsFileNumber, 0);
+        //        while (minFzsFileNumber < maxTransactionFileNumber) {
+        //            int mid = (minFzsFileNumber + maxTransactionFileNumber) / 2;
+        //            List<OracleTransactionData> oracleTransactionData =
+        //                    fetchOracleTransactionData(
+        //                            oracle9BridgeClient,
+        //                            new OracleTransactionDataFetchRequest(
+        //                                    fetchRequest.getTableOwner(), fetchRequest.getTable(),
+        // mid));
+        //            if (CollectionUtils.isNotEmpty(oracleTransactionData)) {
+        //                maxTransactionFileNumber = mid;
+        //            } else {
+        //                minFzsFileNumber = mid + 1;
+        //            }
+        //        }
+        log.info(
+                "Current min fzs file number for table: {} owner: {} is: {}",
+                fetchRequest.getTable(),
+                fetchRequest.getTableOwner(),
+                minFzsFileNumber);
         return minFzsFileNumber;
     }
 
@@ -180,7 +197,7 @@ public class Oracle9BridgeClientUtils {
                                     oracle9BridgeClient.getCurrentMaxTransactionFileNumber(
                                             fetchRequest),
                             new RetryUtils.RetryMaterial(3, true, e -> true, 1_000));
-            log.info("Current max fzs file number: {}", maxFzsFileNumber);
+            log.debug("Current max fzs file number: {}", maxFzsFileNumber);
             // avoid -1
             maxFzsFileNumber = Math.max(maxFzsFileNumber, 0);
             return maxFzsFileNumber;

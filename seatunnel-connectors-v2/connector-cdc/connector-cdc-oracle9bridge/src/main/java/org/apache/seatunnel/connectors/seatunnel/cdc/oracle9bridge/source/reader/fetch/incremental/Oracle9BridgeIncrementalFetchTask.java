@@ -8,7 +8,9 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.source.reader
 
 import io.debezium.connector.oracle.Oracle9BridgeStreamingChangeEventSource;
 import io.debezium.pipeline.source.spi.ChangeEventSource;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Oracle9BridgeIncrementalFetchTask implements FetchTask<SourceSplitBase> {
 
     private Oracle9BridgeSourceConfig oracle9BridgeSourceConfig;
@@ -50,6 +52,7 @@ public class Oracle9BridgeIncrementalFetchTask implements FetchTask<SourceSplitB
 
     @Override
     public void shutdown() {
+        log.info("Shutdown the Oracle9BridgeIncrementalFetchTask");
         taskRunning = false;
     }
 

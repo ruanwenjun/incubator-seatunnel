@@ -31,8 +31,7 @@ public class SeaTunnelEngineExample {
 
     public static void main(String[] args)
             throws FileNotFoundException, URISyntaxException, CommandException {
-        String configurePath =
-                args.length > 0 ? args[0] : "/examples/oracle9bridge_to_console.conf";
+        String configurePath = args.length > 0 ? args[0] : "/examples/oracle-agent.conf";
         String configFile = getTestConfigFile(configurePath);
         ClientCommandArgs clientCommandArgs = new ClientCommandArgs();
         clientCommandArgs.setConfigFile(configFile);

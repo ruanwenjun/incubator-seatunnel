@@ -99,9 +99,15 @@ public class Oracle9BridgeSnapshotFetchTask implements FetchTask<SourceSplitBase
                 "Start execute Oracle9BridgeIncrementalSplitFetchTask, start offset : {}, stop offset : {}",
                 backfillSplit.getStartupOffset(),
                 backfillSplit.getStopOffset());
+
+        Oracle9BridgeOffsetContext.Loader loader =
+                new Oracle9BridgeOffsetContext.Loader(
+                        sourceFetchTaskContext.getSourceConfig().getDbzConnectorConfig());
+        Oracle9BridgeOffsetContext incrementalSplitFetchTaskContext =
+                loader.load(backfillSplit.getStartupOffset().getOffset());
+
         incrementalSplitFetchTask.execute(
-                new SnapshotScnSplitChangeEventSourceContext(),
-                sourceFetchTaskContext.getOffsetContext());
+                new SnapshotScnSplitChangeEventSourceContext(), incrementalSplitFetchTaskContext);
         log.info(
                 "End execute Oracle9BridgeIncrementalSplitFetchTask cost: {}/ms",
                 System.currentTimeMillis() - startTime);

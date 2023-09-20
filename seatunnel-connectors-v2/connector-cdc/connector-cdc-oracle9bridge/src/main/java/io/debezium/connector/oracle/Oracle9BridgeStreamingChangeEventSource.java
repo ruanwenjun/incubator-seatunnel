@@ -12,6 +12,7 @@ import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClientFactory;
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleDDLOperation;
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleOperation;
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleTransactionData;
+import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleTransactionFileNumberFetchRequest;
 
 import io.debezium.connector.oracle.oracle9bridge.Oracle9BridgeDmlEntry;
 import io.debezium.connector.oracle.oracle9bridge.Oracle9BridgeDmlEntryFactory;
@@ -85,7 +86,13 @@ public class Oracle9BridgeStreamingChangeEventSource
                             sourceConfig.getOracle9BridgeHost(),
                             sourceConfig.getOracle9BridgePort());
             Integer currentFzsFileNumber = offsetContext.getFzsFileNumber();
-            long beginScn = offsetContext.getScn().longValue();
+            if (offsetContext.getFzsFileNumber() == 0) {
+                currentFzsFileNumber =
+                        Oracle9BridgeClientUtils.currentMinFzsFileNumber(
+                                oracle9BridgeClient,
+                                new OracleTransactionFileNumberFetchRequest(tables, tableOwners));
+            }
+
             while (context.isRunning()) {
                 List<OracleTransactionData> oracleTransactionData =
                         Oracle9BridgeClientUtils.fetchOracleTransactionData(
@@ -131,17 +138,20 @@ public class Oracle9BridgeStreamingChangeEventSource
             Integer fzsFileNumber,
             List<OracleOperation> oracleOperations) {
         for (OracleOperation oracleOperation : oracleOperations) {
+            TableId tableId = tableNameToIdMap.get(oracleOperation.getTable());
+            Table table = oracleDatabaseSchema.tableFor(tableId);
+            Scn scn = new Scn(new BigInteger(oracleOperation.getScn(), 16));
             if (OracleDDLOperation.TYPE.equals(oracleOperation.getType())) {
                 log.info(
                         "The DDL: {} of the oracle 9 bridge cdc connector is not supported, will skip it",
                         oracleOperation);
+                offsetContext.event(tableId, clock.currentTime());
+                offsetContext.setScn(scn);
+                offsetContext.setFzsFileNumber(fzsFileNumber);
                 continue;
             }
-            TableId tableId = tableNameToIdMap.get(oracleOperation.getTable());
-            Table table = oracleDatabaseSchema.tableFor(tableId);
             List<Oracle9BridgeDmlEntry> dmlEntries =
                     Oracle9BridgeDmlEntryFactory.transformOperation(oracleOperation, table);
-            Scn scn = new Scn(new BigInteger(oracleOperation.getScn(), 16));
             for (Oracle9BridgeDmlEntry dmlEntry : dmlEntries) {
                 offsetContext.event(tableId, clock.currentTime());
                 offsetContext.setScn(scn);

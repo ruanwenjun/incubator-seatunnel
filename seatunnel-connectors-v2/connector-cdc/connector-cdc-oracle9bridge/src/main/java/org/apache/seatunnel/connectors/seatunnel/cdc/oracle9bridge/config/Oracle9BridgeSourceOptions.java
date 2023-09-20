@@ -12,13 +12,13 @@ import java.util.Arrays;
 public class Oracle9BridgeSourceOptions {
 
     public static final Option<String> ORACLE9BRIDGE_AGENT_HOST =
-            Options.key("oracle9bridge-agent-host")
+            Options.key("oracle-agent-host")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("The host of the Oracle agent. e.g. localhost");
 
     public static final Option<Integer> ORACLE9BRIDGE_AGENT_PORT =
-            Options.key("oracle9bridge-agent-port")
+            Options.key("oracle-agent-port")
                     .intType()
                     .noDefaultValue()
                     .withDescription("The port of the Oracle agent. e.g. 8190");
