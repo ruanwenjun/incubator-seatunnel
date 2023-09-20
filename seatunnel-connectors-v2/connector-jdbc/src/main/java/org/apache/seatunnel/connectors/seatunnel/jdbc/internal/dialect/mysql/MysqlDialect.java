@@ -247,6 +247,12 @@ public class MysqlDialect implements JdbcDialect {
                         } else if (MysqlType.SMALLINT.getName().equals(name)
                                 && column.getColumnLength() <= 0) {
                             fieSql = "(" + "6" + ")";
+                        } else if (MysqlType.BIGINT.getName().equals(name)
+                                && column.getColumnLength() <= 0) {
+                            fieSql = "(" + "20" + ")";
+                        } else if (MysqlType.INT.getName().equals(name)
+                                && column.getColumnLength() <= 0) {
+                            fieSql = "(" + "11" + ")";
                         } else {
                             fieSql = "(" + column.getColumnLength() + ")";
                         }
