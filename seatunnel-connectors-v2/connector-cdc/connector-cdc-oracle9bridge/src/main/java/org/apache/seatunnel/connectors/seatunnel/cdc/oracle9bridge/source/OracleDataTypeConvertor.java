@@ -195,6 +195,6 @@ public class OracleDataTypeConvertor implements DataTypeConvertor<String> {
 
     @Override
     public String getIdentity() {
-        return "Oracle9Bridge";
+        return "OracleAgent";
     }
 }
