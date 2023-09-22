@@ -151,9 +151,9 @@ public class Oracle9BridgeIncrementalSource<T> extends IncrementalSource<T, Jdbc
     }
 
     private Map<TableId, Struct> tableChanges() {
-        JdbcSourceConfig jdbcSourceConfig = configFactory.create(0);
-        Oracle9BridgeDialect dialect =
-                new Oracle9BridgeDialect((Oracle9BridgeSourceConfig) configFactory);
+        Oracle9BridgeSourceConfig jdbcSourceConfig =
+                (Oracle9BridgeSourceConfig) configFactory.create(0);
+        Oracle9BridgeDialect dialect = new Oracle9BridgeDialect(jdbcSourceConfig);
         List<TableId> discoverTables = dialect.discoverDataCollections(jdbcSourceConfig);
         ConnectTableChangeSerializer connectTableChangeSerializer =
                 new ConnectTableChangeSerializer();
