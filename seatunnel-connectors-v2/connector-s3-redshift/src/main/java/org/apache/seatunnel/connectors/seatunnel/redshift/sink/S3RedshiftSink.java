@@ -40,6 +40,8 @@ import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileCommitInfo;
 import org.apache.seatunnel.connectors.seatunnel.file.sink.state.FileSinkState;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.writer.WriteStrategy;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.writer.WriteStrategyFactory;
 import org.apache.seatunnel.connectors.seatunnel.redshift.commit.S3RedshiftSinkAggregatedCommitter;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConfig;
@@ -115,7 +117,7 @@ public class S3RedshiftSink extends BaseHdfsFileSink
     public SinkWriter<SeaTunnelRow, FileCommitInfo, FileSinkState> createWriter(
             SinkWriter.Context context) throws IOException {
         return new S3RedshiftChangelogWriter(
-                writeStrategy,
+                newWriteStrategy(),
                 hadoopConf,
                 context,
                 jobId,
@@ -128,7 +130,7 @@ public class S3RedshiftSink extends BaseHdfsFileSink
     public SinkWriter<SeaTunnelRow, FileCommitInfo, FileSinkState> restoreWriter(
             SinkWriter.Context context, List<FileSinkState> states) throws IOException {
         return new S3RedshiftChangelogWriter(
-                writeStrategy,
+                newWriteStrategy(),
                 hadoopConf,
                 context,
                 jobId,
@@ -160,5 +162,13 @@ public class S3RedshiftSink extends BaseHdfsFileSink
                 new S3RedshiftSaveModeHandler(sqlGenerator, s3RedshiftConf)) {
             saveModeHandler.handle(saveMode);
         }
+    }
+
+    private WriteStrategy newWriteStrategy() {
+        WriteStrategy writeStrategy =
+                WriteStrategyFactory.of(fileSinkConfig.getFileFormat(), fileSinkConfig);
+        writeStrategy.setSeaTunnelRowTypeInfo(seaTunnelRowType);
+        writeStrategy.setFileSystemUtils(fileSystemUtils);
+        return writeStrategy;
     }
 }

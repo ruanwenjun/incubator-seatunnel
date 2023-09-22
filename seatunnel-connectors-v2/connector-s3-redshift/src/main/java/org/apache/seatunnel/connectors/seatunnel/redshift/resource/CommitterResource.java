@@ -26,7 +26,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -58,12 +58,17 @@ public class CommitterResource implements AutoCloseable {
     }
 
     private static ExecutorService createCommitWorker(int workerSize) {
-        return new ThreadPoolExecutor(
-                0,
-                workerSize,
-                30L,
-                TimeUnit.MINUTES,
-                new SynchronousQueue<Runnable>(),
-                new ThreadFactoryBuilder().setNameFormat("s3-redshift-commit-worker-%d").build());
+        ThreadPoolExecutor executor =
+                new ThreadPoolExecutor(
+                        workerSize,
+                        workerSize,
+                        60L,
+                        TimeUnit.SECONDS,
+                        new LinkedBlockingQueue<>(),
+                        new ThreadFactoryBuilder()
+                                .setNameFormat("s3-redshift-commit-worker-%d")
+                                .build());
+        executor.allowCoreThreadTimeOut(true);
+        return executor;
     }
 }
