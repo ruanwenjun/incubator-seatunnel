@@ -34,8 +34,7 @@ public class PostgresDialectFactory implements JdbcDialectFactory {
 
     @Override
     public JdbcDialect create() {
-        throw new UnsupportedOperationException(
-                "Can't create JdbcDialect without compatible mode for Postgres");
+        return new PostgresDialect();
     }
 
     @Override
