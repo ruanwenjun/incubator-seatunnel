@@ -251,7 +251,7 @@ public class DamengCatalog extends AbstractJdbcCatalog {
                         case DamengDataTypeConvertor.DM_BFILE:
                         case DamengDataTypeConvertor.DM_IMAGE:
                         case DamengDataTypeConvertor.DM_LONGVARBINARY:
-                            bitLen = columnLength;
+                            bitLen = columnLength * 8;
                             break;
                         default:
                             break;
