@@ -17,10 +17,13 @@
 
 package org.apache.seatunnel.engine.server.dag.execution;
 
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.MultipleRowType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.api.transform.SeaTunnelTransform;
+import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.engine.common.config.EngineConfig;
 import org.apache.seatunnel.engine.common.utils.IdGenerator;
 import org.apache.seatunnel.engine.core.dag.actions.Action;
@@ -80,11 +83,11 @@ public class ExecutionPlanGenerator {
         Set<ExecutionEdge> executionEdges = generateExecutionEdges(logicalPlan.getEdges());
         log.debug("Phase 1: generate execution edge list {}", executionEdges);
 
-        executionEdges = generateShuffleEdges(executionEdges);
-        log.debug("Phase 2: generate shuffle edge list {}", executionEdges);
-
         executionEdges = generateTransformChainEdges(executionEdges);
-        log.debug("Phase 3: generate transform chain edge list {}", executionEdges);
+        log.debug("Phase 2: generate transform chain edge list {}", executionEdges);
+
+        executionEdges = generateShuffleEdges(executionEdges);
+        log.debug("Phase 3: generate shuffle edge list {}", executionEdges);
 
         List<Pipeline> pipelines = generatePipelines(executionEdges);
         log.debug("Phase 4: generate pipeline list {}", pipelines);
@@ -204,7 +207,7 @@ public class ExecutionPlanGenerator {
                 edge -> {
                     ExecutionVertex leftVertex = edge.getLeftVertex();
                     ExecutionVertex rightVertex = edge.getRightVertex();
-                    if (leftVertex.getAction() instanceof SourceAction) {
+                    if (rightVertex.getAction() instanceof SinkAction) {
                         sourceExecutionVertices.add(leftVertex);
                     }
                     targetVerticesMap
@@ -215,8 +218,31 @@ public class ExecutionPlanGenerator {
             return executionEdges;
         }
         ExecutionVertex sourceExecutionVertex = sourceExecutionVertices.stream().findFirst().get();
-        SourceAction sourceAction = (SourceAction) sourceExecutionVertex.getAction();
-        SeaTunnelDataType sourceProducedType = sourceAction.getSource().getProducedType();
+        Action sourceAction = sourceExecutionVertex.getAction();
+        SeaTunnelDataType sourceProducedType;
+        if (sourceAction instanceof SourceAction) {
+            sourceProducedType = ((SourceAction) sourceAction).getSource().getProducedType();
+        } else if (sourceAction instanceof TransformChainAction) {
+            List<SeaTunnelTransform> transforms =
+                    ((TransformChainAction) sourceAction).getTransforms();
+            List<CatalogTable> producedCatalogTables =
+                    transforms.get(transforms.size() - 1).getProducedCatalogTables();
+            if (producedCatalogTables.size() == 1) {
+                sourceProducedType =
+                        producedCatalogTables.get(0).getTableSchema().toPhysicalRowDataType();
+            } else {
+                Map<String, SeaTunnelRowType> rowTypeMap = new HashMap<>();
+                for (CatalogTable catalogTable : producedCatalogTables) {
+                    String tableId = catalogTable.getTableId().toTablePath().toString();
+                    rowTypeMap.put(tableId, catalogTable.getTableSchema().toPhysicalRowDataType());
+                }
+                sourceProducedType = new MultipleRowType(rowTypeMap);
+            }
+        } else {
+            throw new SeaTunnelException(
+                    "source action must be SourceAction or TransformChainAction");
+        }
+
         if (!SqlType.MULTIPLE_ROW.equals(sourceProducedType.getSqlType())
                 || targetVerticesMap.get(sourceExecutionVertex.getVertexId()).size() <= 1) {
             return executionEdges;
@@ -252,6 +278,13 @@ public class ExecutionPlanGenerator {
         ExecutionVertex shuffleVertex =
                 new ExecutionVertex(shuffleVertexId, shuffleAction, shuffleAction.getParallelism());
         ExecutionEdge sourceToShuffleEdge = new ExecutionEdge(sourceExecutionVertex, shuffleVertex);
+        executionEdges.forEach(
+                edge -> {
+                    ExecutionVertex rightVertex = edge.getRightVertex();
+                    if (sourceExecutionVertex.equals(rightVertex)) {
+                        newExecutionEdges.add(edge);
+                    }
+                });
         newExecutionEdges.add(sourceToShuffleEdge);
 
         for (ExecutionVertex sinkVertex : sinkVertices) {

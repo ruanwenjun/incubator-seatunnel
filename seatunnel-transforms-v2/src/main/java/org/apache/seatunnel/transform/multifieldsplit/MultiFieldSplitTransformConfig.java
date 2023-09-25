@@ -22,6 +22,7 @@ import org.apache.seatunnel.shade.com.fasterxml.jackson.annotation.JsonAlias;
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 
 import lombok.Data;
 import lombok.Getter;
@@ -44,6 +45,21 @@ public class MultiFieldSplitTransformConfig implements Serializable {
     private SplitOP[] splitOPS;
     private String[] outputFields;
 
+    public static final Option<List<TableTransforms>> MULTI_TABLES =
+            Options.key("table_transform")
+                    .listType(TableTransforms.class)
+                    .noDefaultValue()
+                    .withDescription("");
+
+    @Data
+    public static class TableTransforms implements Serializable {
+        @JsonAlias("table_path")
+        private String tablePath;
+
+        @JsonAlias("splitOPs")
+        private SplitOP[] splitOPs = new SplitOP[] {};
+    }
+
     @Data
     public static class SplitOP implements Serializable {
         private String separator;
@@ -65,5 +81,35 @@ public class MultiFieldSplitTransformConfig implements Serializable {
         splitTransformConfig.setSplitOPS(splitOPS.toArray(new SplitOP[0]));
         splitTransformConfig.setOutputFields(allOutputFields);
         return splitTransformConfig;
+    }
+
+    public static MultiFieldSplitTransformConfig of(
+            ReadonlyConfig config, CatalogTable catalogTable) {
+        String tablePath = catalogTable.getTableId().toTablePath().getFullName();
+        if (null != config.get(MULTI_TABLES)) {
+            return config.get(MULTI_TABLES).stream()
+                    .filter(tableTransforms -> tableTransforms.getTablePath().equals(tablePath))
+                    .findFirst()
+                    .map(
+                            tableTransforms -> {
+                                MultiFieldSplitTransformConfig multiFieldSplitTransformConfig =
+                                        new MultiFieldSplitTransformConfig();
+                                List<SplitOP> splitOPS =
+                                        Arrays.asList(tableTransforms.getSplitOPs());
+                                String[] allOutputFields =
+                                        splitOPS.stream()
+                                                .flatMap(
+                                                        splitOP ->
+                                                                Arrays.stream(
+                                                                        splitOP.getOutputFields()))
+                                                .toArray(String[]::new);
+                                multiFieldSplitTransformConfig.setSplitOPS(
+                                        splitOPS.toArray(new SplitOP[0]));
+                                multiFieldSplitTransformConfig.setOutputFields(allOutputFields);
+                                return multiFieldSplitTransformConfig;
+                            })
+                    .orElseGet(() -> of(config));
+        }
+        return of(config);
     }
 }

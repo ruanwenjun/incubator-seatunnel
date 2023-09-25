@@ -46,6 +46,8 @@ import java.util.stream.IntStream;
 @AutoService(SeaTunnelTransform.class)
 @NoArgsConstructor
 public class MultiFieldSplitTransform extends MultipleFieldOutputTransform {
+
+    public static String PLUGIN_NAME = "MultiFieldSplit";
     private MultiFieldSplitTransformConfig multiFieldSplitTransformConfig;
     private MultiFieldSplitTransformConfig.SplitOP[] splitOPS;
     private int[] splitFieldIndexS;
@@ -64,7 +66,7 @@ public class MultiFieldSplitTransform extends MultipleFieldOutputTransform {
 
     @Override
     public String getPluginName() {
-        return "MultiFieldSplit";
+        return PLUGIN_NAME;
     }
 
     @Override

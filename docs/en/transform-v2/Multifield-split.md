@@ -69,6 +69,49 @@ Then the data in result table `fake1` will like this
 | Kin Dom  | 20  | 123  | Kin        | Dom       | 123       | 3         |
 | Joy Dom  | 20  | 123  | Joy        | Dom       | 123       | 4         |
 
+If it's a multi-table scenario, then the configuration example is as follows:
+
+```
+transform {
+    MultiFieldSplit {
+        source_table_name = "fake"
+        result_table_name = "fake1"
+
+        table_transform = [
+             {
+                tablePath = "liuliTest.transform_1"
+                splitOPs = [
+                    {    separator = "_"
+                         split_field = "name_1"
+                         output_fields = ["name11", "name111"]
+                    }
+                    ,
+                    {    separator = "0"
+                         split_field = "age_1"
+                         output_fields = ["age11", "age1111"]
+                    }
+                    ]
+             }
+             ,
+             {
+                tablePath = "liuliTest.transform_2"
+                splitOPs = [
+                    {    separator = "_"
+                         split_field = "name_2"
+                         output_fields = ["name22", "name222"]
+                    }
+                    ,
+                    {    separator = "0"
+                         split_field = "age_2"
+                         output_fields = ["age22", "age2222"]
+                    }
+                    ]
+             }
+        ]
+    }
+}
+```
+
 ## Changelog
 
 ### new version
