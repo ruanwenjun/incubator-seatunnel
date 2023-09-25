@@ -154,7 +154,7 @@ public final class FactoryUtil {
             TableSinkFactory<IN, StateT, CommitInfoT, AggregatedCommitInfoT> factory =
                     discoverFactory(classLoader, TableSinkFactory.class, "MultiTableSink");
             MultiTableFactoryContext context =
-                    new MultiTableFactoryContext(null, options, classLoader, sinks);
+                    new MultiTableFactoryContext(options, classLoader, sinks);
             ConfigValidator.of(context.getOptions()).validate(factory.optionRule());
             return factory.createSink(context).createSink();
         } catch (Throwable t) {

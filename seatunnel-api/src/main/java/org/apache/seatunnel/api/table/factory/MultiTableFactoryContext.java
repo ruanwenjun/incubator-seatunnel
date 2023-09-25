@@ -19,11 +19,9 @@ package org.apache.seatunnel.api.table.factory;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
-import org.apache.seatunnel.api.table.catalog.CatalogTable;
 
 import lombok.Getter;
 
-import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -32,11 +30,8 @@ public class MultiTableFactoryContext extends TableSinkFactoryContext {
     private final Map<String, SeaTunnelSink> sinks;
 
     public MultiTableFactoryContext(
-            List<CatalogTable> catalogTables,
-            ReadonlyConfig options,
-            ClassLoader classLoader,
-            Map<String, SeaTunnelSink> sinks) {
-        super(catalogTables.get(0), options, classLoader);
+            ReadonlyConfig options, ClassLoader classLoader, Map<String, SeaTunnelSink> sinks) {
+        super(null, options, classLoader);
         this.sinks = sinks;
     }
 }
