@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.redshift.config;
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.file.s3.config.S3Config;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
 
@@ -48,17 +49,26 @@ public class S3RedshiftConfig extends S3Config {
                     .noDefaultValue()
                     .withDescription("Redshift JDBC password");
 
+    public static final Option<String> DATABASE =
+            Options.key("database").stringType().noDefaultValue().withDescription("database");
+
     public static final Option<String> SCHEMA_NAME =
             Options.key("schema_name")
                     .stringType()
                     .defaultValue("public")
                     .withDescription("Redshift JDBC schema");
 
-    public static final Option<DataSaveMode> SAVE_MODE =
-            Options.key("save_mode")
+    public static final Option<SchemaSaveMode> SCHEMA_SAVE_MODE =
+            Options.key("schema_save_mode")
+                    .enumType(SchemaSaveMode.class)
+                    .defaultValue(SchemaSaveMode.CREATE_SCHEMA_WHEN_NOT_EXIST)
+                    .withDescription("save_mode");
+
+    public static final Option<DataSaveMode> DATA_SAVE_MODE =
+            Options.key("data_save_mode")
                     .enumType(DataSaveMode.class)
                     .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
-                    .withDescription("save_mode");
+                    .withDescription("data_save_mode");
 
     public static final Option<String> CUSTOM_SQL =
             Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");

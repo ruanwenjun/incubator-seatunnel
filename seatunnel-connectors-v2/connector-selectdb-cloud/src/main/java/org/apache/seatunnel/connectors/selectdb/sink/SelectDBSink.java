@@ -24,13 +24,13 @@ import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.serialization.Serializer;
-import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SaveModeHandler;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
-import org.apache.seatunnel.api.sink.SupportDataSaveMode;
 import org.apache.seatunnel.api.sink.SupportMultiTableSink;
+import org.apache.seatunnel.api.sink.SupportSaveMode;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
@@ -41,7 +41,6 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.config.CheckConfigUtil;
 import org.apache.seatunnel.common.config.CheckResult;
 import org.apache.seatunnel.common.constants.PluginType;
-import org.apache.seatunnel.connectors.selectdb.catalog.SelectDBCatalog;
 import org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig;
 import org.apache.seatunnel.connectors.selectdb.exception.SelectDBConnectorException;
 import org.apache.seatunnel.connectors.selectdb.sink.committer.SelectDBCommitInfo;
@@ -59,12 +58,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.BASE_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CLUSTER_NAME;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.DATABASE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.LOAD_URL;
-import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.TABLE_IDENTIFIER;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.TABLE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.USERNAME;
 
 @AutoService(SeaTunnelSink.class)
@@ -72,8 +71,8 @@ import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.USE
 public class SelectDBSink
         implements SeaTunnelSink<
                         SeaTunnelRow, SelectDBSinkState, SelectDBCommitInfo, SelectDBCommitInfo>,
-                SupportMultiTableSink,
-                SupportDataSaveMode {
+                SupportSaveMode,
+                SupportMultiTableSink {
     private CatalogTable catalogTable;
     private SelectDBConfig selectDBConfig;
     private String jobId;
@@ -99,7 +98,8 @@ public class SelectDBSink
                         LOAD_URL.key(),
                         CLUSTER_NAME.key(),
                         USERNAME.key(),
-                        TABLE_IDENTIFIER.key());
+                        DATABASE.key(),
+                        TABLE.key());
         if (!result.isSuccess()) {
             throw new SelectDBConnectorException(
                     SeaTunnelAPIErrorCode.CONFIG_VALIDATION_FAILED,
@@ -118,19 +118,13 @@ public class SelectDBSink
 
     @Override
     public void setTypeInfo(SeaTunnelRowType seaTunnelRowType) {
-        String[] table = selectDBConfig.getTableIdentifier().split("\\.");
-        if (table.length != 2) {
-            throw new SelectDBConnectorException(
-                    SeaTunnelAPIErrorCode.CONFIG_VALIDATION_FAILED,
-                    String.format(
-                            "PluginName: %s, PluginType: %s, Message: %s",
-                            getPluginName(),
-                            PluginType.SINK,
-                            "tableIdentifier must be databaseName,tableName"));
-        }
         this.catalogTable =
                 CatalogTableUtil.getCatalogTable(
-                        "SelectDBCloud", table[0], null, table[1], seaTunnelRowType);
+                        "SelectDBCloud",
+                        selectDBConfig.getDatabase(),
+                        null,
+                        selectDBConfig.getTable(),
+                        seaTunnelRowType);
     }
 
     @Override
@@ -184,33 +178,27 @@ public class SelectDBSink
     }
 
     @Override
-    public DataSaveMode getUserConfigSaveMode() {
-        return selectDBConfig.getSaveMode();
-    }
+    public SaveModeHandler getSaveModeHandler() {
 
-    @Override
-    public void handleSaveMode(DataSaveMode saveMode) {
-        if (catalogTable == null) {
-            return;
-        }
         CatalogFactory catalogFactory =
                 discoverFactory(
                         Thread.currentThread().getContextClassLoader(),
                         CatalogFactory.class,
                         "SelectDBCloud");
         if (catalogFactory == null) {
-            return;
+            throw new SelectDBConnectorException(
+                    SeaTunnelAPIErrorCode.CONFIG_VALIDATION_FAILED,
+                    String.format(
+                            "PluginName: %s, PluginType: %s, Message: %s",
+                            getPluginName(),
+                            PluginType.SINK,
+                            "Cannot find SelectDBCloud catalog factory"));
         }
 
-        try (Catalog catalog =
-                catalogFactory.createCatalog(catalogFactory.factoryIdentifier(), readonlyConfig)) {
-            catalog.open();
-            new SelectDBSaveModeHandler(
-                            selectDBConfig, saveMode, catalogTable, (SelectDBCatalog) catalog)
-                    .doHandleSaveMode();
+        Catalog catalog =
+                catalogFactory.createCatalog(catalogFactory.factoryIdentifier(), readonlyConfig);
+        catalog.open();
 
-        } catch (Exception e) {
-            throw new SelectDBConnectorException(HANDLE_SAVE_MODE_FAILED, e);
-        }
+        return new SelectDBSaveModeHandler(selectDBConfig, catalog, catalogTable);
     }
 }

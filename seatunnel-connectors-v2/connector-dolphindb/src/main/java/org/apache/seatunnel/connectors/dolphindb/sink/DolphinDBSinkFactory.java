@@ -4,12 +4,13 @@ import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
-import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
+import org.apache.seatunnel.api.table.factory.TableSinkFactoryContext;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig;
 
@@ -20,6 +21,7 @@ import com.google.auto.service.AutoService;
 import com.xxdb.multithreadedtablewriter.MultithreadedTableWriter;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.apache.seatunnel.api.table.catalog.CatalogTableUtil.SCHEMA;
@@ -67,7 +69,7 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
     }
 
     @Override
-    public TableSink<SeaTunnelRow, Void, Void, Void> createSink(TableFactoryContext context) {
+    public TableSink<SeaTunnelRow, Void, Void, Void> createSink(TableSinkFactoryContext context) {
         ReadonlyConfig config = context.getOptions();
         final CatalogTable catalogTable;
         final ReadonlyConfig readonlyConfig;
@@ -98,9 +100,12 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
         return () -> new DolphinDBSink(catalogTable, readonlyConfig);
     }
 
-    private CatalogTable tableNameFromConfig(TableFactoryContext context) {
+    private CatalogTable tableNameFromConfig(TableSinkFactoryContext context) {
         ReadonlyConfig readonlyConfig = context.getOptions();
-        CatalogTable catalogTable = context.getCatalogTable();
+        List<CatalogTable> catalogTables =
+                CatalogTableUtil.getCatalogTablesFromConfig(
+                        context.getOptions(), context.getClassLoader());
+        CatalogTable catalogTable = catalogTables.get(0);
         TableIdentifier tableId = catalogTable.getTableId();
         TableIdentifier newTableId =
                 TableIdentifier.of(

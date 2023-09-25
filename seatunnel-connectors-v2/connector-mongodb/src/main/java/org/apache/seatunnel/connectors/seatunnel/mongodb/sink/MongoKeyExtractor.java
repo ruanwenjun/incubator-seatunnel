@@ -30,8 +30,8 @@ public class MongoKeyExtractor implements SerializableFunction<BsonDocument, Bso
 
     private final String[] primaryKey;
 
-    public MongoKeyExtractor(MongodbWriterOptions options) {
-        primaryKey = options.getPrimaryKey();
+    public MongoKeyExtractor(String[] primaryKey) {
+        this.primaryKey = primaryKey.clone();
     }
 
     @Override

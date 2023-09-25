@@ -101,10 +101,7 @@ public class IcebergTableLoader implements Closeable, Serializable {
                         config.getHdfsSitePath(),
                         config.getHiveSitePath());
         String table;
-        if (StringUtils.isNotEmpty(config.getTable())) {
-            log.info("conf table name is not empty, use table name: {}", config.getTable());
-            table = config.getTable();
-        } else if (catalogTable != null
+        if (catalogTable != null
                 && StringUtils.isNotEmpty(catalogTable.getTableId().getTableName())) {
             log.info(
                     "conf table name is empty, use catalog table name: {}",

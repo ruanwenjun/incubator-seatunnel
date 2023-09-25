@@ -36,6 +36,7 @@ import org.apache.seatunnel.connectors.seatunnel.iceberg.IcebergCatalogFactory;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
@@ -205,7 +206,21 @@ public class IcebergCatalog implements Catalog {
         throw new UnsupportedOperationException();
     }
 
-    public void truncateTable(TablePath tablePath) throws TableNotExistException, CatalogException {
+    public boolean isExistsData(TablePath tablePath) {
+        if (!tableExists(tablePath)) {
+            throw new TableNotExistException("table not exist", tablePath);
+        }
+        TableIdentifier icebergTableIdentifier = toIcebergTableIdentifier(tablePath);
+        Snapshot snapshot = catalog.loadTable(icebergTableIdentifier).currentSnapshot();
+        if (snapshot != null) {
+            String total = snapshot.summary().getOrDefault("total-records", null);
+            return total != null && !total.equals("0");
+        }
+        return false;
+    }
+
+    public void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
+            throws TableNotExistException, CatalogException {
         if (!tableExists(tablePath)) {
             throw new TableNotExistException("table not exist", tablePath);
         }
@@ -215,6 +230,10 @@ public class IcebergCatalog implements Catalog {
                 .deleteFromRowFilter(org.apache.iceberg.expressions.Expressions.alwaysTrue())
                 .commit();
         log.info("Truncated table at path: {}", tablePath);
+    }
+
+    public void executeSql(String sql) {
+        throw new UnsupportedOperationException();
     }
 
     public CatalogTable toCatalogTable(Table icebergTable, TablePath tablePath) {

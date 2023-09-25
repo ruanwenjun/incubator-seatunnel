@@ -10,7 +10,6 @@ import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.dolphindb.catalog.DolphinDBCatalog;
 import org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig;
-import org.apache.seatunnel.connectors.dolphindb.exception.DolphinDBConnectorException;
 import org.apache.seatunnel.connectors.dolphindb.utils.DolphinDBSaveModeUtil;
 
 import lombok.extern.slf4j.Slf4j;
@@ -21,8 +20,6 @@ import java.util.Map;
 import static org.apache.seatunnel.api.common.CommonOptions.FACTORY_ID;
 import static org.apache.seatunnel.api.common.CommonOptions.PLUGIN_NAME;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
-import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.SAVE_MODE_CREATE_TEMPLATE;
-import static org.apache.seatunnel.connectors.dolphindb.exception.DolphinDBErrorCode.SOURCE_ALREADY_HAS_DATA;
 
 @Slf4j
 public class DolphinDBSaveModeHandler {
@@ -55,7 +52,7 @@ public class DolphinDBSaveModeHandler {
             tablePath = catalogTable.getTableId().toTablePath();
         }
 
-        try (DolphinDBCatalog catalog = createCatalog()) {
+        /*try (DolphinDBCatalog catalog = createCatalog()) {
             catalog.open();
             switch (dataSaveMode) {
                 case DROP_SCHEMA:
@@ -100,7 +97,7 @@ public class DolphinDBSaveModeHandler {
                     }
                     break;
             }
-        }
+        }*/
     }
 
     private DolphinDBCatalog createCatalog() {

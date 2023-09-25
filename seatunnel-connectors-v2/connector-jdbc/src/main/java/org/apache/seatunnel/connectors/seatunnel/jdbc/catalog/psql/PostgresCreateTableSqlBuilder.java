@@ -19,15 +19,18 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql;
 
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.Column;
+import org.apache.seatunnel.api.table.catalog.ConstraintKey;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.type.DecimalType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_BYTEA;
@@ -38,19 +41,20 @@ public class PostgresCreateTableSqlBuilder {
     private PrimaryKey primaryKey;
     private PostgresDataTypeConvertor postgresDataTypeConvertor;
     private String sourceCatalogName;
+    private String fieldIde;
+    private List<ConstraintKey> constraintKeys;
+    public Boolean isHaveConstraintKey = false;
 
     public PostgresCreateTableSqlBuilder(CatalogTable catalogTable) {
         this.columns = catalogTable.getTableSchema().getColumns();
         this.primaryKey = catalogTable.getTableSchema().getPrimaryKey();
         this.postgresDataTypeConvertor = new PostgresDataTypeConvertor();
         this.sourceCatalogName = catalogTable.getCatalogName();
+        this.fieldIde = catalogTable.getOptions().get("fieldIde");
+        constraintKeys = catalogTable.getTableSchema().getConstraintKeys();
     }
 
     public String build(TablePath tablePath) {
-        return build(tablePath, "");
-    }
-
-    public String build(TablePath tablePath, String fieldIde) {
         StringBuilder createTableSql = new StringBuilder();
         createTableSql
                 .append(CatalogUtils.quoteIdentifier("CREATE TABLE IF NOT EXISTS ", fieldIde))
@@ -65,6 +69,23 @@ public class PostgresCreateTableSqlBuilder {
                                                 buildColumnSql(column), fieldIde))
                         .collect(Collectors.toList());
 
+        if (CollectionUtils.isNotEmpty(constraintKeys)) {
+            for (ConstraintKey constraintKey : constraintKeys) {
+                if (StringUtils.isBlank(constraintKey.getConstraintName())
+                        || (primaryKey != null
+                                && StringUtils.equals(
+                                        primaryKey.getPrimaryKey(),
+                                        constraintKey.getConstraintName()))) {
+                    continue;
+                }
+                String constraintKeySql = buildConstraintKeySql(constraintKey);
+                if (StringUtils.isNotEmpty(constraintKeySql)) {
+                    columnSqls.add("\t" + constraintKeySql);
+                    isHaveConstraintKey = true;
+                }
+            }
+        }
+
         createTableSql.append(String.join(",\n", columnSqls));
         createTableSql.append("\n);");
 
@@ -74,9 +95,7 @@ public class PostgresCreateTableSqlBuilder {
                         .map(
                                 columns ->
                                         buildColumnCommentSql(
-                                                columns,
-                                                tablePath.getSchemaAndTableName("\""),
-                                                fieldIde))
+                                                columns, tablePath.getSchemaAndTableName("\"")))
                         .collect(Collectors.toList());
 
         if (!commentSqls.isEmpty()) {
@@ -108,12 +127,6 @@ public class PostgresCreateTableSqlBuilder {
             columnSql.append(" PRIMARY KEY");
         }
 
-        // Add default value if exists
-        //        if (column.getDefaultValue() != null) {
-        //            columnSql.append(" DEFAULT
-        // '").append(column.getDefaultValue().toString()).append("'");
-        //        }
-
         return columnSql.toString();
     }
 
@@ -124,7 +137,7 @@ public class PostgresCreateTableSqlBuilder {
             case BYTES:
                 return PG_BYTEA;
             case STRING:
-                if (columnLength > 0 && columnLength < 10485760) {
+                if (columnLength != null && columnLength > 0 && columnLength < 10485760) {
                     return "varchar(" + columnLength + ")";
                 } else {
                     return "text";
@@ -143,7 +156,7 @@ public class PostgresCreateTableSqlBuilder {
         }
     }
 
-    private String buildColumnCommentSql(Column column, String tableName, String fieldIde) {
+    private String buildColumnCommentSql(Column column, String tableName) {
         StringBuilder columnCommentSql = new StringBuilder();
         columnCommentSql
                 .append(CatalogUtils.quoteIdentifier("COMMENT ON COLUMN ", fieldIde))
@@ -155,5 +168,55 @@ public class PostgresCreateTableSqlBuilder {
                 .append(column.getComment())
                 .append("'");
         return columnCommentSql.toString();
+    }
+
+    private String buildConstraintKeySql(ConstraintKey constraintKey) {
+        ConstraintKey.ConstraintType constraintType = constraintKey.getConstraintType();
+        String randomSuffix = UUID.randomUUID().toString().replace("-", "").substring(0, 4);
+
+        String constraintName = constraintKey.getConstraintName();
+        if (constraintName.length() > 25) {
+            constraintName = constraintName.substring(0, 25);
+        }
+        String indexColumns =
+                constraintKey.getColumnNames().stream()
+                        .map(
+                                constraintKeyColumn ->
+                                        String.format(
+                                                "\"%s\"",
+                                                CatalogUtils.getFieldIde(
+                                                        constraintKeyColumn.getColumnName(),
+                                                        fieldIde)))
+                        .collect(Collectors.joining(", "));
+
+        String keyName = null;
+        switch (constraintType) {
+            case KEY:
+                keyName = "KEY";
+                break;
+            case UNIQUE_KEY:
+                keyName = "UNIQUE";
+                break;
+            case FOREIGN_KEY:
+                keyName = "FOREIGN KEY";
+                // todo:
+                break;
+            default:
+                throw new UnsupportedOperationException(
+                        "Unsupported constraint type: " + constraintType);
+        }
+
+        if (StringUtils.equals(keyName, "UNIQUE")) {
+            isHaveConstraintKey = true;
+            return "CONSTRAINT "
+                    + constraintName
+                    + "_"
+                    + randomSuffix
+                    + " UNIQUE ("
+                    + indexColumns
+                    + ")";
+        }
+        // todo KEY AND FOREIGN_KEY
+        return null;
     }
 }

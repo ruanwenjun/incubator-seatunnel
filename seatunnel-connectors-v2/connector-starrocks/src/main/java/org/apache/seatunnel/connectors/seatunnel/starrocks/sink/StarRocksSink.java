@@ -24,11 +24,15 @@ import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.ConfigValidator;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.DefaultSaveModeHandler;
+import org.apache.seatunnel.api.sink.SaveModeHandler;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkWriter;
-import org.apache.seatunnel.api.sink.SupportDataSaveMode;
+import org.apache.seatunnel.api.sink.SupportSaveMode;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
@@ -37,7 +41,7 @@ import org.apache.seatunnel.connectors.seatunnel.common.sink.AbstractSimpleSink;
 import org.apache.seatunnel.connectors.seatunnel.common.sink.AbstractSinkWriter;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.catalog.StarRocksCatalogFactory;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig;
-import org.apache.seatunnel.connectors.seatunnel.starrocks.exception.StarRocksConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -47,26 +51,31 @@ import lombok.NoArgsConstructor;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode.HANDLE_SAVE_MODE_FAILED;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @NoArgsConstructor
 @AutoService(SeaTunnelSink.class)
 public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
-        implements SupportDataSaveMode {
+        implements SupportSaveMode {
 
     private SeaTunnelRowType seaTunnelRowType;
     private SinkConfig sinkConfig;
     private DataSaveMode dataSaveMode;
+    private SchemaSaveMode schemaSaveMode;
     private ReadonlyConfig readonlyConfig;
     private CatalogTable catalogTable;
 
     public StarRocksSink(
-            SinkConfig sinkConfig, CatalogTable catalogTable, final ReadonlyConfig readonlyConfig) {
+            SinkConfig sinkConfig,
+            CatalogTable catalogTable,
+            final ReadonlyConfig readonlyConfig,
+            SchemaSaveMode schemaSaveMode,
+            DataSaveMode dataSaveMode) {
         this.sinkConfig = sinkConfig;
         this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
         this.catalogTable = catalogTable;
         this.dataSaveMode = sinkConfig.getDataSaveMode();
+        this.schemaSaveMode = schemaSaveMode;
         this.readonlyConfig = readonlyConfig;
     }
 
@@ -102,22 +111,17 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
     }
 
     @Override
-    public DataSaveMode getUserConfigSaveMode() {
-        return dataSaveMode;
-    }
-
-    @Override
-    public void handleSaveMode(DataSaveMode saveMode) {
+    public SaveModeHandler getSaveModeHandler() {
         if (catalogTable == null) {
-            return;
+            return null;
         }
         Map<String, String> catalogOptions = readonlyConfig.toMap();
         if (catalogOptions == null) {
-            return;
+            return null;
         }
         String factoryId = readonlyConfig.get(CommonOptions.FACTORY_ID);
         if (StringUtils.isBlank(sinkConfig.getDatabase())) {
-            return;
+            return null;
         }
         CatalogFactory catalogFactory =
                 discoverFactory(
@@ -125,18 +129,24 @@ public class StarRocksSink extends AbstractSimpleSink<SeaTunnelRow, Void>
                         CatalogFactory.class,
                         factoryId);
         if (catalogFactory == null) {
-            return;
+            return null;
         }
-        try (Catalog catalog =
+        TablePath tablePath =
+                TablePath.of(
+                        catalogTable.getTableId().getDatabaseName(),
+                        catalogTable.getTableId().getSchemaName(),
+                        catalogTable.getTableId().getTableName());
+        Catalog catalog =
                 catalogFactory.createCatalog(
                         catalogFactory.factoryIdentifier(),
-                        ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)))) {
-            catalog.open();
-            new StarRocksSaveModeHandler(
-                            sinkConfig, saveMode, readonlyConfig, catalogTable, catalog)
-                    .doHandleSaveMode();
-        } catch (Exception e) {
-            throw new StarRocksConnectorException(HANDLE_SAVE_MODE_FAILED, e);
-        }
+                        ReadonlyConfig.fromMap(new HashMap<>(catalogOptions)));
+        catalog.open();
+        return new DefaultSaveModeHandler(
+                schemaSaveMode,
+                dataSaveMode,
+                catalog,
+                tablePath,
+                catalogTable,
+                readonlyConfig.get(StarRocksSinkOptions.CUSTOM_SQL));
     }
 }

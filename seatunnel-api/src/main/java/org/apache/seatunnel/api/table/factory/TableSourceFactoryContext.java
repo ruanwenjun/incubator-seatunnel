@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.api.sink;
+package org.apache.seatunnel.api.table.factory;
 
-/** The Sink Connectors which support data SaveMode should implement this interface */
-public interface SupportDataSaveMode {
-    String SAVE_MODE_KEY = "save_mode";
-    /**
-     * Return the value of DataSaveMode configured by user in the job config file.
-     *
-     * @return
-     */
-    DataSaveMode getUserConfigSaveMode();
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 
-    /** The implementation of specific logic according to different {@link DataSaveMode} */
-    void handleSaveMode(DataSaveMode userConfigSaveMode);
+import lombok.Getter;
+
+@Getter
+public class TableSourceFactoryContext extends TableFactoryContext {
+
+    public TableSourceFactoryContext(ReadonlyConfig options, ClassLoader classLoader) {
+        super(options, classLoader);
+    }
 }

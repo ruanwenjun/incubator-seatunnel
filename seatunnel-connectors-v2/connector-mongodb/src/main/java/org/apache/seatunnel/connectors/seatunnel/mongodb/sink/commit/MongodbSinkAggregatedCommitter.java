@@ -18,6 +18,8 @@
 package org.apache.seatunnel.connectors.seatunnel.mongodb.sink.commit;
 
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkAggregatedCommitter;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.connectors.seatunnel.mongodb.internal.MongodbClientProvider;
 import org.apache.seatunnel.connectors.seatunnel.mongodb.internal.MongodbCollectionProvider;
 import org.apache.seatunnel.connectors.seatunnel.mongodb.sink.MongodbWriterOptions;
@@ -44,7 +46,8 @@ import java.util.stream.Stream;
 
 @Slf4j
 public class MongodbSinkAggregatedCommitter
-        implements SinkAggregatedCommitter<MongodbCommitInfo, MongodbAggregatedCommitInfo> {
+        implements SinkAggregatedCommitter<MongodbCommitInfo, MongodbAggregatedCommitInfo>,
+                SupportMultiTableSinkAggregatedCommitter {
 
     private static final long waitingTime = 5_000L;
 
@@ -60,14 +63,21 @@ public class MongodbSinkAggregatedCommitter
 
     private MongoClient client;
 
-    public MongodbSinkAggregatedCommitter(MongodbWriterOptions options) {
+    public MongodbSinkAggregatedCommitter(CatalogTable catalogTable, MongodbWriterOptions options) {
         this.enableUpsert = options.isUpsertEnable();
-        this.upsertKeys = options.getPrimaryKey();
+        this.upsertKeys =
+                options.getPrimaryKey() != null
+                        ? options.getPrimaryKey()
+                        : catalogTable
+                                .getTableSchema()
+                                .getPrimaryKey()
+                                .getColumnNames()
+                                .toArray(new String[0]);
         this.collectionProvider =
                 MongodbCollectionProvider.builder()
                         .connectionString(options.getConnectString())
-                        .database(options.getDatabase())
-                        .collection(options.getCollection())
+                        .database(catalogTable.getTableId().getDatabaseName())
+                        .collection(catalogTable.getTableId().getTableName())
                         .build();
     }
 

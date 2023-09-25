@@ -35,4 +35,9 @@ public class KingBaseDialectFactory implements JdbcDialectFactory {
     public JdbcDialect create() {
         return new KingBaseDialect();
     }
+
+    @Override
+    public JdbcDialect create(String compatibleMode, String fieldIde) {
+        return new KingBaseDialect();
+    }
 }

@@ -22,6 +22,7 @@ import org.apache.seatunnel.shade.com.typesafe.config.ConfigValueFactory;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.redshift.sink.S3RedshiftChangelogMode;
@@ -46,13 +47,15 @@ public class S3RedshiftConf implements Serializable {
     private final String jdbcUser;
     private final String jdbcPassword;
     private final String executeSql;
-    private final String schema;
+    @Setter private String database;
+    @Setter private String schema;
 
     private final String s3Bucket;
     private final String accessKey;
     private final String secretKey;
 
-    private final DataSaveMode saveMode;
+    private final SchemaSaveMode schemaSaveMode;
+    private final DataSaveMode dataSaveMode;
     private final S3RedshiftChangelogMode changelogMode;
     private final int changelogBufferFlushSize;
     private final int changelogBufferFlushInterval;
@@ -89,13 +92,15 @@ public class S3RedshiftConf implements Serializable {
         builder.jdbcUrl(readonlyConfig.get(S3RedshiftConfig.JDBC_URL));
         builder.jdbcUser(readonlyConfig.get(S3RedshiftConfig.JDBC_USER));
         builder.jdbcPassword(readonlyConfig.get(S3RedshiftConfig.JDBC_PASSWORD));
+        builder.database(readonlyConfig.get(S3RedshiftConfig.DATABASE));
         builder.schema(readonlyConfig.get(S3RedshiftConfig.SCHEMA_NAME));
 
         builder.s3Bucket(readonlyConfig.get(S3RedshiftConfig.S3_BUCKET));
         builder.accessKey(readonlyConfig.get(S3RedshiftConfig.S3_ACCESS_KEY));
         builder.secretKey(readonlyConfig.get(S3RedshiftConfig.S3_SECRET_KEY));
 
-        builder.saveMode(readonlyConfig.get(S3RedshiftConfig.SAVE_MODE));
+        builder.schemaSaveMode(readonlyConfig.get(S3RedshiftConfig.SCHEMA_SAVE_MODE));
+        builder.dataSaveMode(readonlyConfig.get(S3RedshiftConfig.DATA_SAVE_MODE));
         builder.changelogMode(readonlyConfig.get(S3RedshiftConfig.CHANGELOG_MODE));
         builder.redshiftTable(readonlyConfig.get(S3RedshiftConfig.REDSHIFT_TABLE));
         builder.redshiftTablePrimaryKeys(

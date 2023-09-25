@@ -19,11 +19,13 @@ package org.apache.seatunnel.connectors.seatunnel.starrocks.sink;
 
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
-import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
+import org.apache.seatunnel.api.table.factory.TableSinkFactoryContext;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksOptions;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions;
@@ -31,6 +33,12 @@ import org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkO
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.auto.service.AutoService;
+
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_DATABASE_NAME_KEY;
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_SCHEMA_NAME_KEY;
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_TABLE_NAME_KEY;
+import static org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions.DATA_SAVE_MODE;
+import static org.apache.seatunnel.connectors.seatunnel.starrocks.config.StarRocksSinkOptions.SCHEMA_SAVE_MODE;
 
 @AutoService(Factory.class)
 public class StarRocksSinkFactory implements TableSinkFactory {
@@ -45,7 +53,8 @@ public class StarRocksSinkFactory implements TableSinkFactory {
                 .required(StarRocksOptions.USERNAME, StarRocksOptions.PASSWORD)
                 .required(StarRocksSinkOptions.DATABASE, StarRocksOptions.BASE_URL)
                 .required(StarRocksSinkOptions.NODE_URLS)
-                .required(StarRocksSinkOptions.SAVE_MODE)
+                .required(SCHEMA_SAVE_MODE)
+                .required(DATA_SAVE_MODE)
                 .optional(
                         StarRocksSinkOptions.TABLE,
                         StarRocksSinkOptions.LABEL_PREFIX,
@@ -59,19 +68,80 @@ public class StarRocksSinkFactory implements TableSinkFactory {
                         StarRocksSinkOptions.ENABLE_UPSERT_DELETE,
                         StarRocksSinkOptions.SAVE_MODE_CREATE_TEMPLATE)
                 .conditional(
-                        StarRocksSinkOptions.SAVE_MODE,
+                        DATA_SAVE_MODE,
                         DataSaveMode.CUSTOM_PROCESSING,
                         StarRocksSinkOptions.CUSTOM_SQL)
                 .build();
     }
 
     @Override
-    public TableSink createSink(TableFactoryContext context) {
+    public TableSink createSink(TableSinkFactoryContext context) {
         SinkConfig sinkConfig = SinkConfig.of(context.getOptions());
         CatalogTable catalogTable = context.getCatalogTable();
         if (StringUtils.isBlank(sinkConfig.getTable())) {
             sinkConfig.setTable(catalogTable.getTableId().getTableName());
         }
-        return () -> new StarRocksSink(sinkConfig, catalogTable, context.getOptions());
+        // get source table relevant information
+        TableIdentifier tableId = catalogTable.getTableId();
+        String sourceDatabaseName = tableId.getDatabaseName();
+        String sourceSchemaName = tableId.getSchemaName();
+        String sourceTableName = tableId.getTableName();
+        // get sink table relevant information
+        String sinkDatabaseName = sinkConfig.getDatabase();
+        String sinkTableNameBefore = sinkConfig.getTable();
+        if (StringUtils.isEmpty(sinkTableNameBefore)) {
+            sinkTableNameBefore = REPLACE_TABLE_NAME_KEY;
+        }
+        String[] sinkTableSplitArray = sinkTableNameBefore.split("\\.");
+        String sinkTableName = sinkTableSplitArray[sinkTableSplitArray.length - 1];
+        String sinkSchemaName;
+        if (sinkTableSplitArray.length > 1) {
+            sinkSchemaName = sinkTableSplitArray[sinkTableSplitArray.length - 2];
+        } else {
+            sinkSchemaName = null;
+        }
+        // to replace
+        String finalDatabaseName =
+                sinkDatabaseName.replace(REPLACE_DATABASE_NAME_KEY, sourceDatabaseName);
+        String finalSchemaName;
+        if (sinkSchemaName != null) {
+            if (sourceSchemaName == null) {
+                finalSchemaName = sinkSchemaName;
+            } else {
+                finalSchemaName = sinkSchemaName.replace(REPLACE_SCHEMA_NAME_KEY, sourceSchemaName);
+            }
+        } else {
+            finalSchemaName = null;
+        }
+        String finalTableName = sinkTableName.replace(REPLACE_TABLE_NAME_KEY, sourceTableName);
+        // rebuild TableIdentifier and catalogTable
+        TableIdentifier newTableId =
+                TableIdentifier.of(
+                        tableId.getCatalogName(),
+                        finalDatabaseName,
+                        finalSchemaName,
+                        finalTableName);
+        catalogTable =
+                CatalogTable.of(
+                        newTableId,
+                        catalogTable.getTableSchema(),
+                        catalogTable.getOptions(),
+                        catalogTable.getPartitionKeys(),
+                        catalogTable.getCatalogName());
+
+        CatalogTable finalCatalogTable = catalogTable;
+        // reset
+        sinkConfig.setTable(finalTableName);
+        sinkConfig.setDatabase(finalDatabaseName);
+        // get saveMode
+        DataSaveMode dataSaveMode = sinkConfig.getDataSaveMode();
+        SchemaSaveMode schemaSaveMode = sinkConfig.getSchemaSaveMode();
+        return () ->
+                new StarRocksSink(
+                        sinkConfig,
+                        finalCatalogTable,
+                        context.getOptions(),
+                        schemaSaveMode,
+                        dataSaveMode);
     }
 }

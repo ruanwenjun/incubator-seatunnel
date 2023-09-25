@@ -19,9 +19,17 @@ package org.apache.seatunnel.connectors.seatunnel.kafka.config;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.seatunnel.api.sink.DataSaveMode.KEEP_SCHEMA_AND_DATA;
+import static org.apache.seatunnel.api.sink.SchemaSaveMode.CREATE_SCHEMA_WHEN_NOT_EXIST;
+import static org.apache.seatunnel.api.sink.SchemaSaveMode.ERROR_WHEN_SCHEMA_NOT_EXIST;
 
 public class Config {
 
@@ -170,4 +178,34 @@ public class Config {
                     .defaultValue(KafkaSemantics.NON)
                     .withDescription(
                             "Semantics that can be chosen EXACTLY_ONCE/AT_LEAST_ONCE/NON, default NON.");
+
+    public static final Option<SchemaSaveMode> SCHEMA_SAVE_MODE =
+            Options.key("schema_save_mode")
+                    .singleChoice(
+                            SchemaSaveMode.class,
+                            Arrays.asList(
+                                    CREATE_SCHEMA_WHEN_NOT_EXIST, ERROR_WHEN_SCHEMA_NOT_EXIST))
+                    .defaultValue(CREATE_SCHEMA_WHEN_NOT_EXIST)
+                    .withDescription("schema_save_mode");
+
+    public static final Option<DataSaveMode> DATA_SAVE_MODE =
+            Options.key("data_save_mode")
+                    .singleChoice(
+                            DataSaveMode.class, Collections.singletonList(KEEP_SCHEMA_AND_DATA))
+                    .defaultValue(KEEP_SCHEMA_AND_DATA)
+                    .withDescription("data_save_mode");
+
+    public static final Option<Integer> TOPIC_PARTITIONS_NUM =
+            Options.key("topic_partitions_num")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "The number of partitions you need to specify when creating the topic");
+
+    public static final Option<Integer> TOPIC_REPLICATION_NUM =
+            Options.key("topic_replication_num")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            "The number of copies you need to specify when creating a topic");
 }

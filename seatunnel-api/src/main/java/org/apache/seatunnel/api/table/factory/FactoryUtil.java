@@ -27,7 +27,11 @@ import org.apache.seatunnel.api.source.SourceSplit;
 import org.apache.seatunnel.api.source.SupportParallelism;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.connector.TableSource;
+import org.apache.seatunnel.api.table.type.MultipleRowType;
+import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.api.transform.SeaTunnelTransform;
 
 import org.slf4j.Logger;
@@ -56,10 +60,11 @@ public final class FactoryUtil {
 
     private static final Logger LOG = LoggerFactory.getLogger(FactoryUtil.class);
 
+    static final String DEFAULT_ID = "default-identifier";
+
     public static <T, SplitT extends SourceSplit, StateT extends Serializable>
             List<Tuple2<SeaTunnelSource<T, SplitT, StateT>, List<CatalogTable>>>
                     createAndPrepareSource(
-                            List<CatalogTable> multipleTables,
                             ReadonlyConfig options,
                             ClassLoader classLoader,
                             String factoryIdentifier) {
@@ -68,32 +73,32 @@ public final class FactoryUtil {
             final TableSourceFactory factory =
                     discoverFactory(classLoader, TableSourceFactory.class, factoryIdentifier);
             List<Tuple2<SeaTunnelSource<T, SplitT, StateT>, List<CatalogTable>>> sources =
-                    new ArrayList<>(multipleTables.size());
-            if (factory instanceof SupportMultipleTable) {
-                List<CatalogTable> remainingTables = multipleTables;
-                while (!remainingTables.isEmpty()) {
-                    TableFactoryContext context =
-                            new TableFactoryContext(remainingTables, options, classLoader);
-                    SupportMultipleTable.Result result =
-                            ((SupportMultipleTable) factory).applyTables(context);
-                    List<CatalogTable> acceptedTables = result.getAcceptedTables();
-                    sources.add(
-                            new Tuple2<>(
-                                    createAndPrepareSource(
-                                            factory, acceptedTables, options, classLoader),
-                                    acceptedTables));
-                    remainingTables = result.getRemainingTables();
-                }
-            } else {
-                for (CatalogTable catalogTable : multipleTables) {
-                    List<CatalogTable> acceptedTables = Collections.singletonList(catalogTable);
-                    sources.add(
-                            new Tuple2<>(
-                                    createAndPrepareSource(
-                                            factory, acceptedTables, options, classLoader),
-                                    acceptedTables));
+                    new ArrayList<>();
+            SeaTunnelSource<T, SplitT, StateT> source =
+                    createAndPrepareSource(factory, options, classLoader);
+            List<CatalogTable> catalogTables;
+            try {
+                catalogTables = source.getProducedCatalogTables();
+            } catch (UnsupportedOperationException e) {
+                // TODO remove it when all connector use `getProducedCatalogTables`
+                SeaTunnelDataType<T> seaTunnelDataType = source.getProducedType();
+                final String tableId =
+                        options.getOptional(CommonOptions.RESULT_TABLE_NAME).orElse(DEFAULT_ID);
+                if (seaTunnelDataType instanceof MultipleRowType) {
+                    catalogTables = new ArrayList<>();
+                    for (String id : ((MultipleRowType) seaTunnelDataType).getTableIds()) {
+                        catalogTables.add(
+                                CatalogTableUtil.getCatalogTable(
+                                        id, ((MultipleRowType) seaTunnelDataType).getRowType(id)));
+                    }
+                } else {
+                    catalogTables =
+                            Collections.singletonList(
+                                    CatalogTableUtil.getCatalogTable(
+                                            tableId, (SeaTunnelRowType) seaTunnelDataType));
                 }
             }
+            sources.add(new Tuple2<>(source, catalogTables));
             return sources;
         } catch (Throwable t) {
             throw new FactoryException(
@@ -105,20 +110,11 @@ public final class FactoryUtil {
 
     private static <T, SplitT extends SourceSplit, StateT extends Serializable>
             SeaTunnelSource<T, SplitT, StateT> createAndPrepareSource(
-                    TableSourceFactory factory,
-                    List<CatalogTable> acceptedTables,
-                    ReadonlyConfig options,
-                    ClassLoader classLoader) {
-        TableFactoryContext context = new TableFactoryContext(acceptedTables, options, classLoader);
+                    TableSourceFactory factory, ReadonlyConfig options, ClassLoader classLoader) {
+        TableSourceFactoryContext context = new TableSourceFactoryContext(options, classLoader);
         ConfigValidator.of(context.getOptions()).validate(factory.optionRule());
         TableSource<T, SplitT, StateT> tableSource = factory.createSource(context);
-        validateAndApplyMetadata(acceptedTables, tableSource);
         return tableSource.createSource();
-    }
-
-    private static void validateAndApplyMetadata(
-            List<CatalogTable> catalogTables, TableSource<?, ?, ?> tableSource) {
-        // TODO: handle reading metadata
     }
 
     public static <IN, StateT, CommitInfoT, AggregatedCommitInfoT>
@@ -130,9 +126,8 @@ public final class FactoryUtil {
         try {
             TableSinkFactory<IN, StateT, CommitInfoT, AggregatedCommitInfoT> factory =
                     discoverFactory(classLoader, TableSinkFactory.class, factoryIdentifier);
-            TableFactoryContext context =
-                    new TableFactoryContext(
-                            Collections.singletonList(catalogTable), options, classLoader);
+            TableSinkFactoryContext context =
+                    new TableSinkFactoryContext(catalogTable, options, classLoader);
             ConfigValidator.of(context.getOptions()).validate(factory.optionRule());
             return factory.createSink(context).createSink();
         } catch (Throwable t) {
@@ -312,8 +307,8 @@ public final class FactoryUtil {
             String factoryIdentifier) {
         final TableTransformFactory factory =
                 discoverFactory(classLoader, TableTransformFactory.class, factoryIdentifier);
-        TableFactoryContext context =
-                new TableFactoryContext(
+        TableTransformFactoryContext context =
+                new TableTransformFactoryContext(
                         Collections.singletonList(catalogTable), options, classLoader);
         ConfigValidator.of(context.getOptions()).validate(factory.optionRule());
         return factory.createTransform(context).createTransform();

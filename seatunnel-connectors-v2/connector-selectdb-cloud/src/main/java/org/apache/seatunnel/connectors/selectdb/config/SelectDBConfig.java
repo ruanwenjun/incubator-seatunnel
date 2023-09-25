@@ -21,6 +21,7 @@ import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -55,8 +56,8 @@ public class SelectDBConfig implements Serializable {
                     .noDefaultValue()
                     .withDescription("SelectDB cluster name.");
 
-    public static final Option<String> TABLE_IDENTIFIER =
-            Options.key("table.identifier")
+    public static final Option<String> TABLE =
+            Options.key("table")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("the jdbc table name.");
@@ -104,11 +105,18 @@ public class SelectDBConfig implements Serializable {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription("whether to enable the delete function");
-    public static final Option<DataSaveMode> SAVE_MODE =
-            Options.key("save_mode")
+
+    public static final Option<SchemaSaveMode> SCHEMA_SAVE_MODE =
+            Options.key("schema_save_mode")
+                    .enumType(SchemaSaveMode.class)
+                    .defaultValue(SchemaSaveMode.CREATE_SCHEMA_WHEN_NOT_EXIST)
+                    .withDescription("schema_save_mode");
+
+    public static final Option<DataSaveMode> DATA_SAVE_MODE =
+            Options.key("data_save_mode")
                     .enumType(DataSaveMode.class)
                     .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
-                    .withDescription("save_mode");
+                    .withDescription("data_save_mode");
 
     public static final Option<String> CUSTOM_SQL =
             Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
@@ -150,7 +158,7 @@ public class SelectDBConfig implements Serializable {
     private String clusterName;
     private String username;
     private String password;
-    private String tableIdentifier;
+    private String table;
     private String database;
     private Boolean enableDelete;
     private String labelPrefix;
@@ -159,7 +167,8 @@ public class SelectDBConfig implements Serializable {
     private Integer bufferCount;
     private Integer flushQueueSize;
     private Properties StageLoadProps;
-    private DataSaveMode saveMode;
+    private DataSaveMode dataSaveMode;
+    private SchemaSaveMode schemaSaveMode;
     private String customSql;
     private String saveModeCreateTemplate;
 
@@ -171,7 +180,7 @@ public class SelectDBConfig implements Serializable {
         selectdbConfig.setUsername(pluginConfig.get(USERNAME));
         selectdbConfig.setCustomSql(pluginConfig.get(CUSTOM_SQL));
         selectdbConfig.setPassword(pluginConfig.get(PASSWORD));
-        selectdbConfig.setTableIdentifier(pluginConfig.get(TABLE_IDENTIFIER));
+        selectdbConfig.setTable(pluginConfig.get(TABLE));
         selectdbConfig.setDatabase(pluginConfig.get(DATABASE));
         selectdbConfig.setStageLoadProps(parseCopyIntoProperties(pluginConfig));
         selectdbConfig.setLabelPrefix(pluginConfig.get(SINK_LABEL_PREFIX));
@@ -180,7 +189,8 @@ public class SelectDBConfig implements Serializable {
         selectdbConfig.setBufferCount(pluginConfig.get(SINK_BUFFER_COUNT));
         selectdbConfig.setEnableDelete(pluginConfig.get(SINK_ENABLE_DELETE));
         selectdbConfig.setFlushQueueSize(pluginConfig.get(SINK_FLUSH_QUEUE_SIZE));
-        selectdbConfig.setSaveMode(pluginConfig.get(SAVE_MODE));
+        selectdbConfig.setSchemaSaveMode(pluginConfig.get(SCHEMA_SAVE_MODE));
+        selectdbConfig.setDataSaveMode(pluginConfig.get(DATA_SAVE_MODE));
         selectdbConfig.setSaveModeCreateTemplate(pluginConfig.get(SAVE_MODE_CREATE_TEMPLATE));
         return selectdbConfig;
     }

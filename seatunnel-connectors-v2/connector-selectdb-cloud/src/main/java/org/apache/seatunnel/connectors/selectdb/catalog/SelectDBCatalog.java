@@ -240,7 +240,8 @@ public class SelectDBCatalog implements Catalog {
         }
     }
 
-    public boolean isExistsData(String tableName) {
+    public boolean isExistsData(TablePath tablePath) {
+        String tableName = tablePath.getFullName();
         String sql = String.format("select * from %s limit 1;", tableName);
         try (Connection connection = DriverManager.getConnection(defaultUrl, username, pwd);
                 PreparedStatement ps = connection.prepareStatement(sql);

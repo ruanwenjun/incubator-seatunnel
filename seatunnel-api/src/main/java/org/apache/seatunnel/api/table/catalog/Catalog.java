@@ -212,6 +212,12 @@ public interface Catalog extends AutoCloseable {
     default void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
             throws TableNotExistException, CatalogException {}
 
+    default boolean isExistsData(TablePath tablePath) {
+        return false;
+    }
+
+    default void executeSql(String sql) {}
+
     // todo: Support for update table metadata
 
 }

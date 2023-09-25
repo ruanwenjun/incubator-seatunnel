@@ -29,15 +29,25 @@ import org.apache.seatunnel.api.table.catalog.exception.DatabaseAlreadyExistExce
 import org.apache.seatunnel.api.table.catalog.exception.DatabaseNotExistException;
 import org.apache.seatunnel.api.table.catalog.exception.TableAlreadyExistException;
 import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
+import org.apache.seatunnel.connectors.seatunnel.kafka.config.Config;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.ListTopicsResult;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.TopicListing;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -47,6 +57,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * <p>In kafka the database and table both are the topic name.
  */
+@Slf4j
 public class KafkaCatalog implements Catalog {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaCatalog.class);
@@ -90,24 +101,27 @@ public class KafkaCatalog implements Catalog {
         throw new UnsupportedOperationException();
     }
 
+    @SneakyThrows
     @Override
     public List<String> listTables(String databaseName)
             throws CatalogException, DatabaseNotExistException {
-        throw new UnsupportedOperationException();
+        ListTopicsResult listTopicsResult = adminClient.listTopics();
+        Map<String, TopicListing> topicListingMap = listTopicsResult.namesToListings().get();
+        return new ArrayList<>(topicListingMap.keySet());
     }
 
     @Override
     public boolean tableExists(TablePath tablePath) throws CatalogException {
-        throw new UnsupportedOperationException();
+        String topic = options.get(Config.TOPIC);
+        final boolean aDefault = listTables("default").contains(topic);
+        log.info("kafka tableExists topic {} : {}", topic, aDefault);
+        return aDefault;
     }
 
     @Override
     public CatalogTable getTable(TablePath tablePath)
             throws CatalogException, TableNotExistException {
-        TableSchema tableSchema =
-                CatalogTableUtil.buildWithReadonlyConfig(options)
-                        .getCatalogTable()
-                        .getTableSchema();
+        TableSchema tableSchema = CatalogTableUtil.buildWithConfig(options).getTableSchema();
         return CatalogTable.of(
                 TableIdentifier.of(catalogName, "default", "default"),
                 tableSchema,
@@ -116,17 +130,25 @@ public class KafkaCatalog implements Catalog {
                 "");
     }
 
+    @SneakyThrows
     @Override
     public void createTable(TablePath tablePath, CatalogTable table, boolean ignoreIfExists)
             throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
-        throw new UnsupportedOperationException();
+        NewTopic newTopic =
+                new NewTopic(
+                        options.get(Config.TOPIC),
+                        options.get(Config.TOPIC_PARTITIONS_NUM),
+                        Short.parseShort(options.get(Config.TOPIC_REPLICATION_NUM).toString()));
+        CreateTopicsResult topicsResult =
+                adminClient.createTopics(Collections.singletonList(newTopic));
+        topicsResult.all().get();
+        log.info("kafka create topic {} success", options.get(Config.TOPIC));
     }
 
+    @SneakyThrows
     @Override
     public void dropTable(TablePath tablePath, boolean ignoreIfNotExists)
-            throws TableNotExistException, CatalogException {
-        throw new UnsupportedOperationException();
-    }
+            throws TableNotExistException, CatalogException {}
 
     @Override
     public void createDatabase(TablePath tablePath, boolean ignoreIfExists)
@@ -139,4 +161,13 @@ public class KafkaCatalog implements Catalog {
             throws DatabaseNotExistException, CatalogException {
         throw new UnsupportedOperationException();
     }
+
+    public void truncateTable(TablePath tablePath, boolean ignoreIfNotExists)
+            throws TableNotExistException, CatalogException {}
+
+    public boolean isExistsData(TablePath tablePath) {
+        return false;
+    }
+
+    public void executeSql(String sql) {}
 }

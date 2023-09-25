@@ -18,88 +18,75 @@
 package org.apache.seatunnel.connectors.seatunnel.redshift.sink;
 
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.DefaultSaveModeHandler;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
+import org.apache.seatunnel.api.table.catalog.Catalog;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.connectors.seatunnel.redshift.RedshiftJdbcClient;
 import org.apache.seatunnel.connectors.seatunnel.redshift.config.S3RedshiftConf;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.sql.SQLException;
-
 @Slf4j
-public class S3RedshiftSaveModeHandler implements AutoCloseable {
+public class S3RedshiftSaveModeHandler extends DefaultSaveModeHandler {
     private final S3RedshiftSQLGenerator sqlGenerator;
     private final S3RedshiftConf conf;
     private final RedshiftJdbcClient redshiftJdbcClient;
 
-    public S3RedshiftSaveModeHandler(S3RedshiftSQLGenerator sqlGenerator, S3RedshiftConf conf) {
+    public S3RedshiftSaveModeHandler(
+            SchemaSaveMode schemaSaveMode,
+            DataSaveMode dataSaveMode,
+            Catalog catalog,
+            CatalogTable catalogTable,
+            String customSql,
+            S3RedshiftSQLGenerator sqlGenerator,
+            S3RedshiftConf conf) {
+        super(schemaSaveMode, dataSaveMode, catalog, catalogTable, customSql);
         this.sqlGenerator = sqlGenerator;
         this.conf = conf;
         this.redshiftJdbcClient = RedshiftJdbcClient.newSingleConnection(conf);
     }
 
-    public void handle(DataSaveMode saveMode) throws SQLException {
+    @SneakyThrows
+    @Override
+    public boolean tableExists() {
+        return redshiftJdbcClient.existDataForSql(sqlGenerator.getIsExistTableSql());
+    }
+
+    @SneakyThrows
+    @Override
+    public void dropTable() {
+        redshiftJdbcClient.execute(sqlGenerator.getDropTableSql());
+        redshiftJdbcClient.execute(sqlGenerator.getDropTemporaryTableSql());
+    }
+
+    @SneakyThrows
+    @Override
+    public void createTable() {
         if (conf.notAppendOnlyMode()) {
             redshiftJdbcClient.execute(sqlGenerator.getDropTemporaryTableSql());
-            log.info("Drop temporary table: {}", sqlGenerator.getDropTemporaryTableSql());
             redshiftJdbcClient.execute(sqlGenerator.getCreateTemporaryTableSQL());
-            log.info("Create temporary table: {}", sqlGenerator.getCreateTemporaryTableSQL());
         }
-
-        switch (saveMode) {
-            case DROP_SCHEMA:
-                dropSchema();
-                break;
-            case KEEP_SCHEMA_DROP_DATA:
-                keepSchemaDropData();
-                break;
-            case KEEP_SCHEMA_AND_DATA:
-                keepSchemaAndData();
-                break;
-            case CUSTOM_PROCESSING:
-                customProcessing();
-                break;
-            case ERROR_WHEN_EXISTS:
-                errorWhenExists();
-                break;
-            default:
-                throw new UnsupportedOperationException("Unsupported save mode: " + saveMode);
-        }
-    }
-
-    private void dropSchema() throws SQLException {
-        redshiftJdbcClient.execute(sqlGenerator.getDropTableSql());
-        log.info("Drop table: {}", sqlGenerator.getDropTableSql());
         redshiftJdbcClient.execute(sqlGenerator.getCreateTableSQL());
-        log.info("Create table: {}", sqlGenerator.getCreateTableSQL());
     }
 
-    private void keepSchemaDropData() throws SQLException {
-        if (redshiftJdbcClient.existDataForSql(sqlGenerator.getIsExistTableSql())) {
-            redshiftJdbcClient.execute(sqlGenerator.getCleanTableSql());
-            log.info("Clean table: {}", sqlGenerator.getCleanTableSql());
-        }
+    @SneakyThrows
+    @Override
+    public void truncateTable() {
+        redshiftJdbcClient.execute(sqlGenerator.getCleanTableSql());
     }
 
-    private void keepSchemaAndData() throws SQLException {
-        redshiftJdbcClient.execute(sqlGenerator.getCreateTableSQL());
-        log.info("Create table: {}", sqlGenerator.getCreateTableSQL());
+    @SneakyThrows
+    @Override
+    public boolean dataExists() {
+        return redshiftJdbcClient.existDataForSql(sqlGenerator.getIsExistDataSql());
     }
 
-    private void customProcessing() throws SQLException {
+    @SneakyThrows
+    @Override
+    public void executeCustomSql() {
         redshiftJdbcClient.execute(conf.getCustomSql());
-        log.info("Execute custom sql: {}", conf.getCustomSql());
-        redshiftJdbcClient.execute(sqlGenerator.getCreateTableSQL());
-        log.info("Create table: {}", sqlGenerator.getCreateTableSQL());
-    }
-
-    private void errorWhenExists() throws SQLException {
-        if (redshiftJdbcClient.executeQueryCount(sqlGenerator.getIsExistTableSql()) > 0) {
-            if (redshiftJdbcClient.existDataForSql(sqlGenerator.getIsExistDataSql())) {
-                throw new IllegalStateException("The target data source already has data");
-            }
-        }
-        redshiftJdbcClient.execute(sqlGenerator.getCreateTableSQL());
-        log.info("Create table: {}", sqlGenerator.getCreateTableSQL());
     }
 
     @Override

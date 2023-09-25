@@ -37,6 +37,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.exception.CommonErrorCode;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.exception.StarRocksConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.starrocks.sink.StarRocksSaveModeUtil;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -70,6 +71,7 @@ public class StarRocksCatalog implements Catalog {
     protected final String pwd;
     protected final String baseUrl;
     protected String defaultUrl;
+    private final String template;
     private final JdbcUrlUtil.UrlInfo urlInfo;
 
     private static final Set<String> SYS_DATABASES = new HashSet<>();
@@ -80,7 +82,8 @@ public class StarRocksCatalog implements Catalog {
         SYS_DATABASES.add("_statistics_");
     }
 
-    public StarRocksCatalog(String catalogName, String username, String pwd, String defaultUrl) {
+    public StarRocksCatalog(
+            String catalogName, String username, String pwd, String defaultUrl, String template) {
 
         checkArgument(StringUtils.isNotBlank(username));
         checkArgument(StringUtils.isNotBlank(pwd));
@@ -94,6 +97,7 @@ public class StarRocksCatalog implements Catalog {
         this.catalogName = catalogName;
         this.username = username;
         this.pwd = pwd;
+        this.template = template;
     }
 
     @Override
@@ -199,7 +203,14 @@ public class StarRocksCatalog implements Catalog {
 
     @Override
     public void createTable(TablePath tablePath, CatalogTable table, boolean ignoreIfExists)
-            throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {}
+            throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
+        this.createTable(
+                StarRocksSaveModeUtil.fillingCreateSql(
+                        template,
+                        table.getTableId().getDatabaseName(),
+                        table.getTableId().getTableName(),
+                        table.getTableSchema()));
+    }
 
     @Override
     public void dropTable(TablePath tablePath, boolean ignoreIfNotExists)
@@ -240,9 +251,9 @@ public class StarRocksCatalog implements Catalog {
         }
     }
 
-    public boolean isExistsData(String tableName) {
+    public boolean isExistsData(TablePath tablePath) {
         try (Connection connection = DriverManager.getConnection(defaultUrl, username, pwd)) {
-            String sql = String.format("select * from %s limit 1", tableName);
+            String sql = String.format("select * from %s limit 1", tablePath.getTableName());
             PreparedStatement ps = connection.prepareStatement(sql);
             ResultSet resultSet = ps.executeQuery();
             if (resultSet == null) {
@@ -251,7 +262,7 @@ public class StarRocksCatalog implements Catalog {
             return resultSet.next();
         } catch (SQLException e) {
             throw new CatalogException(
-                    String.format("Failed Connection JDBC error %s", tableName), e);
+                    String.format("Failed Connection JDBC error %s", tablePath.getTableName()), e);
         }
     }
 

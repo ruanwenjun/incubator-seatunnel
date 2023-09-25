@@ -21,26 +21,31 @@ import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
-import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
-import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
+import org.apache.seatunnel.api.table.factory.TableSinkFactoryContext;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.selectdb.sink.committer.SelectDBCommitInfo;
 import org.apache.seatunnel.connectors.selectdb.sink.writer.SelectDBSinkState;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.google.auto.service.AutoService;
 
 import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_REPLICA;
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_DATABASE_NAME_KEY;
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_SCHEMA_NAME_KEY;
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_TABLE_NAME_KEY;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.BASE_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CLUSTER_NAME;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CUSTOM_SQL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.DATABASE;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.DATA_SAVE_MODE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.LOAD_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.PASSWORD;
-import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SAVE_MODE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SAVE_MODE_CREATE_TEMPLATE;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SCHEMA_SAVE_MODE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SELECTDB_SINK_CONFIG_PREFIX;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SINK_BUFFER_COUNT;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SINK_BUFFER_SIZE;
@@ -48,7 +53,7 @@ import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SIN
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SINK_FLUSH_QUEUE_SIZE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SINK_LABEL_PREFIX;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SINK_MAX_RETRIES;
-import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.TABLE_IDENTIFIER;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.TABLE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.USERNAME;
 
 @AutoService(Factory.class)
@@ -66,14 +71,15 @@ public class SelectDBSinkFactory
                 .required(BASE_URL, LOAD_URL, CLUSTER_NAME, USERNAME, PASSWORD)
                 .optional(
                         DATABASE,
-                        TABLE_IDENTIFIER,
+                        TABLE,
                         SINK_MAX_RETRIES,
                         SINK_LABEL_PREFIX,
                         SINK_BUFFER_SIZE,
                         SINK_BUFFER_COUNT,
                         SINK_ENABLE_DELETE,
                         SINK_FLUSH_QUEUE_SIZE,
-                        SAVE_MODE,
+                        DATA_SAVE_MODE,
+                        SCHEMA_SAVE_MODE,
                         CUSTOM_SQL,
                         SAVE_MODE_CREATE_TEMPLATE,
                         SELECTDB_SINK_CONFIG_PREFIX,
@@ -83,23 +89,45 @@ public class SelectDBSinkFactory
 
     @Override
     public TableSink<SeaTunnelRow, SelectDBSinkState, SelectDBCommitInfo, SelectDBCommitInfo>
-            createSink(TableFactoryContext context) {
-        CatalogTable catalogTable = context.getCatalogTables().get(0);
+            createSink(TableSinkFactoryContext context) {
+        CatalogTable catalogTable = context.getCatalogTable();
         ReadonlyConfig options = context.getOptions();
-        String databaseName = catalogTable.getTableId().getDatabaseName();
-        String tableName = catalogTable.getTableId().getTableName();
-        if (options.getOptional(DATABASE).isPresent()) {
-            databaseName = options.get(DATABASE);
-        }
-        if (options.getOptional(TABLE_IDENTIFIER).isPresent()) {
-            TablePath tablePath = TablePath.of(options.getOptional(TABLE_IDENTIFIER).get());
-            databaseName = tablePath.getDatabaseName();
-            tableName = tablePath.getTableName();
-        }
-        TableIdentifier newTableId =
-                TableIdentifier.of(
-                        catalogTable.getTableId().getCatalogName(), databaseName, null, tableName);
+        return () -> new SelectDBSink(renameCatalogTable(options, catalogTable), options);
+    }
 
-        return () -> new SelectDBSink(CatalogTable.of(newTableId, catalogTable), options);
+    private CatalogTable renameCatalogTable(ReadonlyConfig options, CatalogTable catalogTable) {
+
+        TableIdentifier tableId = catalogTable.getTableId();
+        String tableName;
+        String namespace;
+        if (StringUtils.isNotEmpty(options.get(TABLE))) {
+            tableName = replaceName(options.get(TABLE), tableId);
+        } else {
+            tableName = tableId.getTableName();
+        }
+
+        if (StringUtils.isNotEmpty(options.get(DATABASE))) {
+            namespace = replaceName(options.get(DATABASE), tableId);
+        } else {
+            namespace = tableId.getSchemaName();
+        }
+
+        TableIdentifier newTableId =
+                TableIdentifier.of(tableId.getCatalogName(), namespace, null, tableName);
+
+        return CatalogTable.of(newTableId, catalogTable);
+    }
+
+    private String replaceName(String original, TableIdentifier tableId) {
+        if (tableId.getTableName() != null) {
+            original = original.replace(REPLACE_TABLE_NAME_KEY, tableId.getTableName());
+        }
+        if (tableId.getSchemaName() != null) {
+            original = original.replace(REPLACE_SCHEMA_NAME_KEY, tableId.getSchemaName());
+        }
+        if (tableId.getDatabaseName() != null) {
+            original = original.replace(REPLACE_DATABASE_NAME_KEY, tableId.getDatabaseName());
+        }
+        return original;
     }
 }

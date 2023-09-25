@@ -18,7 +18,6 @@
 package org.apache.seatunnel.connectors.seatunnel.jdbc.config;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
-import org.apache.seatunnel.api.sink.DataSaveMode;
 
 import lombok.Builder;
 import lombok.Data;
@@ -40,8 +39,6 @@ public class JdbcSinkConfig implements Serializable {
     private String simpleSql;
     private String database;
     private String table;
-    private final DataSaveMode saveMode;
-    private final String customSql;
     private List<String> primaryKeys;
     private boolean enableUpsert;
     @Builder.Default private boolean isPrimaryKeyUpdated = true;
@@ -51,8 +48,6 @@ public class JdbcSinkConfig implements Serializable {
         JdbcSinkConfigBuilder builder = JdbcSinkConfig.builder();
         builder.jdbcConnectionConfig(JdbcConnectionConfig.of(config));
         builder.isExactlyOnce(config.get(JdbcOptions.IS_EXACTLY_ONCE));
-        builder.saveMode(config.get(JdbcOptions.SAVE_MODE));
-        builder.customSql(config.get(JdbcOptions.CUSTOM_SQL));
         config.getOptional(JdbcOptions.PRIMARY_KEYS).ifPresent(builder::primaryKeys);
         config.getOptional(JdbcOptions.DATABASE).ifPresent(builder::database);
         config.getOptional(JdbcOptions.TABLE).ifPresent(builder::table);

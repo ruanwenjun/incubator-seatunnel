@@ -36,6 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.auto.service.AutoService;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -103,6 +105,7 @@ public class KingBaseDataTypeConvertor implements DataTypeConvertor<String> {
     private static final String PG_INTERVAL = "INTERVAL";
     private static final String PG_GEOMETRY = "GEOMETRY";
     private static final String PG_GEOGRAPHY = "GEOGRAPHY";
+    private static final String DATETIME = "DATETIME";
 
     @Override
     public SeaTunnelDataType<?> toSeaTunnelType(String connectorDataType) {
@@ -219,6 +222,75 @@ public class KingBaseDataTypeConvertor implements DataTypeConvertor<String> {
                 throw new UnsupportedOperationException(
                         String.format(
                                 "Doesn't support SeaTunnel type '%s''  yet.", seaTunnelDataType));
+        }
+    }
+
+    public static SeaTunnelDataType<?> mapping(ResultSet resultSet) throws SQLException {
+        String pgType = resultSet.getString("TYPE_NAME").toUpperCase();
+
+        switch (pgType) {
+            case PG_BOOLEAN:
+                return BasicType.BOOLEAN_TYPE;
+            case PG_BOOLEAN_ARRAY:
+                return ArrayType.BOOLEAN_ARRAY_TYPE;
+            case PG_BYTEA:
+                return PrimitiveByteArrayType.INSTANCE;
+            case PG_BYTEA_ARRAY:
+                return ArrayType.BYTE_ARRAY_TYPE;
+            case PG_SMALLINT:
+            case PG_SMALLSERIAL:
+                return BasicType.SHORT_TYPE;
+            case PG_INTEGER:
+            case PG_SERIAL:
+                return BasicType.INT_TYPE;
+            case PG_SMALLINT_ARRAY:
+            case PG_INTEGER_ARRAY:
+                return ArrayType.INT_ARRAY_TYPE;
+            case PG_BIGINT:
+            case PG_BIGSERIAL:
+                return BasicType.LONG_TYPE;
+            case PG_BIGINT_ARRAY:
+                return ArrayType.LONG_ARRAY_TYPE;
+            case PG_REAL:
+                return BasicType.FLOAT_TYPE;
+            case PG_REAL_ARRAY:
+                return ArrayType.FLOAT_ARRAY_TYPE;
+            case PG_DOUBLE_PRECISION:
+                return BasicType.DOUBLE_TYPE;
+            case PG_DOUBLE_PRECISION_ARRAY:
+                return ArrayType.DOUBLE_ARRAY_TYPE;
+            case PG_NUMERIC:
+                int precision = resultSet.getInt(PRECISION);
+                int scale = resultSet.getInt(SCALE);
+                if (precision > 0) {
+                    return new DecimalType(precision, scale);
+                }
+                return new DecimalType(DEFAULT_PRECISION, DEFAULT_SCALE);
+            case PG_CHAR:
+            case PG_CHARACTER:
+            case PG_CHARACTER_VARYING:
+            case PG_TEXT:
+                return BasicType.STRING_TYPE;
+            case PG_CHAR_ARRAY:
+            case PG_CHARACTER_ARRAY:
+            case PG_CHARACTER_VARYING_ARRAY:
+            case PG_TEXT_ARRAY:
+                return ArrayType.STRING_ARRAY_TYPE;
+            case PG_TIMESTAMP:
+            case PG_TIMESTAMPTZ:
+            case DATETIME:
+                return LocalTimeType.LOCAL_DATE_TIME_TYPE;
+            case PG_TIME:
+                return LocalTimeType.LOCAL_TIME_TYPE;
+            case PG_DATE:
+                return LocalTimeType.LOCAL_DATE_TYPE;
+            case PG_TIMESTAMP_ARRAY:
+            case PG_NUMERIC_ARRAY:
+            case PG_TIMESTAMPTZ_ARRAY:
+            case PG_TIME_ARRAY:
+            case PG_DATE_ARRAY:
+            default:
+                return BasicType.STRING_TYPE;
         }
     }
 

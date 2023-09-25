@@ -71,9 +71,14 @@ public class MySqlIncrementalSource<T> extends IncrementalSource<T, JdbcSourceCo
         implements SupportParallelism {
     static final String IDENTIFIER = "MySQL-CDC";
 
+    private List<CatalogTable> catalogTables;
+
     public MySqlIncrementalSource(
-            ReadonlyConfig options, SeaTunnelDataType<SeaTunnelRow> dataType) {
+            ReadonlyConfig options,
+            SeaTunnelDataType<SeaTunnelRow> dataType,
+            List<CatalogTable> catalogTables) {
         super(options, dataType);
+        this.catalogTables = catalogTables;
     }
 
     @Override
@@ -149,6 +154,11 @@ public class MySqlIncrementalSource<T> extends IncrementalSource<T, JdbcSourceCo
                                                                 .create(0)
                                                                 .getDbzConnectorConfig())))
                         .build();
+    }
+
+    @Override
+    public List<CatalogTable> getProducedCatalogTables() {
+        return catalogTables;
     }
 
     @Override

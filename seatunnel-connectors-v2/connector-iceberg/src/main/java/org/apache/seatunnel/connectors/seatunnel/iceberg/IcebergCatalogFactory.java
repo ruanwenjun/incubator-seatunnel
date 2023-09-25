@@ -34,13 +34,14 @@ import org.apache.iceberg.hive.HiveCatalog;
 
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import sun.security.krb5.KrbException;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.apache.hadoop.security.authorize.ProxyServers.refresh;
 
 @Slf4j
 public class IcebergCatalogFactory implements Serializable {
@@ -156,10 +157,10 @@ public class IcebergCatalogFactory implements Serializable {
                         "Start Kerberos authentication using principal {} and keytab {}",
                         principal,
                         keytabPath);
-                sun.security.krb5.Config.refresh();
+                refresh();
                 UserGroupInformation.loginUserFromKeytab(principal, keytabPath);
                 log.info("Kerberos authentication successful");
-            } catch (IOException | KrbException e) {
+            } catch (IOException e) {
                 throw new SeaTunnelException("check connectivity failed, " + e.getMessage(), e);
             }
         }

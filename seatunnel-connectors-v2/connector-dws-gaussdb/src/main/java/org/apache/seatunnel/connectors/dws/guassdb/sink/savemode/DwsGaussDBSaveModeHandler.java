@@ -1,18 +1,13 @@
 package org.apache.seatunnel.connectors.dws.guassdb.sink.savemode;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
-import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.connectors.dws.guassdb.catalog.DwsGaussDBCatalog;
-import org.apache.seatunnel.connectors.dws.guassdb.catalog.DwsGaussDBCatalogFactory;
-import org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.sql.DwsGaussSqlGenerator;
 
 import org.apache.commons.lang3.StringUtils;
 
 import lombok.extern.slf4j.Slf4j;
-
-import java.sql.SQLException;
 
 import static org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption.CUSTOM_SQL;
 
@@ -33,44 +28,46 @@ public class DwsGaussDBSaveModeHandler {
         this.dwsGaussSqlGenerator = dwsGaussSqlGenerator;
     }
 
-    public void handleSaveMode(DataSaveMode saveMode) throws SQLException {
-        try (DwsGaussDBCatalog dwsGaussDBCatalog =
-                new DwsGaussDBCatalogFactory()
-                        .createCatalog(catalogTable.getCatalogName(), readonlyConfig)) {
-            // Create the temporary table if not exist
-            if (readonlyConfig.get(DwsGaussDBSinkOption.WRITE_MODE)
-                    == DwsGaussDBSinkOption.WriteMode.USING_TEMPORARY_TABLE) {
-                dwsGaussDBCatalog.executeUpdateSql(dwsGaussSqlGenerator.getDropTemporaryTableSql());
-                log.info(
-                        "Drop temporary table: {} success",
-                        dwsGaussSqlGenerator.getTemporaryTableName());
-                dwsGaussDBCatalog.executeUpdateSql(
-                        dwsGaussSqlGenerator.getCreateTemporaryTableSql());
-                log.info(
-                        "Create temporary table: {} success",
-                        dwsGaussSqlGenerator.getTemporaryTableName());
-            }
-            switch (saveMode) {
-                case DROP_SCHEMA:
-                    dropSchema(dwsGaussDBCatalog);
-                    break;
-                case KEEP_SCHEMA_DROP_DATA:
-                    keepSchemaDropData(dwsGaussDBCatalog);
-                    break;
-                case KEEP_SCHEMA_AND_DATA:
-                    keepSchemaAndData(dwsGaussDBCatalog);
-                    break;
-                case CUSTOM_PROCESSING:
-                    customProcessing(dwsGaussDBCatalog);
-                    break;
-                case ERROR_WHEN_EXISTS:
-                    errorWhenExists(dwsGaussDBCatalog);
-                    break;
-                default:
-                    throw new UnsupportedOperationException("Unsupported save mode: " + saveMode);
-            }
-        }
-    }
+    //    public void handleSaveMode(DataSaveMode saveMode) throws SQLException {
+    //        try (DwsGaussDBCatalog dwsGaussDBCatalog =
+    //                new DwsGaussDBCatalogFactory()
+    //                        .createCatalog(catalogTable.getCatalogName(), readonlyConfig)) {
+    //            // Create the temporary table if not exist
+    //            if (readonlyConfig.get(DwsGaussDBSinkOption.WRITE_MODE)
+    //                    == DwsGaussDBSinkOption.WriteMode.USING_TEMPORARY_TABLE) {
+    //
+    // dwsGaussDBCatalog.executeUpdateSql(dwsGaussSqlGenerator.getDropTemporaryTableSql());
+    //                log.info(
+    //                        "Drop temporary table: {} success",
+    //                        dwsGaussSqlGenerator.getTemporaryTableName());
+    //                dwsGaussDBCatalog.executeUpdateSql(
+    //                        dwsGaussSqlGenerator.getCreateTemporaryTableSql());
+    //                log.info(
+    //                        "Create temporary table: {} success",
+    //                        dwsGaussSqlGenerator.getTemporaryTableName());
+    //            }
+    //            switch (saveMode) {
+    //                case DROP_SCHEMA:
+    //                    dropSchema(dwsGaussDBCatalog);
+    //                    break;
+    //                case KEEP_SCHEMA_DROP_DATA:
+    //                    keepSchemaDropData(dwsGaussDBCatalog);
+    //                    break;
+    //                case KEEP_SCHEMA_AND_DATA:
+    //                    keepSchemaAndData(dwsGaussDBCatalog);
+    //                    break;
+    //                case CUSTOM_PROCESSING:
+    //                    customProcessing(dwsGaussDBCatalog);
+    //                    break;
+    //                case ERROR_WHEN_EXISTS:
+    //                    errorWhenExists(dwsGaussDBCatalog);
+    //                    break;
+    //                default:
+    //                    throw new UnsupportedOperationException("Unsupported save mode: " +
+    // saveMode);
+    //            }
+    //        }
+    //    }
 
     private void dropSchema(DwsGaussDBCatalog dwsGaussDBCatalog) {
         dwsGaussDBCatalog.executeUpdateSql(dwsGaussSqlGenerator.getDropTargetTableSql());

@@ -21,13 +21,18 @@ import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.DataSaveMode;
-import org.apache.seatunnel.connectors.seatunnel.iceberg.data.SupportedFileFormat;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 
 import org.apache.iceberg.FileFormat;
 
 import lombok.Getter;
 
+import java.util.Arrays;
 import java.util.List;
+
+import static org.apache.seatunnel.api.sink.DataSaveMode.ERROR_WHEN_DATA_EXISTS;
+import static org.apache.seatunnel.api.sink.DataSaveMode.KEEP_SCHEMA_AND_DATA;
+import static org.apache.seatunnel.api.sink.DataSaveMode.KEEP_SCHEMA_DROP_DATA;
 
 public class SinkConfig extends CommonConfig {
     private static final long serialVersionUID = 1L;
@@ -41,10 +46,11 @@ public class SinkConfig extends CommonConfig {
     public static final Option<List<String>> PRIMARY_KEYS =
             Options.key("primary_keys").listType().noDefaultValue().withDescription("primary keys");
 
-    public static final Option<SupportedFileFormat> FILE_FORMAT =
+    public static final Option<FileFormat> FILE_FORMAT =
             Options.key("file_format")
-                    .enumType(SupportedFileFormat.class)
-                    .defaultValue(SupportedFileFormat.PARQUET)
+                    .singleChoice(
+                            FileFormat.class, Arrays.asList(FileFormat.PARQUET, FileFormat.ORC))
+                    .defaultValue(FileFormat.PARQUET)
                     .withDescription("file format");
 
     public static final Option<Long> TARGET_FILE_SIZE_BYTES =
@@ -53,57 +59,37 @@ public class SinkConfig extends CommonConfig {
                     .defaultValue(128 * 1024 * 1024L)
                     .withDescription("target file size bytes");
 
-    public static final Option<String> TABLE_PREFIX =
-            Options.key("tablePrefix")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "The table prefix name added when the table is automatically created");
+    public static final Option<SchemaSaveMode> SCHEMA_SAVE_MODE =
+            Options.key("schema_save_mode")
+                    .enumType(SchemaSaveMode.class)
+                    .defaultValue(SchemaSaveMode.CREATE_SCHEMA_WHEN_NOT_EXIST)
+                    .withDescription("schema_save_mode");
 
-    public static final Option<String> TABLE_SUFFIX =
-            Options.key("tableSuffix")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "The table suffix name added when the table is automatically created");
+    public static final Option<DataSaveMode> DATA_SAVE_MODE =
+            Options.key("data_save_mode")
+                    .singleChoice(
+                            DataSaveMode.class,
+                            Arrays.asList(
+                                    KEEP_SCHEMA_DROP_DATA,
+                                    KEEP_SCHEMA_AND_DATA,
+                                    ERROR_WHEN_DATA_EXISTS))
+                    .defaultValue(KEEP_SCHEMA_AND_DATA)
+                    .withDescription("data_save_mode");
 
-    public static final Option<DataSaveMode> SAVE_MODE =
-            Options.key("save_mode")
-                    .enumType(DataSaveMode.class)
-                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
-                    .withDescription("save_mode");
-
-    @Getter private boolean enableUpsert = true;
+    @Getter private boolean enableUpsert;
     @Getter private List<String> primaryKeys;
-    @Getter private FileFormat fileFormat = FileFormat.PARQUET;
-    @Getter private long targetFileSizeBytes = 128 * 1024 * 1024L;
-    @Getter private String tablePrefix = "";
-    @Getter private String tableSuffix = "";
-    @Getter private DataSaveMode saveMode = DataSaveMode.KEEP_SCHEMA_AND_DATA;
+    @Getter private FileFormat fileFormat;
+    @Getter private long targetFileSizeBytes;
+    @Getter private SchemaSaveMode schemaSaveMode;
+    @Getter private DataSaveMode dataSaveMode;
 
     public SinkConfig(ReadonlyConfig pluginConfig) {
         super(pluginConfig);
-        if (pluginConfig.getOptional(ENABLE_UPSERT).isPresent()) {
-            this.enableUpsert = pluginConfig.getOptional(ENABLE_UPSERT).get();
-        }
-        if (pluginConfig.getOptional(PRIMARY_KEYS).isPresent()) {
-            this.primaryKeys = pluginConfig.getOptional(PRIMARY_KEYS).get();
-        }
-        if (pluginConfig.getOptional(FILE_FORMAT).isPresent()) {
-            this.fileFormat =
-                    FileFormat.valueOf(pluginConfig.getOptional(FILE_FORMAT).get().name());
-        }
-        if (pluginConfig.getOptional(TARGET_FILE_SIZE_BYTES).isPresent()) {
-            this.targetFileSizeBytes = pluginConfig.getOptional(TARGET_FILE_SIZE_BYTES).get();
-        }
-        if (pluginConfig.getOptional(TABLE_PREFIX).isPresent()) {
-            this.tablePrefix = pluginConfig.getOptional(TABLE_PREFIX).get();
-        }
-        if (pluginConfig.getOptional(TABLE_SUFFIX).isPresent()) {
-            this.tableSuffix = pluginConfig.getOptional(TABLE_SUFFIX).get();
-        }
-        if (pluginConfig.getOptional(SAVE_MODE).isPresent()) {
-            this.saveMode = pluginConfig.getOptional(SAVE_MODE).get();
-        }
+        this.enableUpsert = pluginConfig.get(ENABLE_UPSERT);
+        this.primaryKeys = pluginConfig.get(PRIMARY_KEYS);
+        this.fileFormat = pluginConfig.get(FILE_FORMAT);
+        this.targetFileSizeBytes = pluginConfig.get(TARGET_FILE_SIZE_BYTES);
+        this.schemaSaveMode = pluginConfig.get(SCHEMA_SAVE_MODE);
+        this.dataSaveMode = pluginConfig.get(DATA_SAVE_MODE);
     }
 }

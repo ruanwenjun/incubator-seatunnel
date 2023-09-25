@@ -332,9 +332,9 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
     @Override
     protected boolean createTableInternal(TablePath tablePath, CatalogTable table)
             throws CatalogException {
-        String createTableSql =
-                new PostgresCreateTableSqlBuilder(table)
-                        .build(tablePath, table.getOptions().get("fieldIde"));
+        PostgresCreateTableSqlBuilder postgresCreateTableSqlBuilder =
+                new PostgresCreateTableSqlBuilder(table);
+        String createTableSql = postgresCreateTableSqlBuilder.build(tablePath);
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
         Connection conn = getConnection(dbUrl);
         log.info("create table sql: {}", createTableSql);
@@ -344,6 +344,20 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
             throw new CatalogException(
                     String.format("Failed creating table %s", tablePath.getFullName()), e);
         }
+        if (postgresCreateTableSqlBuilder.isHaveConstraintKey) {
+            String alterTableSql =
+                    "ALTER TABLE "
+                            + tablePath.getSchemaAndTableName("\"")
+                            + " REPLICA IDENTITY FULL;";
+            log.info("alterTableSql: {}", alterTableSql);
+            try (PreparedStatement ps = conn.prepareStatement(alterTableSql)) {
+                ps.execute();
+            } catch (Exception e) {
+                throw new CatalogException(
+                        String.format("Failed alter table %s", tablePath.getFullName()), e);
+            }
+        }
+
         return true;
     }
 

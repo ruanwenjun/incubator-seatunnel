@@ -37,6 +37,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -46,6 +47,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+@Slf4j
 @Getter
 @ToString
 public class S3RedshiftSQLGenerator implements Serializable {
@@ -202,7 +204,7 @@ public class S3RedshiftSQLGenerator implements Serializable {
 
     private String generateIsExistTableSql() {
         return String.format(
-                "SELECT count(1) FROM information_schema.tables where table_schema = '%s' and  table_name = '%s';",
+                "SELECT * FROM information_schema.tables where table_schema = '%s' and  table_name = '%s';",
                 conf.getSchema(), conf.getRedshiftTable().toLowerCase());
     }
 
@@ -381,7 +383,13 @@ public class S3RedshiftSQLGenerator implements Serializable {
 
     private List<String> getTemporaryTableSortKey() {
         if (temporaryTable != null) {
-            return getPrimaryKeys(temporaryTable);
+            List<String> primaryKeys = getPrimaryKeys(temporaryTable);
+            if (CollectionUtils.isNotEmpty(primaryKeys)) {
+                return primaryKeys;
+            } else {
+                log.warn("There are tables, but there is no primary key on the table");
+                return conf.getRedshiftTablePrimaryKeys();
+            }
         } else if (conf.getRedshiftTablePrimaryKeys() != null) {
             return conf.getRedshiftTablePrimaryKeys();
         }

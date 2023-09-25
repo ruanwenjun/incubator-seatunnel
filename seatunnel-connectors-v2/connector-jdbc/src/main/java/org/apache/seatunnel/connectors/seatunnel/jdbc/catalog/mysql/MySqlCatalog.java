@@ -301,8 +301,7 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
 
         String createTableSql =
-                MysqlCreateTableSqlBuilder.builder(tablePath, table)
-                        .build(table.getCatalogName(), table.getOptions().get("fieldIde"));
+                MysqlCreateTableSqlBuilder.builder(tablePath, table).build(table.getCatalogName());
         createTableSql =
                 CatalogUtils.getFieldIde(createTableSql, table.getOptions().get("fieldIde"));
         Connection connection = getConnection(dbUrl);

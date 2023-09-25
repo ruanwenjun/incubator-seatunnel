@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.starrocks.config;
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 import org.apache.seatunnel.connectors.seatunnel.starrocks.config.SinkConfig.StreamLoadFormat;
 
 import java.util.List;
@@ -141,8 +142,13 @@ public interface StarRocksSinkOptions {
                     .noDefaultValue()
                     .withDescription("Whether case conversion is required");
 
-    Option<DataSaveMode> SAVE_MODE =
-            Options.key("save_mode")
+    Option<SchemaSaveMode> SCHEMA_SAVE_MODE =
+            Options.key("schema_save_mode")
+                    .enumType(SchemaSaveMode.class)
+                    .defaultValue(SchemaSaveMode.CREATE_SCHEMA_WHEN_NOT_EXIST)
+                    .withDescription("schema_save_mode");
+    Option<DataSaveMode> DATA_SAVE_MODE =
+            Options.key("data_save_mode")
                     .enumType(DataSaveMode.class)
                     .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
                     .withDescription(

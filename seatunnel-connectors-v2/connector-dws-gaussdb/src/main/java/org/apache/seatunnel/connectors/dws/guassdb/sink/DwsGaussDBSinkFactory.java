@@ -8,8 +8,8 @@ import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
-import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
+import org.apache.seatunnel.api.table.factory.TableSinkFactoryContext;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.dws.guassdb.config.BaseDwsGaussDBOption;
 import org.apache.seatunnel.connectors.dws.guassdb.config.DwsGaussDBConfig;
@@ -56,7 +56,7 @@ public class DwsGaussDBSinkFactory
                     DwsGaussDBSinkState,
                     DwsGaussDBSinkCommitInfo,
                     DwsGaussDBSinkAggregatedCommitInfo>
-            createSink(TableFactoryContext context) {
+            createSink(TableSinkFactoryContext context) {
         ReadonlyConfig config = context.getOptions();
         CatalogTable catalogTable = context.getCatalogTable();
         Map<String, String> catalogOptions = config.get(CatalogOptions.CATALOG_OPTIONS);

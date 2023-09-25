@@ -18,6 +18,8 @@
 package org.apache.seatunnel.connectors.seatunnel.mongodb.sink;
 
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.RowKind;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.seatunnel.mongodb.exception.MongodbConnectorException;
@@ -47,7 +49,9 @@ import java.util.stream.IntStream;
 import static org.apache.seatunnel.common.exception.CommonErrorCode.WRITER_OPERATION_FAILED;
 
 @Slf4j
-public class MongodbWriter implements SinkWriter<SeaTunnelRow, MongodbCommitInfo, DocumentBulk> {
+public class MongodbWriter
+        implements SinkWriter<SeaTunnelRow, MongodbCommitInfo, DocumentBulk>,
+                SupportMultiTableSinkWriter {
 
     private MongodbClientProvider collectionProvider;
 
@@ -67,16 +71,20 @@ public class MongodbWriter implements SinkWriter<SeaTunnelRow, MongodbCommitInfo
 
     private boolean transaction;
 
+    private CatalogTable catalogTable;
+
     // TODO：Reserve parameters.
     private final SinkWriter.Context context;
 
     public MongodbWriter(
+            CatalogTable catalogTable,
             DocumentSerializer<SeaTunnelRow> serializer,
             MongodbWriterOptions options,
             SinkWriter.Context context) {
-        initOptions(options);
+        this.catalogTable = catalogTable;
         this.context = context;
         this.serializer = serializer;
+        initOptions(options);
         this.bulkRequests = new ArrayList<>();
     }
 
@@ -86,8 +94,8 @@ public class MongodbWriter implements SinkWriter<SeaTunnelRow, MongodbCommitInfo
         this.collectionProvider =
                 MongodbCollectionProvider.builder()
                         .connectionString(options.getConnectString())
-                        .database(options.getDatabase())
-                        .collection(options.getCollection())
+                        .database(catalogTable.getTableId().getDatabaseName())
+                        .collection(catalogTable.getTableId().getTableName())
                         .build();
         this.bulkActions = options.getFlushSize();
         this.batchIntervalMs = options.getBatchIntervalMs();

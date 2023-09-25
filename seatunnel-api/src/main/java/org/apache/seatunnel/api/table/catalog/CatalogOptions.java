@@ -17,10 +17,8 @@
 
 package org.apache.seatunnel.api.table.catalog;
 
-import org.apache.seatunnel.api.common.CommonOptions;
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
-import org.apache.seatunnel.api.configuration.util.OptionRule;
 
 import java.util.HashMap;
 import java.util.List;
@@ -57,11 +55,4 @@ public interface CatalogOptions {
                     .withDescription(
                             "The table names RegEx of the database to capture."
                                     + "The table name needs to include the database name, for example: database_.*\\.table_.*");
-
-    OptionRule.Builder BASE_RULE =
-            OptionRule.builder()
-                    .optional(CommonOptions.FACTORY_ID)
-                    .optional(NAME)
-                    .optional(DATABASE_PATTERN)
-                    .exclusive(TABLE_PATTERN, TABLE_NAMES);
 }

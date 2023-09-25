@@ -22,11 +22,11 @@ import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SourceSplit;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.connector.TableSource;
 import org.apache.seatunnel.api.table.factory.Factory;
-import org.apache.seatunnel.api.table.factory.SupportMultipleTable;
-import org.apache.seatunnel.api.table.factory.TableFactoryContext;
 import org.apache.seatunnel.api.table.factory.TableSourceFactory;
+import org.apache.seatunnel.api.table.factory.TableSourceFactoryContext;
 import org.apache.seatunnel.api.table.type.MultipleRowType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
@@ -41,12 +41,12 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions
 import com.google.auto.service.AutoService;
 
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @AutoService(Factory.class)
-public class DamengIncrementalSourceFactory implements TableSourceFactory, SupportMultipleTable {
+public class DamengIncrementalSourceFactory implements TableSourceFactory {
     @Override
     public String factoryIdentifier() {
         return DamengIncrementalSource.IDENTIFIER;
@@ -92,15 +92,17 @@ public class DamengIncrementalSourceFactory implements TableSourceFactory, Suppo
 
     @Override
     public <T, SplitT extends SourceSplit, StateT extends Serializable>
-            TableSource<T, SplitT, StateT> createSource(TableFactoryContext context) {
+            TableSource<T, SplitT, StateT> createSource(TableSourceFactoryContext context) {
         return () -> {
             SeaTunnelDataType<SeaTunnelRow> dataType;
-            if (context.getCatalogTables().size() == 1) {
-                dataType =
-                        context.getCatalogTables().get(0).getTableSchema().toPhysicalRowDataType();
+            List<CatalogTable> catalogTables =
+                    CatalogTableUtil.getCatalogTablesFromConfig(
+                            context.getOptions(), context.getClassLoader());
+            if (catalogTables.size() == 1) {
+                dataType = catalogTables.get(0).getTableSchema().toPhysicalRowDataType();
             } else {
                 Map<String, SeaTunnelRowType> rowTypeMap = new HashMap<>();
-                for (CatalogTable catalogTable : context.getCatalogTables()) {
+                for (CatalogTable catalogTable : catalogTables) {
                     String tableId = catalogTable.getTableId().toTablePath().toString();
                     rowTypeMap.put(tableId, catalogTable.getTableSchema().toPhysicalRowDataType());
                 }
@@ -108,10 +110,5 @@ public class DamengIncrementalSourceFactory implements TableSourceFactory, Suppo
             }
             return new DamengIncrementalSource(context.getOptions(), dataType);
         };
-    }
-
-    @Override
-    public Result applyTables(TableFactoryContext context) {
-        return SupportMultipleTable.Result.of(context.getCatalogTables(), Collections.emptyList());
     }
 }

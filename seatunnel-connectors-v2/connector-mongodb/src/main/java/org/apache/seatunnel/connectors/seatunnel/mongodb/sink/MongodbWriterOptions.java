@@ -17,9 +17,18 @@
 
 package org.apache.seatunnel.connectors.seatunnel.mongodb.sink;
 
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
+import org.apache.seatunnel.connectors.seatunnel.mongodb.config.MongodbConfig;
+
 import lombok.Getter;
 
 import java.io.Serializable;
+
+import static org.apache.seatunnel.connectors.seatunnel.mongodb.config.MongodbConfig.COLLECTION;
+import static org.apache.seatunnel.connectors.seatunnel.mongodb.config.MongodbConfig.DATABASE;
+import static org.apache.seatunnel.connectors.seatunnel.mongodb.config.MongodbConfig.URI;
 
 @Getter
 public class MongodbWriterOptions implements Serializable {
@@ -46,6 +55,10 @@ public class MongodbWriterOptions implements Serializable {
 
     protected final boolean transaction;
 
+    protected final SchemaSaveMode schemaSaveMode;
+
+    protected final DataSaveMode dataSaveMode;
+
     public MongodbWriterOptions(
             String connectString,
             String database,
@@ -56,7 +69,9 @@ public class MongodbWriterOptions implements Serializable {
             String[] primaryKey,
             int retryMax,
             long retryInterval,
-            boolean transaction) {
+            boolean transaction,
+            SchemaSaveMode schemaSaveMode,
+            DataSaveMode dataSaveMode) {
         this.connectString = connectString;
         this.database = database;
         this.collection = collection;
@@ -67,96 +82,25 @@ public class MongodbWriterOptions implements Serializable {
         this.retryMax = retryMax;
         this.retryInterval = retryInterval;
         this.transaction = transaction;
+        this.schemaSaveMode = schemaSaveMode;
+        this.dataSaveMode = dataSaveMode;
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    /** Builder For {@link MongodbWriterOptions}. */
-    public static class Builder {
-        protected String connectString;
-
-        protected String database;
-
-        protected String collection;
-
-        protected int flushSize;
-
-        protected long batchIntervalMs;
-
-        protected boolean upsertEnable;
-
-        protected String[] primaryKey;
-
-        protected int retryMax;
-
-        protected long retryInterval;
-
-        protected boolean transaction;
-
-        public Builder withConnectString(String connectString) {
-            this.connectString = connectString;
-            return this;
-        }
-
-        public Builder withDatabase(String database) {
-            this.database = database;
-            return this;
-        }
-
-        public Builder withCollection(String collection) {
-            this.collection = collection;
-            return this;
-        }
-
-        public Builder withFlushSize(int flushSize) {
-            this.flushSize = flushSize;
-            return this;
-        }
-
-        public Builder withBatchIntervalMs(Long batchIntervalMs) {
-            this.batchIntervalMs = batchIntervalMs;
-            return this;
-        }
-
-        public Builder withUpsertEnable(boolean upsertEnable) {
-            this.upsertEnable = upsertEnable;
-            return this;
-        }
-
-        public Builder withPrimaryKey(String[] primaryKey) {
-            this.primaryKey = primaryKey;
-            return this;
-        }
-
-        public Builder withRetryMax(int retryMax) {
-            this.retryMax = retryMax;
-            return this;
-        }
-
-        public Builder withRetryInterval(Long retryInterval) {
-            this.retryInterval = retryInterval;
-            return this;
-        }
-
-        public Builder withTransaction(boolean transaction) {
-            this.transaction = transaction;
-            return this;
-        }
-
-        public MongodbWriterOptions build() {
-            return new MongodbWriterOptions(
-                    connectString,
-                    database,
-                    collection,
-                    flushSize,
-                    batchIntervalMs,
-                    upsertEnable,
-                    primaryKey,
-                    retryMax,
-                    retryInterval,
-                    transaction);
-        }
+    public static MongodbWriterOptions from(ReadonlyConfig options) {
+        return new MongodbWriterOptions(
+                options.get(URI),
+                options.get(DATABASE),
+                options.get(COLLECTION),
+                options.get(MongodbConfig.BUFFER_FLUSH_MAX_ROWS),
+                options.get(MongodbConfig.BUFFER_FLUSH_INTERVAL),
+                options.get(MongodbConfig.UPSERT_ENABLE),
+                options.get(MongodbConfig.PRIMARY_KEY) == null
+                        ? null
+                        : options.get(MongodbConfig.PRIMARY_KEY).toArray(new String[0]),
+                options.get(MongodbConfig.RETRY_MAX),
+                options.get(MongodbConfig.RETRY_INTERVAL),
+                options.get(MongodbConfig.TRANSACTION),
+                options.get(MongodbConfig.SCHEMA_SAVE_MODE),
+                options.get(MongodbConfig.DATA_SAVE_MODE));
     }
 }

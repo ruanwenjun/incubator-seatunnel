@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 @Getter
-public class MultiTableFactoryContext extends TableFactoryContext {
+public class MultiTableFactoryContext extends TableSinkFactoryContext {
 
     private final Map<String, SeaTunnelSink> sinks;
 
@@ -36,7 +36,7 @@ public class MultiTableFactoryContext extends TableFactoryContext {
             ReadonlyConfig options,
             ClassLoader classLoader,
             Map<String, SeaTunnelSink> sinks) {
-        super(catalogTables, options, classLoader);
+        super(catalogTables.get(0), options, classLoader);
         this.sinks = sinks;
     }
 }
