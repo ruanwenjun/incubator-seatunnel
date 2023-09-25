@@ -21,8 +21,10 @@ import org.apache.seatunnel.api.common.CommonOptions;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.ConfigValidator;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.env.ParsingMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
+import org.apache.seatunnel.api.source.SourceOptions;
 import org.apache.seatunnel.api.source.SourceSplit;
 import org.apache.seatunnel.api.source.SupportParallelism;
 import org.apache.seatunnel.api.table.catalog.Catalog;
@@ -97,6 +99,11 @@ public final class FactoryUtil {
                                     CatalogTableUtil.getCatalogTable(
                                             tableId, (SeaTunnelRowType) seaTunnelDataType));
                 }
+            }
+            if (options.get(SourceOptions.DAG_PARSING_MODE) == ParsingMode.SHARDING) {
+                CatalogTable catalogTable = catalogTables.get(0);
+                catalogTables.clear();
+                catalogTables.add(catalogTable);
             }
             sources.add(new Tuple2<>(source, catalogTables));
             return sources;
