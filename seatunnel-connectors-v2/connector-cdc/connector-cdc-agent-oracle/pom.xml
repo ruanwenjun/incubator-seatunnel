@@ -8,7 +8,7 @@
         <artifactId>connector-cdc</artifactId>
         <version>${revision}</version>
     </parent>
-    <artifactId>connector-cdc-oracle9bridge</artifactId>
+    <artifactId>connector-cdc-agent-oracle</artifactId>
     <name>SeaTunnel : Connectors V2 : CDC : Oracle-9-Bridge-</name>
 
     <properties>

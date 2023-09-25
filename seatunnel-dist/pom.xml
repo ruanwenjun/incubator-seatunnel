@@ -289,7 +289,7 @@
                 </dependency>
                 <dependency>
                     <groupId>org.apache.seatunnel</groupId>
-                    <artifactId>connector-cdc-oracle9bridge</artifactId>
+                    <artifactId>connector-cdc-agent-oracle</artifactId>
                     <version>${project.version}</version>
                     <scope>provided</scope>
                 </dependency>

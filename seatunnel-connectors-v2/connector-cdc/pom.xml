@@ -36,7 +36,7 @@
         <module>connector-cdc-dameng</module>
         <module>connector-cdc-informix</module>
         <module>connector-cdc-oracle</module>
-        <module>connector-cdc-oracle9bridge</module>
+        <module>connector-cdc-agent-oracle</module>
         <module>connector-cdc-postgres</module>
         <module>connector-cdc-mongodb</module>
     </modules>
