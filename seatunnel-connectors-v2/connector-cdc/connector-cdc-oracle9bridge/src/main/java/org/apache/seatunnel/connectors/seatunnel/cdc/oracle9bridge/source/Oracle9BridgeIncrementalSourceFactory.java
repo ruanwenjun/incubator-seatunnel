@@ -64,7 +64,7 @@ public class Oracle9BridgeIncrementalSourceFactory implements TableSourceFactory
             SeaTunnelDataType<SeaTunnelRow> dataType;
             List<CatalogTable> catalogTables =
                     CatalogTableUtil.getCatalogTablesFromConfig(
-                            context.getOptions(), context.getClassLoader());
+                            "Oracle", context.getOptions(), context.getClassLoader());
             if (catalogTables.size() == 1) {
                 dataType = catalogTables.get(0).getTableSchema().toPhysicalRowDataType();
             } else {
