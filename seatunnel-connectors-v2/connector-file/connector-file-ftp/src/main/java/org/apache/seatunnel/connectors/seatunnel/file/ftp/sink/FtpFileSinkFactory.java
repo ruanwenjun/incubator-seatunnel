@@ -42,6 +42,7 @@ public class FtpFileSinkFactory implements TableSinkFactory {
                 .required(FtpConfig.FTP_PORT)
                 .required(FtpConfig.FTP_USERNAME)
                 .required(FtpConfig.FTP_PASSWORD)
+                .optional(BaseSinkConfig.TMP_PATH)
                 .optional(BaseSinkConfig.FILE_FORMAT_TYPE)
                 .conditional(
                         BaseSinkConfig.FILE_FORMAT_TYPE,

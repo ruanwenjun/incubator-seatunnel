@@ -43,6 +43,7 @@ public class SftpFileSinkFactory implements TableSinkFactory {
                 .required(SftpConfig.SFTP_USERNAME)
                 .required(SftpConfig.SFTP_PASSWORD)
                 .optional(BaseSinkConfig.FILE_FORMAT_TYPE)
+                .optional(BaseSinkConfig.TMP_PATH)
                 .conditional(
                         BaseSinkConfig.FILE_FORMAT_TYPE,
                         FileFormat.TEXT,
