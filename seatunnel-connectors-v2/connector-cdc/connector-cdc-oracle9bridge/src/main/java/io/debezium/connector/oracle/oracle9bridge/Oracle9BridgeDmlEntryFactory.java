@@ -15,6 +15,8 @@ import io.debezium.relational.Column;
 import io.debezium.relational.Table;
 import io.debezium.relational.ValueConverter;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
@@ -144,19 +146,21 @@ public class Oracle9BridgeDmlEntryFactory {
 
     private static Object transformToOracleType(
             OracleValueConverters oracleValueConverters, String value, Column column) {
+        Object oracleValue = value;
+
         if (column.typeName().equals("DATE")) {
-            return DATE_FORMATTER.parse(value);
+            oracleValue = LocalDate.from(DATE_FORMATTER.parse(value));
         }
-        if (column.typeName().equals("TIMESTAMP")) {
-            return TIMESTAMP_FORMATTER.parse(value);
+        if (column.typeName().startsWith("TIMESTAMP")) {
+            oracleValue = LocalDateTime.from(TIMESTAMP_FORMATTER.parse(value));
         }
         SchemaBuilder schemaBuilder = oracleValueConverters.schemaBuilder(column);
         if (schemaBuilder == null) {
-            return value;
+            return oracleValue;
         }
         Schema schema = schemaBuilder.build();
         Field field = new Field(column.name(), 1, schema);
         final ValueConverter valueConverter = oracleValueConverters.converter(column, field);
-        return valueConverter.convert(value);
+        return valueConverter.convert(oracleValue);
     }
 }

@@ -57,7 +57,7 @@ public class Oracle9BridgeDialect implements JdbcDataSourceDialect {
 
     @Override
     public String getName() {
-        return "Oracle9Bridge";
+        return "OracleAgent-CDC";
     }
 
     @SuppressWarnings("checkstyle:MagicNumber")
