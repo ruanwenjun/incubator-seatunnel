@@ -32,6 +32,7 @@ public class Oracle9BridgeIncrementalFetchTask implements FetchTask<SourceSplitB
         Oracle9BridgeStreamingChangeEventSource oracle9BridgeStreamingChangeEventSource =
                 new Oracle9BridgeStreamingChangeEventSource(
                         sourceFetchContext.getOffsetContext(),
+                        sourceFetchContext.getDbzConnectorConfig(),
                         sourceFetchContext.getConnection(),
                         incrementalSplit.getTableIds(),
                         sourceFetchContext.getSourceConfig(),

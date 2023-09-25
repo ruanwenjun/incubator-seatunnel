@@ -136,6 +136,7 @@ public class Oracle9BridgeSnapshotFetchTask implements FetchTask<SourceSplitBase
 
         return new Oracle9BridgeIncrementalSplitFetchTask(
                 oracle9BridgeOffsetContext,
+                context.getDbzConnectorConfig(),
                 context.getConnection(),
                 context.getSourceConfig(),
                 context.getDispatcher(),

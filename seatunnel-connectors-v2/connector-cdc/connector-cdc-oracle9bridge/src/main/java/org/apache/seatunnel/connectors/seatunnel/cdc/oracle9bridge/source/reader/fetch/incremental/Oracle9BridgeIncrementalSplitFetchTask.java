@@ -10,6 +10,7 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.source.reader
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleOperation;
 
 import io.debezium.DebeziumException;
+import io.debezium.connector.oracle.Oracle9BridgeConnectorConfig;
 import io.debezium.connector.oracle.Oracle9BridgeOffsetContext;
 import io.debezium.connector.oracle.Oracle9BridgeStreamingChangeEventSource;
 import io.debezium.connector.oracle.OracleConnection;
@@ -37,6 +38,7 @@ public class Oracle9BridgeIncrementalSplitFetchTask
 
     public Oracle9BridgeIncrementalSplitFetchTask(
             Oracle9BridgeOffsetContext offsetContext,
+            Oracle9BridgeConnectorConfig connectorConfig,
             OracleConnection oracleConnection,
             Oracle9BridgeSourceConfig sourceConfig,
             JdbcSourceEventDispatcher eventDispatcher,
@@ -45,6 +47,7 @@ public class Oracle9BridgeIncrementalSplitFetchTask
             IncrementalSplit incrementalSplit) {
         super(
                 offsetContext,
+                connectorConfig,
                 oracleConnection,
                 incrementalSplit.getTableIds(),
                 sourceConfig,

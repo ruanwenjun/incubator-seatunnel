@@ -1,37 +1,72 @@
 package io.debezium.connector.oracle.oracle9bridge;
 
+import org.apache.kafka.connect.data.Field;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleDeleteOperation;
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleInsertOperation;
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleOperation;
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleQmiOperation;
 import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleUpdateOperation;
 
+import io.debezium.connector.oracle.OracleValueConverters;
 import io.debezium.relational.Column;
 import io.debezium.relational.Table;
+import io.debezium.relational.ValueConverter;
 
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.seatunnel.shade.com.google.common.base.Preconditions.checkArgument;
-
 public class Oracle9BridgeDmlEntryFactory {
 
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER =
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("yyyy-MM-dd HH:mm:ss")
+                    .optionalStart()
+                    .appendPattern(".")
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, false)
+                    .optionalEnd()
+                    .toFormatter();
+
+    private static final DateTimeFormatter DATE_FORMATTER =
+            new DateTimeFormatterBuilder()
+                    .parseCaseInsensitive()
+                    .appendPattern("yyyy-MM-dd")
+                    .optionalStart()
+                    .appendPattern(".")
+                    .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, false)
+                    .optionalEnd()
+                    .optionalStart()
+                    .appendPattern(" ")
+                    .optionalEnd()
+                    .appendOffset("+HH:MM", "")
+                    .toFormatter();
+
     public static List<Oracle9BridgeDmlEntry> transformOperation(
-            OracleOperation operation, Table table) {
+            OracleValueConverters oracleValueConverters, OracleOperation operation, Table table) {
         switch (operation.getType()) {
             case OracleInsertOperation.TYPE:
                 return Collections.singletonList(
-                        transformInsert((OracleInsertOperation) operation, table));
+                        transformInsert(
+                                oracleValueConverters, (OracleInsertOperation) operation, table));
             case OracleUpdateOperation.TYPE:
                 return Collections.singletonList(
-                        transformUpdate((OracleUpdateOperation) operation, table));
+                        transformUpdate(
+                                oracleValueConverters, (OracleUpdateOperation) operation, table));
             case OracleDeleteOperation.TYPE:
                 return Collections.singletonList(
-                        transformDelete((OracleDeleteOperation) operation, table));
+                        transformDelete(
+                                oracleValueConverters, (OracleDeleteOperation) operation, table));
             case OracleQmiOperation.TYPE:
-                return transformBatchInsert((OracleQmiOperation) operation, table);
+                return transformBatchInsert(
+                        oracleValueConverters, (OracleQmiOperation) operation, table);
             default:
                 throw new IllegalArgumentException(
                         "Unknown supported operation type: " + operation.getType());
@@ -39,23 +74,30 @@ public class Oracle9BridgeDmlEntryFactory {
     }
 
     public static Oracle9BridgeDmlEntry transformInsert(
-            OracleInsertOperation insertOperation, Table table) {
-        Object[] newValues = getWholeColumnValues(insertOperation.getInsertRow(), table);
+            OracleValueConverters oracleValueConverters,
+            OracleInsertOperation insertOperation,
+            Table table) {
+        Object[] newValues =
+                getWholeColumnValues(oracleValueConverters, insertOperation.getInsertRow(), table);
         return Oracle9BridgeDmlEntryImpl.forInsert(newValues);
     }
 
     public static Oracle9BridgeDmlEntry transformUpdate(
-            OracleUpdateOperation updateOperation, Table table) {
+            OracleValueConverters oracleValueConverters,
+            OracleUpdateOperation updateOperation,
+            Table table) {
         List<Column> columns = table.columns();
         Map<String, String> newRow = updateOperation.getUpdatedRow();
         Map<String, String> oldRow = updateOperation.getUpdateCondition();
 
-        Object[] oldValues = getWholeColumnValues(oldRow, table);
-        Object[] newValues = getWholeColumnValues(newRow, table);
+        Object[] oldValues = getWholeColumnValues(oracleValueConverters, oldRow, table);
+        Object[] newValues = new Object[columns.size()];
         for (int i = 0; i < columns.size(); i++) {
             Column column = columns.get(i);
             if (newRow.containsKey(column.name())) {
-                newValues[i] = transformToOracleType(newRow.get(column.name()), column);
+                newValues[i] =
+                        transformToOracleType(
+                                oracleValueConverters, newRow.get(column.name()), column);
             } else {
                 newValues[i] = oldValues[i];
             }
@@ -64,35 +106,57 @@ public class Oracle9BridgeDmlEntryFactory {
     }
 
     public static Oracle9BridgeDmlEntry transformDelete(
-            OracleDeleteOperation deleteOperation, Table table) {
-        Object[] oldValues = getWholeColumnValues(deleteOperation.getDeletedRow(), table);
+            OracleValueConverters oracleValueConverters,
+            OracleDeleteOperation deleteOperation,
+            Table table) {
+        Object[] oldValues =
+                getWholeColumnValues(oracleValueConverters, deleteOperation.getDeletedRow(), table);
         return Oracle9BridgeDmlEntryImpl.forDelete(oldValues);
     }
 
     public static List<Oracle9BridgeDmlEntry> transformBatchInsert(
-            OracleQmiOperation oracleQmiOperation, Table table) {
+            OracleValueConverters oracleValueConverters,
+            OracleQmiOperation oracleQmiOperation,
+            Table table) {
         return oracleQmiOperation.getInsertRows().stream()
                 .map(
                         insertRow ->
                                 Oracle9BridgeDmlEntryImpl.forInsert(
-                                        getWholeColumnValues(insertRow, table)))
+                                        getWholeColumnValues(
+                                                oracleValueConverters, insertRow, table)))
                 .collect(Collectors.toList());
     }
 
-    private static Object[] getWholeColumnValues(Map<String, String> columnValues, Table table) {
+    private static Object[] getWholeColumnValues(
+            OracleValueConverters oracleValueConverters,
+            Map<String, String> columnValues,
+            Table table) {
         List<Column> columns = table.columns();
-        checkArgument(
-                columnValues.size() == columns.size(), "Column values and columns size mismatch");
         Object[] objects = new Object[columns.size()];
         for (int i = 0; i < columns.size(); i++) {
             Column column = columns.get(i);
-            objects[i] = transformToOracleType(columnValues.get(column.name()), column);
+            objects[i] =
+                    transformToOracleType(
+                            oracleValueConverters, columnValues.get(column.name()), column);
         }
         return objects;
     }
 
-    private static Object transformToOracleType(String value, Column column) {
-        // todo: Do we need to translate to oracle type or use string is ok?
-        return value;
+    private static Object transformToOracleType(
+            OracleValueConverters oracleValueConverters, String value, Column column) {
+        if (column.typeName().equals("DATE")) {
+            return DATE_FORMATTER.parse(value);
+        }
+        if (column.typeName().equals("TIMESTAMP")) {
+            return TIMESTAMP_FORMATTER.parse(value);
+        }
+        SchemaBuilder schemaBuilder = oracleValueConverters.schemaBuilder(column);
+        if (schemaBuilder == null) {
+            return value;
+        }
+        Schema schema = schemaBuilder.build();
+        Field field = new Field(column.name(), 1, schema);
+        final ValueConverter valueConverter = oracleValueConverters.converter(column, field);
+        return valueConverter.convert(value);
     }
 }

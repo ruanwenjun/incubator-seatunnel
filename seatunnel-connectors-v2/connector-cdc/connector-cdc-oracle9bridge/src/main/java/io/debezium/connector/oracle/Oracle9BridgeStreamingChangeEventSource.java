@@ -35,6 +35,8 @@ public class Oracle9BridgeStreamingChangeEventSource
 
     private static final Long NO_DATA_AVAILABLE_SLEEP_MS = 5_000L;
 
+    private final Oracle9BridgeConnectorConfig oracle9BridgeConnectorConfig;
+    private final OracleValueConverters oracleValueConverters;
     private final Oracle9BridgeSourceConfig sourceConfig;
     private final JdbcSourceEventDispatcher eventDispatcher;
     private ChangeEventSourceContext context;
@@ -50,12 +52,15 @@ public class Oracle9BridgeStreamingChangeEventSource
 
     public Oracle9BridgeStreamingChangeEventSource(
             Oracle9BridgeOffsetContext offsetContext,
+            Oracle9BridgeConnectorConfig connectorConfig,
             OracleConnection oracleConnection,
             List<TableId> tableIds,
             Oracle9BridgeSourceConfig sourceConfig,
             JdbcSourceEventDispatcher eventDispatcher,
             ErrorHandler errorHandler,
             OracleDatabaseSchema oracleDatabaseSchema) {
+        this.oracleValueConverters = new OracleValueConverters(connectorConfig, oracleConnection);
+        this.oracle9BridgeConnectorConfig = connectorConfig;
         this.sourceConfig = sourceConfig;
         this.eventDispatcher = eventDispatcher;
         this.errorHandler = errorHandler;
@@ -151,7 +156,8 @@ public class Oracle9BridgeStreamingChangeEventSource
                 continue;
             }
             List<Oracle9BridgeDmlEntry> dmlEntries =
-                    Oracle9BridgeDmlEntryFactory.transformOperation(oracleOperation, table);
+                    Oracle9BridgeDmlEntryFactory.transformOperation(
+                            oracleValueConverters, oracleOperation, table);
             for (Oracle9BridgeDmlEntry dmlEntry : dmlEntries) {
                 offsetContext.event(tableId, clock.currentTime());
                 offsetContext.setScn(scn);
