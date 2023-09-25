@@ -27,7 +27,9 @@ import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import lombok.NonNull;
@@ -205,5 +207,33 @@ public class FileSystemUtils implements Serializable {
             }
         }
         return pathList;
+    }
+
+    /** get the file in filePath */
+    public List<LocatedFileStatus> fileList(@NonNull String path) throws IOException {
+        FileSystem fileSystem = getFileSystem(path);
+        List<LocatedFileStatus> fileList = new ArrayList<>();
+        if (!fileExist(path)) {
+            return fileList;
+        }
+        Path fileName = new Path(path);
+        RemoteIterator<LocatedFileStatus> locatedFileStatusRemoteIterator =
+                fileSystem.listFiles(fileName, false);
+        while (locatedFileStatusRemoteIterator.hasNext()) {
+            fileList.add(locatedFileStatusRemoteIterator.next());
+        }
+        return fileList;
+    }
+
+    /** delete dir in filePath */
+    public boolean deleteDir(@NonNull String path) throws IOException {
+        FileSystem fileSystem = getFileSystem(path);
+        return fileSystem.delete(new Path(path), true);
+    }
+
+    /** delete dir in filePath */
+    public boolean existsPath(@NonNull String path) throws IOException {
+        FileSystem fileSystem = getFileSystem(path);
+        return fileSystem.exists(new Path(path));
     }
 }
