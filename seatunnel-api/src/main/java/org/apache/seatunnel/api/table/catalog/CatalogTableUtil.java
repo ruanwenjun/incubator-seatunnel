@@ -33,8 +33,10 @@ import org.apache.seatunnel.api.table.type.BasicType;
 import org.apache.seatunnel.api.table.type.DecimalType;
 import org.apache.seatunnel.api.table.type.LocalTimeType;
 import org.apache.seatunnel.api.table.type.MapType;
+import org.apache.seatunnel.api.table.type.MultipleRowType;
 import org.apache.seatunnel.api.table.type.PrimitiveByteArrayType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.common.utils.JsonUtils;
@@ -236,6 +238,20 @@ public class CatalogTableUtil implements Serializable {
     public static CatalogTable buildWithConfig(Config config) {
         ReadonlyConfig readonlyConfig = ReadonlyConfig.fromConfig(config);
         return buildWithConfig(readonlyConfig);
+    }
+
+    public static SeaTunnelDataType<SeaTunnelRow> convertToDataType(
+            List<CatalogTable> catalogTables) {
+        if (catalogTables.size() == 1) {
+            return catalogTables.get(0).getTableSchema().toPhysicalRowDataType();
+        } else {
+            Map<String, SeaTunnelRowType> rowTypeMap = new HashMap<>();
+            for (CatalogTable catalogTable : catalogTables) {
+                String tableId = catalogTable.getTableId().toTablePath().toString();
+                rowTypeMap.put(tableId, catalogTable.getTableSchema().toPhysicalRowDataType());
+            }
+            return new MultipleRowType(rowTypeMap);
+        }
     }
 
     public static CatalogTable buildWithConfig(ReadonlyConfig readonlyConfig) {

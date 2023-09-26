@@ -27,10 +27,8 @@ import org.apache.seatunnel.api.table.connector.TableSource;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableSourceFactory;
 import org.apache.seatunnel.api.table.factory.TableSourceFactoryContext;
-import org.apache.seatunnel.api.table.type.MultipleRowType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
-import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.cdc.base.option.JdbcSourceOptions;
 import org.apache.seatunnel.connectors.cdc.base.option.SourceOptions;
 import org.apache.seatunnel.connectors.cdc.base.option.StartupMode;
@@ -40,9 +38,7 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions
 import com.google.auto.service.AutoService;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @AutoService(Factory.class)
 public class InformixIncrementalSourceFactory implements TableSourceFactory {
@@ -78,21 +74,11 @@ public class InformixIncrementalSourceFactory implements TableSourceFactory {
     public <T, SplitT extends SourceSplit, StateT extends Serializable>
             TableSource<T, SplitT, StateT> createSource(TableSourceFactoryContext context) {
         return () -> {
-            SeaTunnelDataType<SeaTunnelRow> dataType;
             List<CatalogTable> catalogTables =
                     CatalogTableUtil.getCatalogTablesFromConfig(
                             context.getOptions(), context.getClassLoader());
-            if (catalogTables.size() == 1) {
-                dataType = catalogTables.get(0).getTableSchema().toPhysicalRowDataType();
-            } else {
-                Map<String, SeaTunnelRowType> rowTypeMap = new HashMap<>();
-                for (CatalogTable catalogTable : catalogTables) {
-                    rowTypeMap.put(
-                            catalogTable.getTableId().toTablePath().toString(),
-                            catalogTable.getTableSchema().toPhysicalRowDataType());
-                }
-                dataType = new MultipleRowType(rowTypeMap);
-            }
+            SeaTunnelDataType<SeaTunnelRow> dataType =
+                    CatalogTableUtil.convertToDataType(catalogTables);
             return (SeaTunnelSource<T, SplitT, StateT>)
                     new InformixIncrementalSource<>(context.getOptions(), dataType, catalogTables);
         };

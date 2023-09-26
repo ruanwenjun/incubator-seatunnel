@@ -18,10 +18,6 @@
 package org.apache.seatunnel.engine.server.dag.execution;
 
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
-import org.apache.seatunnel.api.table.type.MultipleRowType;
-import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
-import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
-import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.api.transform.SeaTunnelTransform;
 import org.apache.seatunnel.common.utils.SeaTunnelException;
 import org.apache.seatunnel.engine.common.config.EngineConfig;
@@ -219,31 +215,25 @@ public class ExecutionPlanGenerator {
         }
         ExecutionVertex sourceExecutionVertex = sourceExecutionVertices.stream().findFirst().get();
         Action sourceAction = sourceExecutionVertex.getAction();
-        SeaTunnelDataType sourceProducedType;
+        List<CatalogTable> producedCatalogTables = new ArrayList<>();
         if (sourceAction instanceof SourceAction) {
-            sourceProducedType = ((SourceAction) sourceAction).getSource().getProducedType();
+            try {
+                producedCatalogTables =
+                        ((SourceAction<?, ?, ?>) sourceAction)
+                                .getSource()
+                                .getProducedCatalogTables();
+            } catch (UnsupportedOperationException e) {
+            }
         } else if (sourceAction instanceof TransformChainAction) {
             List<SeaTunnelTransform> transforms =
                     ((TransformChainAction) sourceAction).getTransforms();
-            List<CatalogTable> producedCatalogTables =
+            producedCatalogTables =
                     transforms.get(transforms.size() - 1).getProducedCatalogTables();
-            if (producedCatalogTables.size() == 1) {
-                sourceProducedType =
-                        producedCatalogTables.get(0).getTableSchema().toPhysicalRowDataType();
-            } else {
-                Map<String, SeaTunnelRowType> rowTypeMap = new HashMap<>();
-                for (CatalogTable catalogTable : producedCatalogTables) {
-                    String tableId = catalogTable.getTableId().toTablePath().toString();
-                    rowTypeMap.put(tableId, catalogTable.getTableSchema().toPhysicalRowDataType());
-                }
-                sourceProducedType = new MultipleRowType(rowTypeMap);
-            }
         } else {
             throw new SeaTunnelException(
                     "source action must be SourceAction or TransformChainAction");
         }
-
-        if (!SqlType.MULTIPLE_ROW.equals(sourceProducedType.getSqlType())
+        if (producedCatalogTables.size() <= 1
                 || targetVerticesMap.get(sourceExecutionVertex.getVertexId()).size() <= 1) {
             return executionEdges;
         }
@@ -261,7 +251,7 @@ public class ExecutionPlanGenerator {
                 ShuffleMultipleRowStrategy.builder()
                         .jobId(jobImmutableInformation.getJobId())
                         .inputPartitions(sourceAction.getParallelism())
-                        .inputRowType(MultipleRowType.class.cast(sourceProducedType))
+                        .catalogTables(producedCatalogTables)
                         .queueEmptyQueueTtl(
                                 (int)
                                         (engineConfig.getCheckpointConfig().getCheckpointInterval()

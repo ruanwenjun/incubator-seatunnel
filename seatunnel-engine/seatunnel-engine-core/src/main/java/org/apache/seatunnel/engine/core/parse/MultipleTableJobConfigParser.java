@@ -459,9 +459,27 @@ public class MultipleTableJobConfigParser {
 
     public static SeaTunnelDataType<?> getProducedType(Action action) {
         if (action instanceof SourceAction) {
-            return ((SourceAction<?, ?, ?>) action).getSource().getProducedType();
+            try {
+                return ((SourceAction<?, ?, ?>) action)
+                        .getSource()
+                        .getProducedCatalogTables()
+                        .get(0)
+                        .getSeaTunnelRowType();
+            } catch (UnsupportedOperationException e) {
+                // TODO remove it when all connector use `getProducedCatalogTables`
+                return ((SourceAction<?, ?, ?>) action).getSource().getProducedType();
+            }
         } else if (action instanceof TransformAction) {
-            return ((TransformAction) action).getTransform().getProducedType();
+            try {
+                return ((TransformAction) action)
+                        .getTransform()
+                        .getProducedCatalogTables()
+                        .get(0)
+                        .getSeaTunnelRowType();
+            } catch (UnsupportedOperationException e) {
+                // TODO remove it when all connector use `getProducedCatalogTables`
+                return ((TransformAction) action).getTransform().getProducedType();
+            }
         }
         throw new UnsupportedOperationException();
     }

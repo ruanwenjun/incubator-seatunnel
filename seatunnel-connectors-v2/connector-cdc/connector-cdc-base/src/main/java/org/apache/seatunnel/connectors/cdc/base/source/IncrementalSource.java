@@ -165,11 +165,6 @@ public abstract class IncrementalSource<T, C extends SourceConfig>
         return stopMode == StopMode.NEVER ? Boundedness.UNBOUNDED : Boundedness.BOUNDED;
     }
 
-    @Override
-    public SeaTunnelDataType<T> getProducedType() {
-        return deserializationSchema.getProducedType();
-    }
-
     @SuppressWarnings("MagicNumber")
     @Override
     public SourceReader<T, SourceSplitBase> createReader(SourceReader.Context readerContext)
