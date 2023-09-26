@@ -102,7 +102,7 @@ public class PostgresIncrementalSourceFactory implements TableSourceFactory {
                 dataType = new MultipleRowType(rowTypeMap);
             }
             return (SeaTunnelSource<T, SplitT, StateT>)
-                    new PostgresIncrementalSource<>(context.getOptions(), dataType);
+                    new PostgresIncrementalSource<>(context.getOptions(), dataType, catalogTables);
         };
     }
 }

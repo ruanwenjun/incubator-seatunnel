@@ -72,8 +72,10 @@ public class InformixIncrementalSource<T> extends IncrementalSource<T, JdbcSourc
     private InformixPooledDataSourceFactory connectionPoolFactory;
 
     public InformixIncrementalSource(
-            ReadonlyConfig options, SeaTunnelDataType<SeaTunnelRow> dataType) {
-        super(options, dataType);
+            ReadonlyConfig options,
+            SeaTunnelDataType<SeaTunnelRow> dataType,
+            List<CatalogTable> catalogTables) {
+        super(options, dataType, catalogTables);
     }
 
     @Override

@@ -67,8 +67,10 @@ public class PostgresIncrementalSource<T> extends IncrementalSource<T, JdbcSourc
     static final String IDENTIFIER = "Postgres-CDC";
 
     public PostgresIncrementalSource(
-            ReadonlyConfig options, SeaTunnelDataType<SeaTunnelRow> dataType) {
-        super(options, dataType);
+            ReadonlyConfig options,
+            SeaTunnelDataType<SeaTunnelRow> dataType,
+            List<CatalogTable> catalogTables) {
+        super(options, dataType, catalogTables);
     }
 
     @Override

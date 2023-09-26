@@ -77,7 +77,8 @@ public class Oracle9BridgeIncrementalSourceFactory implements TableSourceFactory
                 dataType = new MultipleRowType(rowTypeMap);
             }
             return (SeaTunnelSource<T, SplitT, StateT>)
-                    new Oracle9BridgeIncrementalSource<>(context.getOptions(), dataType);
+                    new Oracle9BridgeIncrementalSource<>(
+                            context.getOptions(), dataType, catalogTables);
         };
     }
 

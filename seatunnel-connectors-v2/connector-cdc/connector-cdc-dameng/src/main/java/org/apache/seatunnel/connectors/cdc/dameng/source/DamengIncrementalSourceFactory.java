@@ -108,7 +108,7 @@ public class DamengIncrementalSourceFactory implements TableSourceFactory {
                 }
                 dataType = new MultipleRowType(rowTypeMap);
             }
-            return new DamengIncrementalSource(context.getOptions(), dataType);
+            return new DamengIncrementalSource(context.getOptions(), dataType, catalogTables);
         };
     }
 }

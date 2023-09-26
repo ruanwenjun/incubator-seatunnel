@@ -116,7 +116,7 @@ public class OracleIncrementalSourceFactory implements TableSourceFactory {
                 }
                 dataType = new MultipleRowType(rowTypeMap);
             }
-            return new OracleIncrementalSource(context.getOptions(), dataType);
+            return new OracleIncrementalSource(context.getOptions(), dataType, catalogTables);
         };
     }
 }

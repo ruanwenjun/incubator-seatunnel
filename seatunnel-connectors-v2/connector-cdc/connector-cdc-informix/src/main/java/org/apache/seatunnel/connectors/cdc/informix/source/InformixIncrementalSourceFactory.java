@@ -94,7 +94,7 @@ public class InformixIncrementalSourceFactory implements TableSourceFactory {
                 dataType = new MultipleRowType(rowTypeMap);
             }
             return (SeaTunnelSource<T, SplitT, StateT>)
-                    new InformixIncrementalSource<>(context.getOptions(), dataType);
+                    new InformixIncrementalSource<>(context.getOptions(), dataType, catalogTables);
         };
     }
 

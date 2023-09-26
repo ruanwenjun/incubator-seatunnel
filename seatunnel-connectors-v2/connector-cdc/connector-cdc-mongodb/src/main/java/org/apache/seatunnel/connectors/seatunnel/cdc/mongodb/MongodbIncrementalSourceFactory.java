@@ -93,7 +93,7 @@ public class MongodbIncrementalSourceFactory implements TableSourceFactory {
                 dataType = new MultipleRowType(rowTypeMap);
             }
             return (SeaTunnelSource<T, SplitT, StateT>)
-                    new MongodbIncrementalSource<>(context.getOptions(), dataType);
+                    new MongodbIncrementalSource<>(context.getOptions(), dataType, catalogTables);
         };
     }
 }

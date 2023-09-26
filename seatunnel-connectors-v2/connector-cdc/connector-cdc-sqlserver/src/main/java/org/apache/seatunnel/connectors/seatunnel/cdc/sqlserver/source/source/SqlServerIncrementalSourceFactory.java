@@ -116,7 +116,7 @@ public class SqlServerIncrementalSourceFactory implements TableSourceFactory {
                 }
                 dataType = new MultipleRowType(rowTypeMap);
             }
-            return new SqlServerIncrementalSource(context.getOptions(), dataType);
+            return new SqlServerIncrementalSource(context.getOptions(), dataType, catalogTables);
         };
     }
 }
