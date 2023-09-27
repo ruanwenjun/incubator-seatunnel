@@ -60,7 +60,7 @@ public class ConfigUtil {
         try {
             Map<List<String>, String> properties =
                     Arrays.stream(PROPERTIES_MAPPER.writeValueAsString(rawMap).split("\n"))
-                            .filter(StringUtils::isNoneEmpty)
+                            .filter(StringUtils::isNotEmpty)
                             .map(line -> line.split("=", 2))
                             .collect(
                                     Collectors.toMap(
