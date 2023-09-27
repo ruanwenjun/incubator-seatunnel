@@ -35,6 +35,7 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalo
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -57,7 +58,12 @@ public class DamengCatalog extends AbstractJdbcCatalog {
 
     private static final String SELECT_COLUMNS_SQL =
             "SELECT COLUMNS.COLUMN_NAME, COLUMNS.DATA_TYPE, COLUMNS.DATA_LENGTH, COLUMNS.DATA_PRECISION, COLUMNS.DATA_SCALE "
-                    + ", COLUMNS.NULLABLE, COLUMNS.DATA_DEFAULT, COMMENTS.COMMENTS "
+                    + ", COLUMNS.NULLABLE, COLUMNS.DATA_DEFAULT, COMMENTS.COMMENTS ,"
+                    + "CASE \n"
+                    + "        WHEN COLUMNS.DATA_TYPE IN ('CHAR', 'CHARACTER', 'VARCHAR', 'VARCHAR2', 'VARBINARY', 'BFILE', 'BINARY') THEN COLUMNS.DATA_TYPE || '(' || COLUMNS.DATA_LENGTH || ')'\n"
+                    + "        WHEN COLUMNS.DATA_TYPE IN ('NUMERIC', 'DECIMAL', 'NUMBER') AND COLUMNS.DATA_PRECISION IS NOT NULL AND COLUMNS.DATA_SCALE IS NOT NULL AND COLUMNS.DATA_PRECISION != 0 AND COLUMNS.DATA_SCALE != 0 THEN COLUMNS.DATA_TYPE || '(' || COLUMNS.DATA_PRECISION || ', ' || COLUMNS.DATA_SCALE || ')'\n"
+                    + "        ELSE COLUMNS.DATA_TYPE\n"
+                    + "    END AS SOURCE_TYPE \n"
                     + "FROM ALL_TAB_COLUMNS COLUMNS "
                     + "LEFT JOIN ALL_COL_COMMENTS COMMENTS "
                     + "ON COLUMNS.OWNER = COMMENTS.SCHEMA_NAME "
@@ -94,17 +100,53 @@ public class DamengCatalog extends AbstractJdbcCatalog {
     @Override
     protected boolean createTableInternal(TablePath tablePath, CatalogTable table)
             throws CatalogException {
-        throw new UnsupportedOperationException();
+        String createTableSql = new DamengCreateTableSqlBuilder(table).build(tablePath);
+        String[] createTableSqls = createTableSql.split(";");
+        for (String sql : createTableSqls) {
+            log.info("create table sql: {}", sql);
+            try (PreparedStatement ps = defaultConnection.prepareStatement(sql)) {
+                ps.execute();
+            } catch (Exception e) {
+                throw new CatalogException(
+                        String.format(
+                                "Failed creating table %s.%s",
+                                tablePath.getSchemaName(), tablePath.getTableName()),
+                        e);
+            }
+        }
+        return true;
     }
 
     @Override
     protected boolean dropTableInternal(TablePath tablePath) throws CatalogException {
-        throw new UnsupportedOperationException();
+        Connection connection = defaultConnection;
+        try (PreparedStatement ps =
+                connection.prepareStatement(
+                        String.format(
+                                "DROP TABLE \"%s\".\"%s\"",
+                                tablePath.getSchemaName(), tablePath.getTableName()))) {
+            // Will there exist concurrent truncate for one table?
+            return ps.execute();
+        } catch (SQLException e) {
+            throw new CatalogException(
+                    String.format("Failed truncating table %s", tablePath.getFullName()), e);
+        }
     }
 
     @Override
     protected boolean truncateTableInternal(TablePath tablePath) throws CatalogException {
-        throw new UnsupportedOperationException();
+        Connection connection = defaultConnection;
+        try (PreparedStatement ps =
+                connection.prepareStatement(
+                        String.format(
+                                "TRUNCATE TABLE \"%s\".\"%s\"",
+                                tablePath.getSchemaName(), tablePath.getTableName()))) {
+            // Will there exist concurrent truncate for one table?
+            return ps.execute();
+        } catch (SQLException e) {
+            throw new CatalogException(
+                    String.format("Failed truncating table %s", tablePath.getFullName()), e);
+        }
     }
 
     @Override
@@ -197,7 +239,8 @@ public class DamengCatalog extends AbstractJdbcCatalog {
                     builder.build(),
                     buildConnectorOptions(tablePath),
                     Collections.emptyList(),
-                    "");
+                    "",
+                    "dameng");
         } catch (Exception e) {
             throw new CatalogException(
                     String.format("Failed getting table %s", tablePath.getFullName()), e);
@@ -214,6 +257,7 @@ public class DamengCatalog extends AbstractJdbcCatalog {
                 while (resultSet.next()) {
                     String columnName = resultSet.getString("COLUMN_NAME");
                     String typeName = resultSet.getString("DATA_TYPE");
+                    String sourceTypeName = resultSet.getString("SOURCE_TYPE");
                     long columnLength = resultSet.getLong("DATA_LENGTH");
                     long columnPrecision = resultSet.getLong("DATA_PRECISION");
                     long columnScale = resultSet.getLong("DATA_SCALE");
@@ -264,7 +308,7 @@ public class DamengCatalog extends AbstractJdbcCatalog {
                                     isNullable,
                                     defaultValue,
                                     columnComment,
-                                    typeName,
+                                    sourceTypeName,
                                     false,
                                     false,
                                     bitLen,

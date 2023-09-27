@@ -35,4 +35,9 @@ public class DmdbDialectFactory implements JdbcDialectFactory {
     public JdbcDialect create() {
         return new DmdbDialect();
     }
+
+    @Override
+    public JdbcDialect createWithFieldIde(String fieldIde) {
+        return new DmdbDialect(fieldIde);
+    }
 }

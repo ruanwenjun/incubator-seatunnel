@@ -156,6 +156,7 @@ public class JdbcSinkFactory implements TableSinkFactory {
                             catalogTable.getTableSchema(),
                             catalogTable.getOptions(),
                             catalogTable.getPartitionKeys(),
+                            catalogTable.getComment(),
                             catalogTable.getCatalogName());
             Map<String, String> map = config.toMap();
             if (catalogTable.getTableId().getSchemaName() != null) {

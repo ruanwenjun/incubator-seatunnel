@@ -170,7 +170,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
         try (PreparedStatement ps =
                 connection.prepareStatement(
                         String.format(
-                                "DROP TABLE %s.%s",
+                                "DROP TABLE \"%s\".\"%s\"",
                                 tablePath.getSchemaName(), tablePath.getTableName()))) {
             // Will there exist concurrent truncate for one table?
             return ps.execute();
@@ -186,7 +186,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
         try (PreparedStatement ps =
                 connection.prepareStatement(
                         String.format(
-                                "TRUNCATE TABLE %s.%s",
+                                "TRUNCATE TABLE \"%s\".\"%s\"",
                                 tablePath.getSchemaName(), tablePath.getTableName()))) {
             // Will there exist concurrent truncate for one table?
             return ps.execute();
@@ -310,7 +310,8 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                                 builder.build(),
                                 buildConnectorOptions(tablePath),
                                 Collections.emptyList(),
-                                "");
+                                "",
+                                "oracle");
                 log.info(
                         "OracleCatalog get CatalogTable for: {} success cost {}/ms",
                         tablePath,
