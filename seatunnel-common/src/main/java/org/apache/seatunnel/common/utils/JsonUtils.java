@@ -30,6 +30,7 @@ import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectWriter;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.JsonNodeType;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.TextNode;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.type.CollectionType;
@@ -39,6 +40,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -174,6 +176,24 @@ public class JsonUtils {
     public static Map<String, Object> toMap(JsonNode jsonNode) {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.convertValue(jsonNode, new TypeReference<Map<String, Object>>() {});
+    }
+
+    public static Map<String, String> toLinkedHashMap(String json) {
+        ObjectNode jsonNodes = JsonUtils.parseObject(json);
+        LinkedHashMap<String, String> fieldsMap = new LinkedHashMap<>();
+        jsonNodes
+                .fields()
+                .forEachRemaining(
+                        field -> {
+                            String key = field.getKey();
+                            JsonNode value = field.getValue();
+                            if (value.getNodeType() == JsonNodeType.OBJECT) {
+                                fieldsMap.put(key, value.toString());
+                            } else {
+                                fieldsMap.put(key, value.textValue());
+                            }
+                        });
+        return fieldsMap;
     }
 
     /**

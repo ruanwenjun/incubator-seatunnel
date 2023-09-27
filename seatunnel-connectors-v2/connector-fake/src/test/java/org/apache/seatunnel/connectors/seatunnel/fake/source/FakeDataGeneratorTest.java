@@ -111,7 +111,9 @@ public class FakeDataGeneratorTest {
 
         Config testConfig = getTestConfigFile(conf);
         SeaTunnelRowType seaTunnelRowType =
-                CatalogTableUtil.buildWithConfig(testConfig).getSeaTunnelRowType();
+                CatalogTableUtil.buildWithConfig(testConfig)
+                        .getTableSchema()
+                        .toPhysicalRowDataType();
         FakeConfig fakeConfig = FakeConfig.buildWithConfig(testConfig);
         FakeDataGenerator fakeDataGenerator = new FakeDataGenerator(seaTunnelRowType, fakeConfig);
         List<SeaTunnelRow> seaTunnelRows = new ArrayList<>();

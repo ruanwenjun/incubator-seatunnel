@@ -51,7 +51,7 @@ public class CatalogTableUtilTest {
         String path = getTestConfigFile("/conf/simple.schema.conf");
         Config config = ConfigFactory.parseFile(new File(path));
         SeaTunnelRowType seaTunnelRowType =
-                CatalogTableUtil.buildWithConfig(config).getSeaTunnelRowType();
+                CatalogTableUtil.buildWithConfig(config).getTableSchema().toPhysicalRowDataType();
         Assertions.assertNotNull(seaTunnelRowType);
         Assertions.assertEquals(seaTunnelRowType.getFieldType(1), ArrayType.BYTE_ARRAY_TYPE);
         Assertions.assertEquals(seaTunnelRowType.getFieldType(2), BasicType.STRING_TYPE);
@@ -65,7 +65,7 @@ public class CatalogTableUtilTest {
         String path = getTestConfigFile("/conf/complex.schema.conf");
         Config config = ConfigFactory.parseFile(new File(path));
         SeaTunnelRowType seaTunnelRowType =
-                CatalogTableUtil.buildWithConfig(config).getSeaTunnelRowType();
+                CatalogTableUtil.buildWithConfig(config).getTableSchema().toPhysicalRowDataType();
         Assertions.assertNotNull(seaTunnelRowType);
         Assertions.assertEquals(
                 seaTunnelRowType.getFieldType(0),
