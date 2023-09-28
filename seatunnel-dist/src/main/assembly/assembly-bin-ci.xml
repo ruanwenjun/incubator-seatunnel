@@ -182,6 +182,9 @@
                 <!--Add netty buffer jar -->
                 <include>io.netty:netty-buffer:jar</include>
                 <include>io.netty:netty-common:jar</include>
+
+                <!--Add hive exec jar -->
+                <include>org.apache.hive:hive-exec:jar</include>
             </includes>
             <outputFileNameMapping>${artifact.file.name}</outputFileNameMapping>
             <outputDirectory>/lib</outputDirectory>
