@@ -53,7 +53,8 @@ public class DB2Dialect implements JdbcDialect {
 
     @Override
     public String tableIdentifier(String database, String tableName) {
-        return tableName;
+        String[] array = tableName.split("\\.");
+        return array[0] + ".\"" + array[1] + "\"";
     }
 
     @Override
@@ -65,16 +66,16 @@ public class DB2Dialect implements JdbcDialect {
                         .collect(Collectors.toList());
         String valuesBinding =
                 Arrays.stream(fieldNames)
-                        .map(fieldName -> ":" + fieldName + " " + quoteIdentifier(fieldName))
+                        .map(fieldName -> ":" + fieldName)
                         .collect(Collectors.joining(", "));
 
-        String usingClause = String.format("SELECT %s", valuesBinding);
+        String usingClause = String.format(" VALUES ( %s )", valuesBinding);
         String onConditions =
                 Arrays.stream(uniqueKeyFields)
                         .map(
                                 fieldName ->
                                         String.format(
-                                                "[TARGET].%s=[SOURCE].%s",
+                                                "TARGET.%s=SOURCE.%s",
                                                 quoteIdentifier(fieldName),
                                                 quoteIdentifier(fieldName)))
                         .collect(Collectors.joining(" AND "));
@@ -83,7 +84,7 @@ public class DB2Dialect implements JdbcDialect {
                         .map(
                                 fieldName ->
                                         String.format(
-                                                "[TARGET].%s=[SOURCE].%s",
+                                                "TARGET.%s=SOURCE.%s",
                                                 quoteIdentifier(fieldName),
                                                 quoteIdentifier(fieldName)))
                         .collect(Collectors.joining(", "));
@@ -93,20 +94,21 @@ public class DB2Dialect implements JdbcDialect {
                         .collect(Collectors.joining(", "));
         String insertValues =
                 Arrays.stream(fieldNames)
-                        .map(fieldName -> "[SOURCE]." + quoteIdentifier(fieldName))
+                        .map(fieldName -> "SOURCE." + quoteIdentifier(fieldName))
                         .collect(Collectors.joining(", "));
+
         String upsertSQL =
                 String.format(
-                        "MERGE INTO %s.%s AS [TARGET]"
-                                + " USING (%s) AS [SOURCE]"
-                                + " ON (%s)"
+                        " MERGE INTO %s AS TARGET"
+                                + " USING (%s) AS SOURCE (%s) "
+                                + " ON (%s) "
                                 + " WHEN MATCHED THEN"
                                 + " UPDATE SET %s"
                                 + " WHEN NOT MATCHED THEN"
-                                + " INSERT (%s) VALUES (%s);",
-                        database,
-                        tableName,
+                                + " INSERT (%s) VALUES (%s)",
+                        tableIdentifier(database, tableName),
                         usingClause,
+                        insertFields,
                         onConditions,
                         updateSetClause,
                         insertFields,

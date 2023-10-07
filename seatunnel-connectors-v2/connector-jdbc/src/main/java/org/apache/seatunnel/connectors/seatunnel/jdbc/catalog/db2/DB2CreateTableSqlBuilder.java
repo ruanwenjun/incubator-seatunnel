@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 import static net.snowflake.client.jdbc.internal.microsoft.azure.storage.core.SR.BLOB;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2.DB2DataTypeConvertor.DB2_BINARY;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2.DB2DataTypeConvertor.DB2_CHAR;
-import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2.DB2DataTypeConvertor.DB2_CLOB;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2.DB2DataTypeConvertor.DB2_DECIMAL;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2.DB2DataTypeConvertor.DB2_LONG_VARCHAR;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2.DB2DataTypeConvertor.DB2_VARBINARY;

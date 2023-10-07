@@ -1,6 +1,5 @@
 package org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.catalog.exception.CatalogException;
@@ -8,12 +7,12 @@ import org.apache.seatunnel.api.table.catalog.exception.DatabaseNotExistExceptio
 import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
 import lombok.SneakyThrows;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MysqlCreateTableSqlBuilder;
-import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -47,7 +46,8 @@ public class DB2Catalog extends AbstractJdbcCatalog {
     public boolean tableExists(TablePath tablePath) throws CatalogException {
         try {
             return databaseExists(tablePath.getDatabaseName())
-                    && listTables(tablePath.getDatabaseName()).contains(tablePath.getSchemaAndTableName());
+                    && listTables(tablePath.getDatabaseName())
+                            .contains(tablePath.getSchemaAndTableName());
         } catch (DatabaseNotExistException e) {
             return false;
         }
@@ -96,7 +96,10 @@ public class DB2Catalog extends AbstractJdbcCatalog {
 
     @Override
     protected boolean dropTableInternal(TablePath tablePath) throws CatalogException {
-        String sql = String.format("DROP TABLE IF EXISTS %s ", tablePath.getSchemaAndTableName());
+        String sql =
+                String.format(
+                        "DROP TABLE IF EXISTS %s.%s ",
+                        tablePath.getSchemaName(), "\"" + tablePath.getTableName() + "\"");
         Connection connection = defaultConnection;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             // Will there exist concurrent drop for one table?
@@ -110,7 +113,9 @@ public class DB2Catalog extends AbstractJdbcCatalog {
     @Override
     protected boolean truncateTableInternal(TablePath tablePath) throws CatalogException {
         String sql =
-                String.format("TRUNCATE TABLE %s immediate ", tablePath.getSchemaAndTableName());
+                String.format(
+                        "TRUNCATE TABLE %s.%s immediate ",
+                        tablePath.getSchemaName(), "\"" + tablePath.getTableName() + "\"");
         Connection connection = defaultConnection;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             // Will there exist concurrent drop for one table?
@@ -133,6 +138,8 @@ public class DB2Catalog extends AbstractJdbcCatalog {
 
     @Override
     public String getCountSql(TablePath tablePath) {
-        return String.format("select count(*) from %s;", tablePath.getFullName());
+        return String.format(
+                "select count(*) from %s.%s;",
+                tablePath.getSchemaName(), "\"" + tablePath.getTableName() + "\"");
     }
 }
