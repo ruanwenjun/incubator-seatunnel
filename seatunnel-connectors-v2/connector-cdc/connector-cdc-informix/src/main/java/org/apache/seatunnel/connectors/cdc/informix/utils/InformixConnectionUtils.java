@@ -104,14 +104,14 @@ public class InformixConnectionUtils {
         String query =
                 String.format(
                         "SELECT MAX(%s) FROM ("
-                                + "SELECT %s FROM %s WHERE %s >= ? ORDER BY %s ASC LIMIT %s"
+                                + "SELECT FIRST %s %s FROM %s WHERE %s >= ? ORDER BY %s ASC"
                                 + ") AS T",
                         quotedColumn,
+                        chunkSize,
                         quotedColumn,
                         quote(tableId),
                         quotedColumn,
-                        quotedColumn,
-                        chunkSize);
+                        quotedColumn);
         JdbcConnection.ResultSetMapper<Object> mapper =
                 rs -> {
                     rs.next();
