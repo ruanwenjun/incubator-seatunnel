@@ -3,11 +3,14 @@ package org.apache.seatunnel.connectors.dolphindb.config;
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 
 import com.xxdb.multithreadedtablewriter.MultithreadedTableWriter;
 import lombok.experimental.UtilityClass;
 
 import java.util.List;
+
+import static org.apache.seatunnel.api.sink.DataSaveMode.KEEP_SCHEMA_AND_DATA;
 
 @UtilityClass
 public class DolphinDBConfig {
@@ -66,11 +69,17 @@ public class DolphinDBConfig {
                     .noDefaultValue()
                     .withDescription("compress type of each column. 1: LZ4, 2: DELTAOFDELTA");
 
-    public static final Option<DataSaveMode> SAVE_MODE =
-            Options.key("save_mode")
+    public static final Option<DataSaveMode> DATA_SAVE_MODE =
+            Options.key("data_save_mode")
                     .enumType(DataSaveMode.class)
-                    .defaultValue(DataSaveMode.KEEP_SCHEMA_AND_DATA)
-                    .withDescription("save_mode");
+                    .defaultValue(KEEP_SCHEMA_AND_DATA)
+                    .withDescription("data_save_mode");
+
+    public static final Option<SchemaSaveMode> SCHEMA_SAVE_MODE =
+            Options.key("schema_save_mode")
+                    .enumType(SchemaSaveMode.class)
+                    .defaultValue(SchemaSaveMode.CREATE_SCHEMA_WHEN_NOT_EXIST)
+                    .withDescription("schema_save_mode");
 
     public static final Option<String> SAVE_MODE_CREATE_TEMPLATE =
             Options.key("save_mode_create_template")

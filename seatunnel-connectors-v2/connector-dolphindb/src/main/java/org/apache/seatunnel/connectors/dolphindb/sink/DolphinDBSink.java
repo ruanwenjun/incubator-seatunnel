@@ -4,9 +4,10 @@ import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
-import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SaveModeHandler;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
@@ -24,13 +25,12 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 
 @AutoService(SeaTunnelSink.class)
-public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void> {
+public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void>
+        implements SupportSaveMode {
 
     private final ReadonlyConfig readonlyConfig;
 
     private SeaTunnelRowType seaTunnelRowType;
-
-    private DataSaveMode dataSaveMode;
 
     private final CatalogTable catalogTable;
 
@@ -38,7 +38,6 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void> {
         this.catalogTable = catalogTable;
         this.readonlyConfig = readonlyConfig;
         this.seaTunnelRowType = catalogTable.getTableSchema().toPhysicalRowDataType();
-        this.dataSaveMode = readonlyConfig.get(DolphinDBConfig.SAVE_MODE);
     }
 
     @Override
@@ -82,14 +81,12 @@ public class DolphinDBSink extends AbstractSimpleSink<SeaTunnelRow, Void> {
         }
     }
 
-    /*@Override
-    public DataSaveMode getUserConfigSaveMode() {
-        return dataSaveMode;
-    }
-
     @Override
-    public void handleSaveMode(DataSaveMode dataSaveMode) {
-        new DolphinDBSaveModeHandler(catalogTable, readonlyConfig, seaTunnelRowType, dataSaveMode)
-                .handleSaveMode();
-    }*/
+    public SaveModeHandler getSaveModeHandler() {
+        return new DolphinDBSaveModeHandler(
+                readonlyConfig.get(DolphinDBConfig.SCHEMA_SAVE_MODE),
+                readonlyConfig.get(DolphinDBConfig.DATA_SAVE_MODE),
+                catalogTable,
+                readonlyConfig);
+    }
 }

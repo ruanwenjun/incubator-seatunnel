@@ -6,10 +6,12 @@ import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.serialization.DefaultSerializer;
 import org.apache.seatunnel.api.serialization.Serializer;
+import org.apache.seatunnel.api.sink.SaveModeHandler;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportMultiTableSink;
+import org.apache.seatunnel.api.sink.SupportSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
@@ -20,6 +22,7 @@ import org.apache.seatunnel.connectors.dws.guassdb.config.DwsGaussDBConfig;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.commit.DwsGaussDBSinkAggregatedCommitInfo;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.commit.DwsGaussDBSinkAggregatedCommitter;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.commit.DwsGaussDBSinkCommitInfo;
+import org.apache.seatunnel.connectors.dws.guassdb.sink.savemode.DwsGaussDBSaveModeHandler;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.sql.DwsGaussSqlGenerator;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.state.DwsGaussDBSinkState;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.writer.DwsGaussDBSinkWriterFactory;
@@ -41,11 +44,11 @@ public class DwsGaussDBSink
                         DwsGaussDBSinkState,
                         DwsGaussDBSinkCommitInfo,
                         DwsGaussDBSinkAggregatedCommitInfo>,
-                SupportMultiTableSink {
+                SupportMultiTableSink,
+                SupportSaveMode {
 
     @Getter private final String pluginName = DwsGaussDBConfig.CONNECTOR_NAME;
 
-    //    private final DataSaveMode dataSaveMode;
     private SeaTunnelRowType seaTunnelRowType;
     private final ReadonlyConfig readonlyConfig;
     private final CatalogTable catalogTable;
@@ -60,9 +63,6 @@ public class DwsGaussDBSink
                         readonlyConfig.get(PRIMARY_KEY),
                         readonlyConfig.get(FIELD_IDE),
                         catalogTable);
-        //        this.dataSaveMode =
-        //                ReadOnlyConfigUtils.getOrDefault(
-        //                        readonlyConfig, SAVE_MODE, DataSaveMode.ERROR_WHEN_EXISTS);
     }
 
     @Override
@@ -135,16 +135,9 @@ public class DwsGaussDBSink
             getAggregatedCommitInfoSerializer() {
         return Optional.of(new DefaultSerializer<>());
     }
-    //
-    //    @Override
-    //    public DataSaveMode getUserConfigSaveMode() {
-    //        return dataSaveMode;
-    //    }
-    //
-    //    @SneakyThrows
-    //    @Override
-    //    public void handleSaveMode(DataSaveMode saveMode) {
-    //        new DwsGaussDBSaveModeHandler(readonlyConfig, catalogTable, sqlGenerator)
-    //                .handleSaveMode(saveMode);
-    //    }
+
+    @Override
+    public SaveModeHandler getSaveModeHandler() {
+        return new DwsGaussDBSaveModeHandler(readonlyConfig, catalogTable, sqlGenerator);
+    }
 }

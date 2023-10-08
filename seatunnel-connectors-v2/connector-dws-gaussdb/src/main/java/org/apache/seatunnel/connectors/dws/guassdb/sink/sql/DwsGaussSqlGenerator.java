@@ -145,6 +145,10 @@ public class DwsGaussSqlGenerator implements Serializable {
         return "DELETE FROM \"" + schemaName + "\".\"" + targetTableName + "\"";
     }
 
+    public String getDeleteTemporaryTableSql() {
+        return "DELETE FROM \"" + schemaName + "\".\"" + templateTableName + "\"";
+    }
+
     public String getDropTemporaryTableSql() {
         return "DROP TABLE IF EXISTS \"" + schemaName + "\".\"" + templateTableName + "\"";
     }

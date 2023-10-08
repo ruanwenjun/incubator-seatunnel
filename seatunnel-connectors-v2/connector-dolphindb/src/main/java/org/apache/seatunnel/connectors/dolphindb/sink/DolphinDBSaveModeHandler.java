@@ -2,12 +2,13 @@ package org.apache.seatunnel.connectors.dolphindb.sink;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.DefaultSaveModeHandler;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.factory.CatalogFactory;
-import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.dolphindb.catalog.DolphinDBCatalog;
 import org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig;
 import org.apache.seatunnel.connectors.dolphindb.utils.DolphinDBSaveModeUtil;
@@ -22,82 +23,76 @@ import static org.apache.seatunnel.api.common.CommonOptions.PLUGIN_NAME;
 import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @Slf4j
-public class DolphinDBSaveModeHandler {
+public class DolphinDBSaveModeHandler extends DefaultSaveModeHandler {
 
     private final CatalogTable catalogTable;
     private final ReadonlyConfig readonlyConfig;
-    private final SeaTunnelRowType seaTunnelRowType;
-    private final DataSaveMode dataSaveMode;
+    private final DolphinDBCatalog catalog;
 
     public DolphinDBSaveModeHandler(
+            SchemaSaveMode schemaSaveMode,
+            DataSaveMode dataSaveMode,
             CatalogTable catalogTable,
-            ReadonlyConfig readonlyConfig,
-            SeaTunnelRowType seaTunnelRowType,
-            DataSaveMode dataSaveMode) {
+            ReadonlyConfig readonlyConfig) {
+        super(
+                schemaSaveMode,
+                dataSaveMode,
+                null,
+                catalogTable,
+                readonlyConfig.get(DolphinDBConfig.CUSTOM_SQL));
+        this.catalog = createCatalog();
         this.catalogTable = catalogTable;
         this.readonlyConfig = readonlyConfig;
-        this.seaTunnelRowType = seaTunnelRowType;
-        this.dataSaveMode = dataSaveMode;
     }
 
-    public void handleSaveMode() {
-        TablePath tablePath;
-        if (readonlyConfig.get(DolphinDBConfig.DATABASE) != null
-                && readonlyConfig.get(DolphinDBConfig.TABLE) != null) {
-            tablePath =
-                    TablePath.of(
-                            readonlyConfig.get(DolphinDBConfig.DATABASE),
-                            readonlyConfig.get(DolphinDBConfig.TABLE));
-        } else {
-            tablePath = catalogTable.getTableId().toTablePath();
-        }
+    @Override
+    protected boolean tableExists() {
+        return catalog.tableExists(catalogTable.getTableId().toTablePath());
+    }
 
-        /*try (DolphinDBCatalog catalog = createCatalog()) {
-            catalog.open();
-            switch (dataSaveMode) {
-                case DROP_SCHEMA:
-                    if (catalog.tableExists(tablePath)) {
-                        catalog.dropTable(tablePath, true);
-                    }
-                    autoCreateTableByTemplate(
-                            catalog, tablePath, readonlyConfig.get(SAVE_MODE_CREATE_TEMPLATE));
-                    break;
-                case KEEP_SCHEMA_DROP_DATA:
-                    if (catalog.tableExists(tablePath)) {
-                        catalog.truncateTable(tablePath, true);
-                    } else {
-                        autoCreateTableByTemplate(
-                                catalog, tablePath, readonlyConfig.get(SAVE_MODE_CREATE_TEMPLATE));
-                    }
-                    break;
-                case KEEP_SCHEMA_AND_DATA:
-                    if (!catalog.tableExists(tablePath)) {
-                        autoCreateTableByTemplate(
-                                catalog, tablePath, readonlyConfig.get(SAVE_MODE_CREATE_TEMPLATE));
-                    }
-                    break;
-                case CUSTOM_PROCESSING:
-                    String sql = readonlyConfig.get(DolphinDBConfig.CUSTOM_SQL);
-                    catalog.executeScript(sql);
-                    if (!catalog.tableExists(tablePath)) {
-                        autoCreateTableByTemplate(
-                                catalog, tablePath, readonlyConfig.get(SAVE_MODE_CREATE_TEMPLATE));
-                    }
-                    break;
-                case ERROR_WHEN_EXISTS:
-                    if (catalog.tableExists(tablePath)) {
-                        if (catalog.isExistsData(tablePath)) {
-                            throw new DolphinDBConnectorException(
-                                    SOURCE_ALREADY_HAS_DATA,
-                                    "The target data source already has data");
-                        }
-                    } else {
-                        autoCreateTableByTemplate(
-                                catalog, tablePath, readonlyConfig.get(SAVE_MODE_CREATE_TEMPLATE));
-                    }
-                    break;
-            }
-        }*/
+    @Override
+    protected void dropTable() {
+        catalog.dropTable(catalogTable.getTableId().toTablePath(), true);
+    }
+
+    @Override
+    protected void createTable() {
+        // todo: it's not a good idea to auto create database and table in dolphindb, since it's
+        // rely on many params
+        String database = tablePath.getDatabaseName();
+        String tableName = tablePath.getTableName();
+        if (!catalog.databaseExists(database)) {
+            catalog.createDatabase(TablePath.of(database, ""), true);
+        }
+        if (!catalog.tableExists(tablePath)) {
+            String finalTemplate =
+                    DolphinDBSaveModeUtil.fillingCreateSql(
+                            readonlyConfig.get(DolphinDBConfig.SAVE_MODE_CREATE_TEMPLATE),
+                            database,
+                            tableName,
+                            catalogTable.getTableSchema());
+            catalog.executeScript(finalTemplate);
+        }
+    }
+
+    @Override
+    protected void truncateTable() {
+        catalog.truncateTable(catalogTable.getTableId().toTablePath(), true);
+    }
+
+    @Override
+    protected boolean dataExists() {
+        return catalog.isExistsData(catalogTable.getTableId().toTablePath());
+    }
+
+    @Override
+    protected void executeCustomSql() {
+        catalog.executeScript(readonlyConfig.get(DolphinDBConfig.CUSTOM_SQL));
+    }
+
+    @Override
+    public void close() throws Exception {
+        try (DolphinDBCatalog closed = catalog) {}
     }
 
     private DolphinDBCatalog createCatalog() {
@@ -117,22 +112,5 @@ public class DolphinDBSaveModeHandler {
         Catalog catalog =
                 catalogFactory.createCatalog(catalogFactory.factoryIdentifier(), readonlyConfig);
         return (DolphinDBCatalog) catalog;
-    }
-
-    private void autoCreateTableByTemplate(
-            DolphinDBCatalog catalog, TablePath tablePath, String template) {
-        // todo: it's not a good idea to auto create database and table in dolphindb, since it's
-        // rely on many params
-        String database = tablePath.getDatabaseName();
-        String tableName = tablePath.getTableName();
-        if (!catalog.databaseExists(database)) {
-            catalog.createDatabase(TablePath.of(database, ""), true);
-        }
-        if (!catalog.tableExists(tablePath)) {
-            String finalTemplate =
-                    DolphinDBSaveModeUtil.fillingCreateSql(
-                            template, database, tableName, catalogTable.getTableSchema());
-            catalog.executeScript(finalTemplate);
-        }
     }
 }

@@ -30,11 +30,12 @@ import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.B
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.COMPRESS_TYPE;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.CUSTOM_SQL;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.DATABASE;
+import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.DATA_SAVE_MODE;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.KEY_COL_NAMES;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.PARTITION_COLUMN;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.PASSWORD;
-import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.SAVE_MODE;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.SAVE_MODE_CREATE_TEMPLATE;
+import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.SCHEMA_SAVE_MODE;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.TABLE;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.THROTTLE;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.USER;
@@ -61,10 +62,11 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
                         PARTITION_COLUMN,
                         WRITE_MODE,
                         COMPRESS_TYPE,
-                        SAVE_MODE,
+                        SCHEMA_SAVE_MODE,
+                        DATA_SAVE_MODE,
                         SAVE_MODE_CREATE_TEMPLATE)
                 .conditional(WRITE_MODE, MultithreadedTableWriter.Mode.M_Upsert, KEY_COL_NAMES)
-                .conditional(SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
+                .conditional(DATA_SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
                 .build();
     }
 
