@@ -26,6 +26,7 @@ import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.catalog.exception.CatalogException;
 import org.apache.seatunnel.api.table.catalog.exception.DatabaseNotExistException;
 import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
+import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
 
@@ -41,10 +42,12 @@ import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -236,7 +239,12 @@ public class KingbaseCatalog extends AbstractJdbcCatalog {
             throw new TableNotExistException(catalogName, tablePath);
         }
 
-        String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
+        String dbUrl;
+        if (StringUtils.isBlank(tablePath.getDatabaseName())) {
+            dbUrl = getUrlFromDatabaseName(defaultDatabase);
+        } else {
+            dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
+        }
         TableSchema.Builder builder = TableSchema.builder();
         try (Connection connection = DriverManager.getConnection(dbUrl, username, pwd)) {
             DatabaseMetaData metaData = connection.getMetaData();
@@ -253,18 +261,23 @@ public class KingbaseCatalog extends AbstractJdbcCatalog {
                             tablePath.getTableName(),
                             null)) {
                 while (resultSet.next()) {
+                    String pgType = resultSet.getString("TYPE_NAME").toUpperCase();
                     String columnName = resultSet.getString("COLUMN_NAME");
                     int columnDisplaySize = resultSet.getInt("COLUMN_SIZE");
                     String defaultValue = resultSet.getString("COLUMN_DEF");
+                    int columnSize = resultSet.getInt("COLUMN_SIZE");
+                    int decimalDigits = resultSet.getInt("DECIMAL_DIGITS");
+                    int nullable = resultSet.getInt("NULLABLE");
+                    String remarks = resultSet.getString("REMARKS");
+
                     PhysicalColumn physicalColumn =
                             PhysicalColumn.of(
                                     columnName,
-                                    KingBaseDataTypeConvertor.mapping(resultSet),
+                                    fromJdbcType(pgType, columnSize, decimalDigits),
                                     columnDisplaySize,
-                                    Boolean.parseBoolean(
-                                            resultSet.getObject("IS_NULLABLE").toString()),
+                                    nullable != ResultSetMetaData.columnNoNulls,
                                     defaultValue,
-                                    resultSet.getString("REMARKS"));
+                                    remarks);
                     builder.column(physicalColumn);
                 }
             }
@@ -302,5 +315,12 @@ public class KingbaseCatalog extends AbstractJdbcCatalog {
     private String getUrlFromDatabaseName(String databaseName) {
         String url = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
         return url + databaseName + suffix;
+    }
+
+    private SeaTunnelDataType<?> fromJdbcType(String typeName, long precision, long scale) {
+        Map<String, Object> dataTypeProperties = new HashMap<>();
+        dataTypeProperties.put(KingBaseDataTypeConvertor.PRECISION, precision);
+        dataTypeProperties.put(KingBaseDataTypeConvertor.SCALE, scale);
+        return new KingBaseDataTypeConvertor().toSeaTunnelType(typeName, dataTypeProperties);
     }
 }

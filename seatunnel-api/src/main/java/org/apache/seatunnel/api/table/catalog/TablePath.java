@@ -22,6 +22,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.io.Serializable;
+import java.util.StringJoiner;
 
 @Getter
 @EqualsAndHashCode
@@ -33,10 +34,20 @@ public final class TablePath implements Serializable {
     private final String tableName;
 
     public static TablePath of(String fullName) {
+        return of(fullName, false);
+    }
+
+    public static TablePath of(String fullName, boolean schemaFirst) {
         String[] paths = fullName.split("\\.");
 
+        if (paths.length == 1) {
+            return of(null, paths[0]);
+        }
         if (paths.length == 2) {
-            return of(paths[0], paths[1]);
+            if (schemaFirst) {
+                return of(null, paths[0], paths[1]);
+            }
+            return of(paths[0], null, paths[1]);
         }
         if (paths.length == 3) {
             return of(paths[0], paths[1], paths[2]);
@@ -62,10 +73,16 @@ public final class TablePath implements Serializable {
     }
 
     public String getFullName() {
-        if (schemaName == null) {
-            return String.format("%s.%s", databaseName, tableName);
+        StringJoiner joiner = new StringJoiner(".");
+        if (databaseName != null) {
+            joiner.add(databaseName);
         }
-        return String.format("%s.%s.%s", databaseName, schemaName, tableName);
+        if (schemaName != null) {
+            joiner.add(schemaName);
+        }
+        joiner.add(tableName);
+
+        return joiner.toString();
     }
 
     public String getFullNameWithQuoted() {
@@ -73,32 +90,20 @@ public final class TablePath implements Serializable {
     }
 
     public String getFullNameWithQuoted(String quote) {
-        if (schemaName == null) {
-            return String.format(
-                    "%s%s%s.%s%s%s", quote, databaseName, quote, quote, tableName, quote);
-        }
-        return String.format(
-                "%s%s%s.%s%s%s.%s%s%s",
-                quote, databaseName, quote, quote, schemaName, quote, quote, tableName, quote);
+        return getFullNameWithQuoted(quote);
     }
 
     public String getFullNameWithQuoted(String quoteLeft, String quoteRight) {
-        if (schemaName == null) {
-            return String.format(
-                    "%s%s%s.%s%s%s",
-                    quoteLeft, databaseName, quoteRight, quoteLeft, tableName, quoteRight);
+        StringJoiner joiner = new StringJoiner(".", quoteLeft, quoteRight);
+        if (databaseName != null) {
+            joiner.add(databaseName);
         }
-        return String.format(
-                "%s%s%s.%s%s%s.%s%s%s",
-                quoteLeft,
-                databaseName,
-                quoteRight,
-                quoteLeft,
-                schemaName,
-                quoteRight,
-                quoteLeft,
-                tableName,
-                quoteRight);
+        if (schemaName != null) {
+            joiner.add(schemaName);
+        }
+        joiner.add(tableName);
+
+        return joiner.toString();
     }
 
     @Override

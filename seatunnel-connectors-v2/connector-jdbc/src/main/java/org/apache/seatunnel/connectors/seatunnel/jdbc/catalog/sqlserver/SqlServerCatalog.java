@@ -129,9 +129,12 @@ public class SqlServerCatalog extends AbstractJdbcCatalog {
     @Override
     public boolean tableExists(TablePath tablePath) throws CatalogException {
         try {
-            return databaseExists(tablePath.getDatabaseName())
-                    && listTables(tablePath.getDatabaseName())
-                            .contains(tablePath.getSchemaAndTableName());
+            if (StringUtils.isNotBlank(tablePath.getDatabaseName())) {
+                return databaseExists(tablePath.getDatabaseName())
+                        && listTables(tablePath.getDatabaseName())
+                                .contains(tablePath.getSchemaAndTableName());
+            }
+            return listTables(defaultDatabase).contains(tablePath.getSchemaAndTableName());
         } catch (DatabaseNotExistException e) {
             return false;
         }
@@ -153,7 +156,12 @@ public class SqlServerCatalog extends AbstractJdbcCatalog {
                         "    SELECT tbl.name AS table_name, \n           col.name AS column_name, \n           ext.value AS comment, \n           col.column_id AS column_id, \n           types.name AS type, \n           col.max_length AS max_length, \n           col.precision AS precision, \n           col.scale AS scale, \n           col.is_nullable AS is_nullable, \n def.definition AS default_value\n     FROM sys.tables tbl \nINNER JOIN sys.columns col \n        ON tbl.object_id = col.object_id \n LEFT JOIN sys.types types \n        ON col.user_type_id = types.user_type_id \n LEFT JOIN sys.extended_properties ext \n        ON ext.major_id = col.object_id and ext.minor_id = col.column_id \n   LEFT JOIN sys.default_constraints def ON col.default_object_id = def.object_id \n    AND ext.minor_id = col.column_id \n       AND ext.name = 'MS_Description' \n     WHERE schema_name(tbl.schema_id) = '%s' \n       %s \n  ORDER BY tbl.name, col.column_id",
                         tablePath.getSchemaName(), tableSql);
 
-        String dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
+        String dbUrl;
+        if (StringUtils.isNotBlank(tablePath.getDatabaseName())) {
+            dbUrl = getUrlFromDatabaseName(tablePath.getDatabaseName());
+        } else {
+            dbUrl = getUrlFromDatabaseName(defaultDatabase);
+        }
         try (Connection conn = DriverManager.getConnection(dbUrl, username, pwd)) {
             DatabaseMetaData metaData = conn.getMetaData();
             Optional<PrimaryKey> primaryKey =
