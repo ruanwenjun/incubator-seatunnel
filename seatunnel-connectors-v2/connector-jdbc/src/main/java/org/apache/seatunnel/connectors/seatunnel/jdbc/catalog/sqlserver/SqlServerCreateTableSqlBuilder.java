@@ -127,7 +127,7 @@ public class SqlServerCreateTableSqlBuilder {
 
     public String build(TablePath tablePath, CatalogTable catalogTable) {
         List<String> sqls = new ArrayList<>();
-        String sqlTableName = "[" + tablePath.getFullName() + "]";
+        String sqlTableName = tablePath.getFullName();
         Map<String, String> columnComments = new HashMap<>();
         sqls.add(
                 String.format(
