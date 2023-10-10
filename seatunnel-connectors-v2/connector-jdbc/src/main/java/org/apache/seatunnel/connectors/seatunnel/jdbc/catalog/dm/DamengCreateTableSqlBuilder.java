@@ -116,7 +116,7 @@ public class DamengCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
         switch (sqlType) {
             case BYTES:
                 bitLen = bitLen == null ? -1 : (bitLen <= 64 ? bitLen : bitLen >> 3);
-                if (bitLen < 0 || bitLen > 2000) {
+                if (bitLen <= 0 || bitLen > 2000) {
                     return "BLOB";
                 } else {
                     return "VARBINARY(" + bitLen + ")";

@@ -163,7 +163,8 @@ public class DamengCatalog extends AbstractJdbcCatalog {
 
     public String getCountSql(TablePath tablePath) {
         return String.format(
-                "select count(*) from %s.%s", tablePath.getSchemaName(), tablePath.getTableName());
+                "select count(*) from \"%s\".\"%s\"",
+                tablePath.getSchemaName(), tablePath.getTableName());
     }
 
     @Override
