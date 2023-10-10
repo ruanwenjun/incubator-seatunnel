@@ -4,7 +4,6 @@ import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
-import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
 import org.apache.seatunnel.api.table.connector.TableSink;
@@ -21,7 +20,6 @@ import com.google.auto.service.AutoService;
 import com.xxdb.multithreadedtablewriter.MultithreadedTableWriter;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.seatunnel.api.table.catalog.CatalogTableUtil.SCHEMA;
@@ -104,10 +102,7 @@ public class DolphinDBSinkFactory implements TableSinkFactory<SeaTunnelRow, Void
 
     private CatalogTable tableNameFromConfig(TableSinkFactoryContext context) {
         ReadonlyConfig readonlyConfig = context.getOptions();
-        List<CatalogTable> catalogTables =
-                CatalogTableUtil.getCatalogTablesFromConfig(
-                        context.getOptions(), context.getClassLoader());
-        CatalogTable catalogTable = catalogTables.get(0);
+        CatalogTable catalogTable = context.getCatalogTable();
         TableIdentifier tableId = catalogTable.getTableId();
         TableIdentifier newTableId =
                 TableIdentifier.of(
