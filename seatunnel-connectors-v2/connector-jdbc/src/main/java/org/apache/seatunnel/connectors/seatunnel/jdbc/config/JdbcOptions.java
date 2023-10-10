@@ -26,6 +26,9 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dialecten
 import java.math.BigDecimal;
 import java.util.List;
 
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_DATABASE_NAME_KEY;
+import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_TABLE_NAME_KEY;
+
 @SuppressWarnings("checkstyle:MagicNumber")
 public interface JdbcOptions {
 
@@ -119,10 +122,16 @@ public interface JdbcOptions {
                     .withDescription("transaction timeout (second)");
 
     Option<String> DATABASE =
-            Options.key("database").stringType().noDefaultValue().withDescription("database");
+            Options.key("database")
+                    .stringType()
+                    .defaultValue(REPLACE_DATABASE_NAME_KEY)
+                    .withDescription("database");
 
     Option<String> TABLE =
-            Options.key("table").stringType().noDefaultValue().withDescription("table");
+            Options.key("table")
+                    .stringType()
+                    .defaultValue(REPLACE_TABLE_NAME_KEY)
+                    .withDescription("table");
 
     Option<List<String>> PRIMARY_KEYS =
             Options.key("primary_keys").listType().noDefaultValue().withDescription("primary keys");

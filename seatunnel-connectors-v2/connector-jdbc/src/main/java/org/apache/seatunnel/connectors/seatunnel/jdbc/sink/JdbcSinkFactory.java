@@ -26,6 +26,7 @@ import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.ConstraintKey;
 import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
@@ -87,69 +88,42 @@ public class JdbcSinkFactory implements TableSinkFactory {
         ReadonlyConfig config = context.getOptions();
         CatalogTable catalogTable = context.getCatalogTable();
         Map<String, String> catalogOptions = config.get(CatalogOptions.CATALOG_OPTIONS);
-        Optional<String> optionalTable = config.getOptional(TABLE);
-        Optional<String> optionalDatabase = config.getOptional(DATABASE);
-        if (!optionalTable.isPresent()) {
-            optionalTable = Optional.of(REPLACE_TABLE_NAME_KEY);
-        }
-        if (!optionalDatabase.isPresent()) {
-            optionalDatabase = Optional.of(REPLACE_DATABASE_NAME_KEY);
-        }
         if (catalogOptions != null && !catalogOptions.isEmpty()) {
-            // get source table relevant information
-            TableIdentifier tableId = catalogTable.getTableId();
-            String sourceDatabaseName = tableId.getDatabaseName();
-            String sourceSchemaName = tableId.getSchemaName();
-            String sourceTableName = tableId.getTableName();
-            // get sink table relevant information
-            String sinkDatabaseName = optionalDatabase.get();
-            String sinkTableNameBefore = optionalTable.get();
-            String[] sinkTableSplitArray = sinkTableNameBefore.split("\\.");
-            String sinkTableName = sinkTableSplitArray[sinkTableSplitArray.length - 1];
-            String sinkSchemaName;
-            if (sinkTableSplitArray.length > 1) {
-                sinkSchemaName = sinkTableSplitArray[sinkTableSplitArray.length - 2];
-            } else {
-                sinkSchemaName = null;
-            }
+
+            String fullTableName = String.format("%s.%s", config.get(DATABASE), config.get(TABLE));
+
+            // to replace databaseName, schemaName, tableName
+            fullTableName = replaceFullTableName(fullTableName, catalogTable.getTableId());
+
+            TablePath tablePath = TablePath.of(fullTableName);
+
+            // to replace schemaName
             if (StringUtils.isNotBlank(catalogOptions.get(JdbcCatalogOptions.SCHEMA.key()))) {
-                sinkSchemaName = catalogOptions.get(JdbcCatalogOptions.SCHEMA.key());
+                tablePath =
+                        TablePath.of(
+                                tablePath.getDatabaseName(),
+                                catalogOptions.get(JdbcCatalogOptions.SCHEMA.key()),
+                                tablePath.getTableName());
             }
             // to add tablePrefix and tableSuffix
-            String tempTableName;
             String prefix = catalogOptions.get(JdbcCatalogOptions.TABLE_PREFIX.key());
             String suffix = catalogOptions.get(JdbcCatalogOptions.TABLE_SUFFIX.key());
             if (StringUtils.isNotEmpty(prefix) || StringUtils.isNotEmpty(suffix)) {
+                String tempTableName;
+                String sinkTableName = tablePath.getTableName();
                 tempTableName =
                         StringUtils.isNotEmpty(prefix) ? prefix + sinkTableName : sinkTableName;
                 tempTableName =
                         StringUtils.isNotEmpty(suffix) ? tempTableName + suffix : tempTableName;
-
-            } else {
-                tempTableName = sinkTableName;
+                tablePath =
+                        TablePath.of(
+                                tablePath.getDatabaseName(),
+                                tablePath.getSchemaName(),
+                                tempTableName);
             }
-            // to replace
-            String finalDatabaseName =
-                    sinkDatabaseName.replace(REPLACE_DATABASE_NAME_KEY, sourceDatabaseName);
-            String finalSchemaName;
-            if (sinkSchemaName != null) {
-                if (sourceSchemaName == null) {
-                    finalSchemaName = sinkSchemaName;
-                } else {
-                    finalSchemaName =
-                            sinkSchemaName.replace(REPLACE_SCHEMA_NAME_KEY, sourceSchemaName);
-                }
-            } else {
-                finalSchemaName = null;
-            }
-            String finalTableName = tempTableName.replace(REPLACE_TABLE_NAME_KEY, sourceTableName);
             // rebuild TableIdentifier and catalogTable
             TableIdentifier newTableId =
-                    TableIdentifier.of(
-                            tableId.getCatalogName(),
-                            finalDatabaseName,
-                            finalSchemaName,
-                            finalTableName);
+                    TableIdentifier.of(catalogTable.getTableId().getCatalogName(), tablePath);
             catalogTable =
                     CatalogTable.of(
                             newTableId,
@@ -215,6 +189,19 @@ public class JdbcSinkFactory implements TableSinkFactory {
                         schemaSaveMode,
                         dataSaveMode,
                         finalCatalogTable);
+    }
+
+    private String replaceFullTableName(String original, TableIdentifier tableId) {
+        if (StringUtils.isNotBlank(tableId.getDatabaseName())) {
+            original = original.replace(REPLACE_DATABASE_NAME_KEY, tableId.getDatabaseName());
+        }
+        if (StringUtils.isNotBlank(tableId.getSchemaName())) {
+            original = original.replace(REPLACE_SCHEMA_NAME_KEY, tableId.getSchemaName());
+        }
+        if (StringUtils.isNotBlank(tableId.getTableName())) {
+            original = original.replace(REPLACE_TABLE_NAME_KEY, tableId.getTableName());
+        }
+        return original;
     }
 
     // todo
