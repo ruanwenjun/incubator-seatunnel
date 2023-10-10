@@ -22,7 +22,9 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.io.Serializable;
-import java.util.StringJoiner;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Getter
 @EqualsAndHashCode
@@ -73,16 +75,7 @@ public final class TablePath implements Serializable {
     }
 
     public String getFullName() {
-        StringJoiner joiner = new StringJoiner(".");
-        if (databaseName != null) {
-            joiner.add(databaseName);
-        }
-        if (schemaName != null) {
-            joiner.add(schemaName);
-        }
-        joiner.add(tableName);
-
-        return joiner.toString();
+        return getFullNameWithQuoted("");
     }
 
     public String getFullNameWithQuoted() {
@@ -90,20 +83,20 @@ public final class TablePath implements Serializable {
     }
 
     public String getFullNameWithQuoted(String quote) {
-        return getFullNameWithQuoted(quote);
+        return getFullNameWithQuoted(quote, quote);
     }
 
     public String getFullNameWithQuoted(String quoteLeft, String quoteRight) {
-        StringJoiner joiner = new StringJoiner(".", quoteLeft, quoteRight);
+        List<String> paths = new ArrayList<>();
         if (databaseName != null) {
-            joiner.add(databaseName);
+            paths.add(databaseName);
         }
         if (schemaName != null) {
-            joiner.add(schemaName);
+            paths.add(schemaName);
         }
-        joiner.add(tableName);
+        paths.add(tableName);
 
-        return joiner.toString();
+        return paths.stream().map(s -> quoteLeft + s + quoteRight).collect(Collectors.joining("."));
     }
 
     @Override
