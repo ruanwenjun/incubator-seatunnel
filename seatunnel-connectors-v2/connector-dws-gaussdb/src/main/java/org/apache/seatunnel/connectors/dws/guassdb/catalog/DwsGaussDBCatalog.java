@@ -484,7 +484,7 @@ public class DwsGaussDBCatalog implements Catalog, Serializable {
                             indexName,
                             s -> {
                                 ConstraintKey.ConstraintType constraintType =
-                                        ConstraintKey.ConstraintType.KEY;
+                                        ConstraintKey.ConstraintType.INDEX_KEY;
                                 if (!noUnique) {
                                     constraintType = ConstraintKey.ConstraintType.UNIQUE_KEY;
                                 }

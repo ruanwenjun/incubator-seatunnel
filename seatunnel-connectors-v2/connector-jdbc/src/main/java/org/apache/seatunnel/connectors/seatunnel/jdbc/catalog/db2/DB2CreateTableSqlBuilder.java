@@ -187,7 +187,7 @@ public class DB2CreateTableSqlBuilder {
 
         String keyName = null;
         switch (constraintType) {
-            case KEY:
+            case INDEX_KEY:
                 keyName = "KEY";
                 break;
             case UNIQUE_KEY:

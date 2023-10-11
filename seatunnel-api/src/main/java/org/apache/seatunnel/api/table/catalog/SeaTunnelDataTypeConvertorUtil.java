@@ -1,5 +1,7 @@
 package org.apache.seatunnel.api.table.catalog;
 
+import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ObjectNode;
+
 import org.apache.seatunnel.api.table.type.ArrayType;
 import org.apache.seatunnel.api.table.type.BasicType;
 import org.apache.seatunnel.api.table.type.DecimalType;
@@ -79,7 +81,8 @@ public class SeaTunnelDataTypeConvertorUtil {
     }
 
     private static SeaTunnelDataType<?> parseRowType(String columnStr) {
-        Map<String, String> fieldsMap = JsonUtils.toLinkedHashMap(columnStr);
+        ObjectNode jsonNodes = JsonUtils.parseObject(columnStr);
+        Map<String, String> fieldsMap = JsonUtils.toStringMap(jsonNodes);
         String[] fieldsName = new String[fieldsMap.size()];
         SeaTunnelDataType<?>[] seaTunnelDataTypes = new SeaTunnelDataType<?>[fieldsMap.size()];
         int i = 0;

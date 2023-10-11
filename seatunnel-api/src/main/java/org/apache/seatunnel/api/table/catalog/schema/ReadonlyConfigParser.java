@@ -17,8 +17,9 @@
 
 package org.apache.seatunnel.api.table.catalog.schema;
 
+import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.JsonNode;
+
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
-import org.apache.seatunnel.api.configuration.util.ConfigUtil;
 import org.apache.seatunnel.api.table.catalog.Column;
 import org.apache.seatunnel.api.table.catalog.ConstraintKey;
 import org.apache.seatunnel.api.table.catalog.PhysicalColumn;
@@ -26,7 +27,9 @@ import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.SeaTunnelDataTypeConvertorUtil;
 import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.common.utils.JsonUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,17 +44,26 @@ public class ReadonlyConfigParser implements TableSchemaParser<ReadonlyConfig> {
             new PrimaryKeyParser();
 
     @Override
-    public TableSchema parse(ReadonlyConfig schemaConfig) {
+    public TableSchema parse(ReadonlyConfig readonlyConfig) {
+        ReadonlyConfig schemaConfig =
+                readonlyConfig
+                        .getOptional(TableSchemaOptions.SCHEMA)
+                        .map(ReadonlyConfig::fromMap)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Schema config can't be null"));
 
-        if (schemaConfig.getOptional(TableSchemaOptions.FieldOptions.FIELDS).isPresent()
+        if (readonlyConfig.getOptional(TableSchemaOptions.FieldOptions.FIELDS).isPresent()
                 && schemaConfig.getOptional(TableSchemaOptions.ColumnOptions.COLUMNS).isPresent()) {
             throw new IllegalArgumentException(
                     "Schema config can't contains both [fields] and [columns], please correct your config first");
         }
         TableSchema.Builder tableSchemaBuilder = TableSchema.builder();
-        if (schemaConfig.getOptional(TableSchemaOptions.FieldOptions.FIELDS).isPresent()) {
-            tableSchemaBuilder.columns(fieldParser.parse(schemaConfig));
+        if (readonlyConfig.getOptional(TableSchemaOptions.FieldOptions.FIELDS).isPresent()) {
+            // we use readonlyConfig here to avoid flatten, this is used to solve the t.x.x as field
+            // key
+            tableSchemaBuilder.columns(fieldParser.parse(readonlyConfig));
         }
+
         if (schemaConfig.getOptional(TableSchemaOptions.ColumnOptions.COLUMNS).isPresent()) {
             tableSchemaBuilder.columns(columnParser.parse(schemaConfig));
         }
@@ -73,20 +85,21 @@ public class ReadonlyConfigParser implements TableSchemaParser<ReadonlyConfig> {
 
         @Override
         public List<Column> parse(ReadonlyConfig schemaConfig) {
-            ReadonlyConfig fieldConfig =
-                    ReadonlyConfig.fromMap(
-                            schemaConfig.get(TableSchemaOptions.FieldOptions.FIELDS));
-            return fieldConfig.toMap().entrySet().stream()
-                    .map(
-                            entry -> {
-                                String key = entry.getKey();
-                                String value = ConfigUtil.convertToJsonString(entry.getValue());
-                                SeaTunnelDataType<?> dataType =
-                                        SeaTunnelDataTypeConvertorUtil.deserializeSeaTunnelDataType(
-                                                value);
-                                return PhysicalColumn.of(key, dataType, 0, true, null, null);
-                            })
-                    .collect(Collectors.toList());
+            JsonNode jsonNode =
+                    JsonUtils.toJsonNode(
+                            schemaConfig.get(TableSchemaOptions.FieldOptions.FIELDS, false));
+            Map<String, String> fieldsMap = JsonUtils.toStringMap(jsonNode);
+            int fieldsNum = fieldsMap.size();
+            List<Column> columns = new ArrayList<>(fieldsNum);
+            for (Map.Entry<String, String> entry : fieldsMap.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                SeaTunnelDataType<?> dataType =
+                        SeaTunnelDataTypeConvertorUtil.deserializeSeaTunnelDataType(value);
+                PhysicalColumn column = PhysicalColumn.of(key, dataType, 0, true, null, null);
+                columns.add(column);
+            }
+            return columns;
         }
     }
 
@@ -94,7 +107,7 @@ public class ReadonlyConfigParser implements TableSchemaParser<ReadonlyConfig> {
 
         @Override
         public List<Column> parse(ReadonlyConfig schemaConfig) {
-            return schemaConfig.get(TableSchemaOptions.ColumnOptions.COLUMNS).stream()
+            return schemaConfig.get(TableSchemaOptions.ColumnOptions.COLUMNS, false).stream()
                     .map(ReadonlyConfig::fromMap)
                     .map(
                             columnConfig -> {
@@ -107,7 +120,9 @@ public class ReadonlyConfigParser implements TableSchemaParser<ReadonlyConfig> {
                                                                         "schema.columns.* config need option [name], please correct your config first"));
                                 SeaTunnelDataType<?> seaTunnelDataType =
                                         columnConfig
-                                                .getOptional(TableSchemaOptions.ColumnOptions.TYPE)
+                                                .getOptional(
+                                                        TableSchemaOptions.ColumnOptions.TYPE,
+                                                        false)
                                                 .map(
                                                         SeaTunnelDataTypeConvertorUtil
                                                                 ::deserializeSeaTunnelDataType)

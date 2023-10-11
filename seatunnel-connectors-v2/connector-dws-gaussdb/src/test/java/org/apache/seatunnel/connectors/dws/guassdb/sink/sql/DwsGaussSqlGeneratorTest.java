@@ -43,7 +43,7 @@ public class DwsGaussSqlGeneratorTest {
                         .primaryKey(PrimaryKey.of("id", Lists.newArrayList("id")))
                         .constraintKey(
                                 ConstraintKey.of(
-                                        ConstraintKey.ConstraintType.KEY,
+                                        ConstraintKey.ConstraintType.INDEX_KEY,
                                         "id",
                                         Lists.newArrayList(
                                                 ConstraintKey.ConstraintKeyColumn.of(

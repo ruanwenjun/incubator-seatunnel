@@ -38,7 +38,7 @@ public class TableSchemaOptions {
     @Deprecated
     public static class FieldOptions {
         public static final Option<Map<String, Object>> FIELDS =
-                Options.key("fields")
+                Options.key("schema.fields")
                         .type(new TypeReference<Map<String, Object>>() {})
                         .noDefaultValue()
                         .withDescription("SeaTunnel Schema Fields");

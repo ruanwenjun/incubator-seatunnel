@@ -311,7 +311,7 @@ public class SqlServerCreateTableSqlBuilder {
 
         String keyName = null;
         switch (constraintType) {
-            case KEY:
+            case INDEX_KEY:
                 keyName = "KEY";
                 break;
             case UNIQUE_KEY:

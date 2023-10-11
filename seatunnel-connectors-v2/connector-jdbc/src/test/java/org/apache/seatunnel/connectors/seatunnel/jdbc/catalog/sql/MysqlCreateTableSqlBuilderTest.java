@@ -77,7 +77,7 @@ public class MysqlCreateTableSqlBuilderTest {
                                         "id", com.google.common.collect.Lists.newArrayList("id")))
                         .constraintKey(
                                 ConstraintKey.of(
-                                        ConstraintKey.ConstraintType.KEY,
+                                        ConstraintKey.ConstraintType.INDEX_KEY,
                                         "name",
                                         Lists.newArrayList(
                                                 ConstraintKey.ConstraintKeyColumn.of(

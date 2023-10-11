@@ -178,11 +178,9 @@ public class JsonUtils {
         return mapper.convertValue(jsonNode, new TypeReference<Map<String, Object>>() {});
     }
 
-    public static Map<String, String> toLinkedHashMap(String json) {
-        ObjectNode jsonNodes = JsonUtils.parseObject(json);
-        LinkedHashMap<String, String> fieldsMap = new LinkedHashMap<>();
-        jsonNodes
-                .fields()
+    public static Map<String, String> toStringMap(JsonNode jsonNode) {
+        Map<String, String> fieldsMap = new LinkedHashMap<>();
+        jsonNode.fields()
                 .forEachRemaining(
                         field -> {
                             String key = field.getKey();

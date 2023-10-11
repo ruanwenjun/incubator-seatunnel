@@ -22,6 +22,7 @@ import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SourceSplit;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
+import org.apache.seatunnel.api.table.catalog.schema.TableSchemaOptions;
 import org.apache.seatunnel.api.table.connector.TableSource;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableSourceFactory;
@@ -61,7 +62,7 @@ public class KafkaSourceFactory implements TableSourceFactory {
                         Config.CONSUMER_GROUP,
                         Config.COMMIT_ON_CHECKPOINT,
                         Config.KAFKA_CONFIG,
-                        CatalogTableUtil.SCHEMA,
+                        TableSchemaOptions.SCHEMA,
                         Config.FORMAT,
                         Config.DEBEZIUM_RECORD_INCLUDE_SCHEMA,
                         Config.KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS)

@@ -26,7 +26,7 @@ import org.apache.seatunnel.connectors.seatunnel.kafka.config.Config;
 
 import com.google.auto.service.AutoService;
 
-import static org.apache.seatunnel.api.table.catalog.CatalogTableUtil.FIELDS;
+import static org.apache.seatunnel.api.table.catalog.schema.TableSchemaOptions.FieldOptions.FIELDS;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.BOOTSTRAP_SERVERS;
 
 @AutoService(Factory.class)

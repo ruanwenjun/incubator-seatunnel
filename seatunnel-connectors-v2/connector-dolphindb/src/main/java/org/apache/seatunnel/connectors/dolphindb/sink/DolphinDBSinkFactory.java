@@ -22,7 +22,7 @@ import com.xxdb.multithreadedtablewriter.MultithreadedTableWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.seatunnel.api.table.catalog.CatalogTableUtil.SCHEMA;
+import static org.apache.seatunnel.api.table.catalog.schema.TableSchemaOptions.SCHEMA;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.ADDRESS;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.BATCH_SIZE;
 import static org.apache.seatunnel.connectors.dolphindb.config.DolphinDBConfig.COMPRESS_TYPE;
