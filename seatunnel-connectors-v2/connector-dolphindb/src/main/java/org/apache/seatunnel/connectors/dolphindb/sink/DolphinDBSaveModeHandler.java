@@ -40,9 +40,9 @@ public class DolphinDBSaveModeHandler extends DefaultSaveModeHandler {
                 null,
                 catalogTable,
                 readonlyConfig.get(DolphinDBConfig.CUSTOM_SQL));
-        this.catalog = createCatalog();
-        this.catalogTable = catalogTable;
         this.readonlyConfig = readonlyConfig;
+        this.catalogTable = catalogTable;
+        this.catalog = createCatalog();
     }
 
     @Override
