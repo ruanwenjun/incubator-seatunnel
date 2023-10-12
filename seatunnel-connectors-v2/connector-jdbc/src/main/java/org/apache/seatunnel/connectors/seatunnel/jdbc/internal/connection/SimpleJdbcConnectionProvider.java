@@ -20,6 +20,7 @@ package org.apache.seatunnel.connectors.seatunnel.jdbc.internal.connection;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcConnectionConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorErrorCode;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.hive.HiveJdbcUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,6 +102,9 @@ public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Ser
             return connection;
         }
         Driver driver = getLoadedDriver();
+        if (jdbcConfig.useKerberos) {
+            HiveJdbcUtils.doKerberosAuthentication(jdbcConfig);
+        }
         Properties info = new Properties();
         if (jdbcConfig.getUsername().isPresent()) {
             info.setProperty("user", jdbcConfig.getUsername().get());

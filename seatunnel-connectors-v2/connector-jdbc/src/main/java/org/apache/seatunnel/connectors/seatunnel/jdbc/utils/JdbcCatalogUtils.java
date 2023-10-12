@@ -33,6 +33,9 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogFacto
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcConnectionConfig;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.config.JdbcSourceTableConfig;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorErrorCode;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.exception.JdbcConnectorException;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialect;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.JdbcDialectLoader;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.source.JdbcSourceTable;
@@ -43,7 +46,6 @@ import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -335,10 +337,13 @@ public class JdbcCatalogUtils {
     }
 
     private static Connection getConnection(JdbcConnectionConfig config) throws SQLException {
-        if (config.getUsername().isPresent() && config.getPassword().isPresent()) {
-            return DriverManager.getConnection(
-                    config.getUrl(), config.getUsername().get(), config.getPassword().get());
+        try {
+            return new SimpleJdbcConnectionProvider(config).getOrEstablishConnection();
+        } catch (ClassNotFoundException e) {
+            throw new JdbcConnectorException(
+                    JdbcConnectorErrorCode.CONNECT_DATABASE_FAILED,
+                    "Fail to getConnection of class " + config,
+                    e);
         }
-        return DriverManager.getConnection(config.getUrl());
     }
 }
