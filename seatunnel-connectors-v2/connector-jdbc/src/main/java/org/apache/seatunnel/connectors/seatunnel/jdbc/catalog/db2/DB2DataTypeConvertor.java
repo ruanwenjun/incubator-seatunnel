@@ -150,9 +150,9 @@ public class DB2DataTypeConvertor implements DataTypeConvertor<String> {
             case TINYINT:
             case SMALLINT:
             case INT:
-                return DB2_BIGINT;
+                return DB2_INT;
             case BIGINT:
-                return DB2_NUM;
+                return DB2_BIGINT;
             case FLOAT:
                 return DB2_FLOAT;
             case DOUBLE:
