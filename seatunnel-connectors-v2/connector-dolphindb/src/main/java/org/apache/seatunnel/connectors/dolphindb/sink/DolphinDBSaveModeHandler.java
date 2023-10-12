@@ -43,6 +43,7 @@ public class DolphinDBSaveModeHandler extends DefaultSaveModeHandler {
         this.readonlyConfig = readonlyConfig;
         this.catalogTable = catalogTable;
         this.catalog = createCatalog();
+        catalog.open();
     }
 
     @Override
