@@ -67,4 +67,9 @@ public class HiveDialect implements JdbcDialect {
     public String extractTableName(TablePath tablePath) {
         return tablePath.getTableName();
     }
+
+    @Override
+    public TablePath parse(String tablePath) {
+        return TablePath.of(tablePath, true);
+    }
 }

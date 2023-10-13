@@ -46,7 +46,7 @@ public class DolphinDBUpsertWriter implements DolphinDBWriter {
             if (fieldType.getSqlType().equals(SqlType.DECIMAL)) {
                 // dolphinDB support decimal after 2.00.8
                 BigDecimal bigDecimal = (BigDecimal) fields[i];
-                if(bigDecimal != null) {
+                if (bigDecimal != null) {
                     finalFields[i] = bigDecimal.doubleValue();
                 }
                 continue;
