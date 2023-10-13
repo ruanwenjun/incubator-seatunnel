@@ -17,33 +17,19 @@
 
 package org.apache.seatunnel.api.configuration.util;
 
-import org.apache.seatunnel.shade.com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
-import org.apache.seatunnel.shade.com.typesafe.config.ConfigRenderOptions;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 public class ConfigUtilTest {
 
-    private static final ObjectMapper JACKSON_MAPPER = new ObjectMapper();
-
     private static Config config;
-
-    private static Config differentValueConfig;
 
     @BeforeAll
     public static void init() throws URISyntaxException {
@@ -54,15 +40,6 @@ public class ConfigUtilTest {
                                                 .getResource("/conf/option-test.conf")
                                                 .toURI())
                                 .toFile());
-
-        differentValueConfig =
-                ConfigFactory.parseFile(
-                        Paths.get(
-                                        ConfigUtilTest.class
-                                                .getResource(
-                                                        "/conf/config_with_key_with_different_type_value.conf")
-                                                .toURI())
-                                .toFile());
     }
 
     @Test
@@ -70,91 +47,5 @@ public class ConfigUtilTest {
         String configJson = ConfigUtil.convertToJsonString(config);
         Config parsedConfig = ConfigUtil.convertToConfig(configJson);
         Assertions.assertEquals(config.getConfig("env"), parsedConfig.getConfig("env"));
-    }
-
-    @Test
-    @DisabledOnOs(
-            value = OS.WINDOWS,
-            disabledReason = "TODO read file from windows have some error")
-    public void treeMapFunctionTest() throws IOException, URISyntaxException {
-        Map<String, Object> map =
-                JACKSON_MAPPER.readValue(
-                        config.root().render(ConfigRenderOptions.concise()),
-                        new TypeReference<Map<String, Object>>() {});
-        Map<String, Object> result = ConfigUtil.treeMap(map);
-        Map<String, Object> expectResult =
-                JACKSON_MAPPER.readValue(
-                        ConfigUtilTest.class
-                                .getResource("/conf/option-test-json-after-treemap.json")
-                                .toURI()
-                                .toURL(),
-                        new TypeReference<Map<String, Object>>() {});
-        Assertions.assertEquals(result, expectResult);
-
-        Map<String, Object> differentValueMap =
-                JACKSON_MAPPER.readValue(
-                        differentValueConfig.root().render(ConfigRenderOptions.concise()),
-                        new TypeReference<Map<String, Object>>() {});
-
-        Map<String, Object> value = ConfigUtil.treeMap(differentValueMap);
-        Assertions.assertEquals(value.size(), 2);
-        Map<String, Object> expect = new HashMap<>();
-        Map<String, Object> offsets = new HashMap<>();
-        expect.put("", "specific_offsets");
-        expect.put("offsets", offsets);
-        offsets.put("test_topic_source-0", "50");
-        Assertions.assertEquals(
-                ((Map) ((List) value.get("source")).get(0)).get("start_mode"), expect);
-    }
-
-    @Test
-    public void testSamePrefixDifferentSuffixKey() {
-        Map<String, Object> config = new LinkedHashMap<>();
-        config.put(
-                "fs.s3a.aws.credentials.provider",
-                "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
-        config.put("other", "value");
-        config.put("fs.s3a.endpoint", "s3.cn-northwest-1.amazonaws.com.cn");
-        Map<String, Object> result = ConfigUtil.treeMap(config);
-        Map<String, Object> s3aMap =
-                (Map<String, Object>) ((Map<String, Object>) result.get("fs")).get("s3a");
-        Assertions.assertTrue(s3aMap.containsKey("aws"));
-        Assertions.assertTrue(s3aMap.containsKey("endpoint"));
-        Assertions.assertEquals(2, s3aMap.size());
-    }
-
-    @Test
-    public void testSamePrefixDifferentValueType() {
-        Map<String, Object> config = new LinkedHashMap<>();
-        config.put("start.mode", "CONSUME_FROM_TIMESTAMP");
-        config.put("other", "value");
-        config.put("start.mode.timestamp", "1667179890315");
-        Map<String, Object> result = ConfigUtil.treeMap(config);
-        Map<String, Object> s3aMap =
-                (Map<String, Object>) ((Map<String, Object>) result.get("start")).get("mode");
-        Assertions.assertTrue(s3aMap.containsKey(""));
-        Assertions.assertTrue(s3aMap.containsKey("timestamp"));
-        Assertions.assertEquals(2, s3aMap.size());
-
-        config.clear();
-        config.put("start.mode", "CONSUME_FROM_TIMESTAMP");
-        config.put("start.mode.timestamp", "1667179890315");
-        Map<String, Object> result2 = ConfigUtil.treeMap(config);
-        Map<String, Object> s3aMap2 =
-                (Map<String, Object>) ((Map<String, Object>) result2.get("start")).get("mode");
-        Assertions.assertTrue(s3aMap2.containsKey(""));
-        Assertions.assertTrue(s3aMap2.containsKey("timestamp"));
-        Assertions.assertEquals(2, s3aMap2.size());
-
-        config.clear();
-        config.put("start.mode", "CONSUME_FROM_TIMESTAMP");
-        config.put("start.mode.timestamp.test1", "1667179890315");
-        config.put("start.mode.timestamp.test2", "1667179890315");
-        Map<String, Object> result3 = ConfigUtil.treeMap(config);
-        Map<String, Object> s3aMap3 =
-                (Map<String, Object>) ((Map<String, Object>) result3.get("start")).get("mode");
-        Assertions.assertTrue(s3aMap3.containsKey(""));
-        Assertions.assertTrue(s3aMap3.containsKey("timestamp"));
-        Assertions.assertEquals(2, s3aMap3.size());
     }
 }
