@@ -313,22 +313,19 @@ public class MysqlCreateTableSqlBuilder {
         switch (constraintType) {
             case INDEX_KEY:
                 keyName = "KEY";
-                break;
+                return String.format(
+                        "%s `%s` (%s)", keyName, constraintKey.getConstraintName(), indexColumns);
             case UNIQUE_KEY:
                 keyName = "UNIQUE KEY";
-                break;
+                return String.format(
+                        "%s `%s` (%s)", keyName, constraintKey.getConstraintName(), indexColumns);
             case FOREIGN_KEY:
                 keyName = "FOREIGN KEY";
                 // todo:
-                break;
+                return null;
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported constraint type: " + constraintType);
         }
-        if (StringUtils.equals(keyName, "UNIQUE KEY")) {
-            return String.format(
-                    "%s `%s` (%s)", keyName, constraintKey.getConstraintName(), indexColumns);
-        }
-        return null;
     }
 }

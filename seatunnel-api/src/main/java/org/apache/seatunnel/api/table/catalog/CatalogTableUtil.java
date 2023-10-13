@@ -206,7 +206,12 @@ public class CatalogTableUtil implements Serializable {
         TableSchema tableSchema = new ReadonlyConfigParser().parse(readonlyConfig);
         return CatalogTable.of(
                 // TODO: other table info
-                TableIdentifier.of("", "", ""),
+                TableIdentifier.of(
+                        "",
+                        "default",
+                        readonlyConfig
+                                .getOptional(CommonOptions.RESULT_TABLE_NAME)
+                                .orElse("default")),
                 tableSchema,
                 new HashMap<>(),
                 new ArrayList<>(),

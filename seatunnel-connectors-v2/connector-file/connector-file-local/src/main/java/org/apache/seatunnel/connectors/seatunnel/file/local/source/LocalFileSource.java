@@ -18,13 +18,15 @@
 package org.apache.seatunnel.connectors.seatunnel.file.local.source;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
+import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.catalog.schema.TableSchemaOptions;
-import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.config.CheckConfigUtil;
 import org.apache.seatunnel.common.config.CheckResult;
 import org.apache.seatunnel.common.constants.PluginType;
@@ -41,19 +43,17 @@ import org.apache.seatunnel.connectors.seatunnel.file.source.reader.ReadStrategy
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Lists;
 
 import java.io.IOException;
+import java.util.List;
 
 @AutoService(SeaTunnelSource.class)
 public class LocalFileSource extends BaseFileSource {
+    private CatalogTable catalogTable;
 
-    @Override
-    public String getPluginName() {
-        return FileSystemType.LOCAL.getFileSystemPluginName();
-    }
-
-    @Override
-    public void prepare(Config pluginConfig) throws PrepareFailException {
+    public LocalFileSource(ReadonlyConfig readonlyConfig) {
+        Config pluginConfig = ConfigFactory.parseMap(readonlyConfig.getConfData());
         CheckResult result =
                 CheckConfigUtil.checkAllExists(
                         pluginConfig,
@@ -92,9 +92,8 @@ public class LocalFileSource extends BaseFileSource {
                 case TEXT:
                 case JSON:
                 case EXCEL:
-                    SeaTunnelRowType userDefinedSchema =
-                            CatalogTableUtil.buildWithConfig(pluginConfig).getSeaTunnelRowType();
-                    readStrategy.setSeaTunnelRowTypeInfo(userDefinedSchema);
+                    catalogTable = CatalogTableUtil.buildWithConfig(pluginConfig);
+                    readStrategy.setSeaTunnelRowTypeInfo(catalogTable.getSeaTunnelRowType());
                     rowType = readStrategy.getActualSeaTunnelRowTypeInfo();
                     break;
                 case ORC:
@@ -119,4 +118,17 @@ public class LocalFileSource extends BaseFileSource {
             }
         }
     }
+
+    @Override
+    public String getPluginName() {
+        return FileSystemType.LOCAL.getFileSystemPluginName();
+    }
+
+    @Override
+    public List<CatalogTable> getProducedCatalogTables() {
+        return Lists.newArrayList(catalogTable);
+    }
+
+    @Override
+    public void prepare(Config pluginConfig) throws PrepareFailException {}
 }
