@@ -48,6 +48,7 @@ public class DB2DataTypeConvertor implements DataTypeConvertor<String> {
     public static final String DB2_DECFLOAT = "DECFLOAT";
     // string
     public static final String DB2_CHAR = "CHAR";
+    public static final String DB2_CHARACTER = "CHARACTER";
     public static final String DB2_VARCHAR = "VARCHAR";
     public static final String DB2_LONG_VARCHAR = "LONG VARCHAR";
     public static final String DB2_CLOB = "CLOB";
@@ -112,6 +113,7 @@ public class DB2DataTypeConvertor implements DataTypeConvertor<String> {
             case DB2_DECFLOAT:
                 return BasicType.DOUBLE_TYPE;
             case DB2_CHAR:
+            case DB2_CHARACTER:
             case DB2_VARCHAR:
             case DB2_LONG_VARCHAR:
             case DB2_CLOB:
@@ -135,8 +137,7 @@ public class DB2DataTypeConvertor implements DataTypeConvertor<String> {
             case DB2_XML:
             default:
                 throw new UnsupportedOperationException(
-                        String.format(
-                                "Doesn't support POSTGRES type '%s''  yet.", connectorDataType));
+                        String.format("Doesn't support DB2 type '%s''  yet.", connectorDataType));
         }
     }
 
