@@ -18,6 +18,7 @@
 package org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils;
 
 import org.apache.seatunnel.api.table.factory.CatalogFactory;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.db2.DB2CatalogFactory;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.dm.DamengCatalogFactory;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.informix.InformixCatalogFactory;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.kingbase.KingbaseCatalogFactory;
@@ -76,6 +77,9 @@ public class CatalogFactorySelector {
         }
         if (jdbcURL.startsWith(PROTOCOL_KINGBASE8)) {
             return Optional.of(new KingbaseCatalogFactory());
+        }
+        if (jdbcURL.startsWith(PROTOCOL_DB2)) {
+            return Optional.of(new DB2CatalogFactory());
         }
 
         log.warn("No catalog factory found for jdbc url: {}", jdbcURL);
