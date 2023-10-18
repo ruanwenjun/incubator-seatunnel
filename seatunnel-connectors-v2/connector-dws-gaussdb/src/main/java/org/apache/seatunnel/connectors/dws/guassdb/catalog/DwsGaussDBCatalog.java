@@ -416,7 +416,7 @@ public class DwsGaussDBCatalog implements Catalog, Serializable {
 
     public int queryDataCount(String sql) {
         BaseConnection connection = getDefaultConnection();
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql);
+        try (Statement preparedStatement = connection.createStatement();
                 ResultSet resultSet = preparedStatement.executeQuery(sql)) {
             if (resultSet == null) {
                 return 0;
