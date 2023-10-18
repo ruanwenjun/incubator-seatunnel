@@ -257,7 +257,11 @@ public class DwsGaussSqlGenerator implements Serializable {
         Object[] fields = seaTunnelRow.getFields();
         StringBuilder stringBuilder = new StringBuilder();
         for (int i = 0; i < fields.length; i++) {
-            stringBuilder.append(seaTunnelRow.getField(i));
+            if (seaTunnelRow.getField(i) == null) {
+                // use '' represent null
+            } else {
+                stringBuilder.append(seaTunnelRow.getField(i));
+            }
             if (i != fields.length - 1) {
                 stringBuilder.append(delimiter);
             }

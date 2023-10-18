@@ -127,6 +127,16 @@ public class DwsGaussSqlGeneratorTest {
         String targetTableRows =
                 dwsGaussSqlGenerator.getTargetTableRows(Lists.newArrayList(seaTunnelRow));
         Assertions.assertEquals("1|tom|18|2023-09-07T10:10:10", targetTableRows);
+
+        fields = new Object[4];
+        fields[0] = 1;
+        fields[1] = "tom";
+        fields[2] = null;
+        fields[3] = LocalDateTime.of(2023, 9, 7, 10, 10, 10);
+        seaTunnelRow = new SeaTunnelRow(fields);
+
+        targetTableRows = dwsGaussSqlGenerator.getTargetTableRows(Lists.newArrayList(seaTunnelRow));
+        Assertions.assertEquals("1|tom||2023-09-07T10:10:10", targetTableRows);
     }
 
     @Test
