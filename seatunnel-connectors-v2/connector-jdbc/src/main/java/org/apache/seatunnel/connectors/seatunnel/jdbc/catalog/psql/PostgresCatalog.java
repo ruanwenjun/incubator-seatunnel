@@ -32,6 +32,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
 
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import com.mysql.cj.MysqlType;
@@ -362,7 +363,17 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
                         String.format("Failed alter table %s", tablePath.getFullName()), e);
             }
         }
-
+        if (CollectionUtils.isNotEmpty(postgresCreateTableSqlBuilder.getCreateIndexSqls())) {
+            for (String createIndexSql : postgresCreateTableSqlBuilder.getCreateIndexSqls()) {
+                log.info("createIndexSql: {}", createIndexSql);
+                try (PreparedStatement ps = conn.prepareStatement(createIndexSql)) {
+                    ps.execute();
+                } catch (Exception e) {
+                    throw new CatalogException(
+                            String.format("Failed create index %s", tablePath.getFullName()), e);
+                }
+            }
+        }
         return true;
     }
 

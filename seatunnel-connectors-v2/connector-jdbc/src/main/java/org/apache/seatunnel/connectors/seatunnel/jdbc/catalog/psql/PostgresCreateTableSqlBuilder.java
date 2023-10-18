@@ -29,8 +29,10 @@ import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import lombok.Getter;
+
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_BYTEA;
@@ -44,6 +46,8 @@ public class PostgresCreateTableSqlBuilder {
     private String fieldIde;
     private List<ConstraintKey> constraintKeys;
     public Boolean isHaveConstraintKey = false;
+
+    @Getter public List<String> createIndexSqls = new ArrayList<>();
 
     public PostgresCreateTableSqlBuilder(CatalogTable catalogTable) {
         this.columns = catalogTable.getTableSchema().getColumns();
@@ -78,10 +82,20 @@ public class PostgresCreateTableSqlBuilder {
                                         constraintKey.getConstraintName()))) {
                     continue;
                 }
-                String constraintKeySql = buildConstraintKeySql(constraintKey);
-                if (StringUtils.isNotEmpty(constraintKeySql)) {
-                    columnSqls.add("\t" + constraintKeySql);
-                    isHaveConstraintKey = true;
+                switch (constraintKey.getConstraintType()) {
+                    case UNIQUE_KEY:
+                        isHaveConstraintKey = true;
+                        String uniqueKeySql = buildUniqueKeySql(constraintKey);
+                        columnSqls.add("\t" + uniqueKeySql);
+                        break;
+                    case INDEX_KEY:
+                        isHaveConstraintKey = true;
+                        String indexKeySql = buildIndexKeySql(tablePath, constraintKey);
+                        createIndexSqls.add(indexKeySql);
+                        break;
+                    case FOREIGN_KEY:
+                        // todo: add foreign key
+                        break;
                 }
             }
         }
@@ -170,9 +184,25 @@ public class PostgresCreateTableSqlBuilder {
         return columnCommentSql.toString();
     }
 
-    private String buildConstraintKeySql(ConstraintKey constraintKey) {
-        ConstraintKey.ConstraintType constraintType = constraintKey.getConstraintType();
-        String randomSuffix = UUID.randomUUID().toString().replace("-", "").substring(0, 4);
+    private String buildUniqueKeySql(ConstraintKey constraintKey) {
+        String constraintName = constraintKey.getConstraintName();
+        if (constraintName.length() > 25) {
+            constraintName = constraintName.substring(0, 25);
+        }
+        String indexColumns =
+                constraintKey.getColumnNames().stream()
+                        .map(
+                                constraintKeyColumn ->
+                                        String.format(
+                                                "\"%s\"",
+                                                CatalogUtils.getFieldIde(
+                                                        constraintKeyColumn.getColumnName(),
+                                                        fieldIde)))
+                        .collect(Collectors.joining(", "));
+        return "CONSTRAINT " + constraintName + " UNIQUE (" + indexColumns + ")";
+    }
+
+    private String buildIndexKeySql(TablePath tablePath, ConstraintKey constraintKey) {
 
         String constraintName = constraintKey.getConstraintName();
         if (constraintName.length() > 25) {
@@ -189,34 +219,12 @@ public class PostgresCreateTableSqlBuilder {
                                                         fieldIde)))
                         .collect(Collectors.joining(", "));
 
-        String keyName = null;
-        switch (constraintType) {
-            case INDEX_KEY:
-                keyName = "KEY";
-                break;
-            case UNIQUE_KEY:
-                keyName = "UNIQUE";
-                break;
-            case FOREIGN_KEY:
-                keyName = "FOREIGN KEY";
-                // todo:
-                break;
-            default:
-                throw new UnsupportedOperationException(
-                        "Unsupported constraint type: " + constraintType);
-        }
-
-        if (StringUtils.equals(keyName, "UNIQUE")) {
-            isHaveConstraintKey = true;
-            return "CONSTRAINT "
-                    + constraintName
-                    + "_"
-                    + randomSuffix
-                    + " UNIQUE ("
-                    + indexColumns
-                    + ")";
-        }
-        // todo KEY AND FOREIGN_KEY
-        return null;
+        return "CREATE INDEX "
+                + constraintName
+                + " ON "
+                + tablePath.getSchemaAndTableName("\"")
+                + "("
+                + indexColumns
+                + ");";
     }
 }
