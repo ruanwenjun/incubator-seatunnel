@@ -75,6 +75,7 @@ public class DwsGaussDBSinkOption implements BaseDwsGaussDBOption {
                 .required(URL, DRIVER, SCHEMA_SAVE_MODE, DATA_SAVE_MODE)
                 .optional(USER, PASSWORD, PROPERTIES, WRITE_MODE, BATCH_SIZE)
                 .conditional(WRITE_MODE, WriteMode.USING_TEMPORARY_TABLE, PRIMARY_KEY)
+                .conditional(DATA_SAVE_MODE, DataSaveMode.CUSTOM_PROCESSING, CUSTOM_SQL)
                 .build();
     }
 }
