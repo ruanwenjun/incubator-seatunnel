@@ -116,7 +116,8 @@ public class DwsGaussDBSinkFactory
             config = ReadonlyConfig.fromMap(new HashMap<>(map));
         }
         final ReadonlyConfig options = config;
-        String[] split = config.get(TABLE).split("\\.");
+        String[] split =
+                replaceFullTableName(config.get(TABLE), catalogTable.getTableId()).split("\\.");
         String schemaName = null;
         String tableName;
         if (split.length == 2) {
