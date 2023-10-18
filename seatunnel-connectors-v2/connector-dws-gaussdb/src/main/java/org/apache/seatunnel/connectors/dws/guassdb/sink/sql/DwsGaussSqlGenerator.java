@@ -242,7 +242,11 @@ public class DwsGaussSqlGenerator implements Serializable {
         StringBuilder stringBuilder = new StringBuilder();
         Object[] fields = seaTunnelRow.getFields();
         for (int i = 0; i < fields.length; i++) {
-            stringBuilder.append(seaTunnelRow.getField(i));
+            if (seaTunnelRow.getField(i) == null) {
+                // use '' represent null
+            } else {
+                stringBuilder.append(seaTunnelRow.getField(i));
+            }
             stringBuilder.append(delimiter);
         }
         // todo: If the schema changed, we need to make sure the snapshotId and isDeleted flag is
