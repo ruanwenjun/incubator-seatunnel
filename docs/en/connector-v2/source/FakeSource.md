@@ -262,6 +262,24 @@ The max value of double data that connector generated
 
 The template list of double type that connector generated, if user configured it, connector will randomly select an item from the template list
 
+### table-names
+
+The table list that connector generated, used to simulate multi-table scenarios.
+
+This option will override the `table` option in the `schema` option.
+For example, if you configure the `table-names` option as follows, the connector will generate data for the `test.table1` and `test.table2` tables, the `database.schema.table` will be drop.
+
+```agsl
+FakeSource {
+    table-names = ["test.table1", "test.table2"]
+    schema = {
+        table = "database.schema.table"
+        ...
+    }
+    ...
+}
+```
+
 ### common options
 
 Source plugin common parameters, please refer to [Source Common Options](common-options.md) for details

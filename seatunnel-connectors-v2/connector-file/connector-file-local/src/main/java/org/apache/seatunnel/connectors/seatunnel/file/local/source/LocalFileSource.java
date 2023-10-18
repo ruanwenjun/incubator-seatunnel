@@ -18,7 +18,6 @@
 package org.apache.seatunnel.connectors.seatunnel.file.local.source;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
-import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
@@ -53,7 +52,7 @@ public class LocalFileSource extends BaseFileSource {
     private CatalogTable catalogTable;
 
     public LocalFileSource(ReadonlyConfig readonlyConfig) {
-        Config pluginConfig = ConfigFactory.parseMap(readonlyConfig.getConfData());
+        Config pluginConfig = readonlyConfig.toConfig();
         CheckResult result =
                 CheckConfigUtil.checkAllExists(
                         pluginConfig,

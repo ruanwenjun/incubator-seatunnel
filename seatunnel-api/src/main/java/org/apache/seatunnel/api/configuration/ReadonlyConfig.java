@@ -21,6 +21,7 @@ import org.apache.seatunnel.shade.com.fasterxml.jackson.core.JsonProcessingExcep
 import org.apache.seatunnel.shade.com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
+import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
 import org.apache.seatunnel.shade.com.typesafe.config.ConfigRenderOptions;
 
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +68,15 @@ public class ReadonlyConfig implements Serializable {
 
     public Map<String, Object> getConfData() {
         return confData;
+    }
+
+    /**
+     * Transform to Config todo: This method should be removed after we remove Config
+     *
+     * @return Config
+     */
+    public Config toConfig() {
+        return ConfigFactory.parseMap(confData);
     }
 
     public Map<String, String> toMap() {
