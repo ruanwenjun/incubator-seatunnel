@@ -19,9 +19,10 @@ package org.apache.seatunnel.connectors.seatunnel.kafka.kingbase;
 
 import org.apache.seatunnel.api.serialization.DeserializationSchemaWithTopic;
 import org.apache.seatunnel.api.source.Collector;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.type.ArrayType;
 import org.apache.seatunnel.api.table.type.DecimalType;
-import org.apache.seatunnel.api.table.type.MultipleRowType;
 import org.apache.seatunnel.api.table.type.RowKind;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
@@ -39,6 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,16 +48,23 @@ import java.util.Map;
 public class KingbaseJsonDeserializationSchema
         implements DeserializationSchemaWithTopic<SeaTunnelRow> {
 
-    private final MultipleRowType dataType;
+    private final Map<String, CatalogTable> catalogTableMap;
+    private final Map<String, String> primaryKeyMap;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private final Map<String, String> primaryMap;
-
-    public KingbaseJsonDeserializationSchema(
-            MultipleRowType dataType, Map<String, String> primaryMap) {
-        this.dataType = dataType;
-        this.primaryMap = primaryMap;
+    public KingbaseJsonDeserializationSchema(List<CatalogTable> catalogTables) {
+        catalogTableMap = new HashMap<>();
+        primaryKeyMap = new HashMap<>();
+        for (CatalogTable catalogTable : catalogTables) {
+            String tableId = catalogTable.getTableId().toTablePath().toString();
+            catalogTableMap.put(tableId, catalogTable);
+            if (catalogTable.getTableSchema().getPrimaryKey() != null) {
+                primaryKeyMap.put(
+                        tableId,
+                        catalogTable.getTableSchema().getPrimaryKey().getColumnNames().get(0));
+            }
+        }
     }
 
     @Override
@@ -67,11 +76,12 @@ public class KingbaseJsonDeserializationSchema
             return;
         }
         String tableId = topic + "." + kingBaseRow.getSchema() + "." + kingBaseRow.getTable();
-        SeaTunnelRowType rowType = dataType.getRowType(tableId);
-        if (rowType == null) {
+        CatalogTable catalogTable = catalogTableMap.get(tableId);
+        if (catalogTable == null) {
             log.debug("Table {} not found in schema, ignore", tableId);
             return;
         }
+        SeaTunnelRowType rowType = catalogTable.getSeaTunnelRowType();
         SeaTunnelRow row = new SeaTunnelRow(rowType.getTotalFields());
         switch (kingBaseRow.getOp()) {
             case INSERT:
@@ -88,8 +98,8 @@ public class KingbaseJsonDeserializationSchema
         }
         row.setTableId(tableId);
         if (row.getRowKind().equals(RowKind.DELETE)) {
-            if (primaryMap.containsKey(tableId)) {
-                int primaryIndex = rowType.indexOf(primaryMap.get(tableId));
+            if (primaryKeyMap.containsKey(tableId)) {
+                int primaryIndex = rowType.indexOf(primaryKeyMap.get(tableId));
                 row.setField(
                         primaryIndex,
                         convertDataType(
@@ -188,7 +198,7 @@ public class KingbaseJsonDeserializationSchema
 
     @Override
     public SeaTunnelDataType<SeaTunnelRow> getProducedType() {
-        return dataType;
+        return CatalogTableUtil.toSeaTunnelRowType(catalogTableMap.values());
     }
 
     @Override

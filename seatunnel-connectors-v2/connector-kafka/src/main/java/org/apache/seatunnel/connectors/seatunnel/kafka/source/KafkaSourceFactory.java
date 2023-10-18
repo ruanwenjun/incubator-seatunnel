@@ -27,10 +27,6 @@ import org.apache.seatunnel.api.table.connector.TableSource;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableSourceFactory;
 import org.apache.seatunnel.api.table.factory.TableSourceFactoryContext;
-import org.apache.seatunnel.api.table.type.MultipleRowType;
-import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
-import org.apache.seatunnel.api.table.type.SeaTunnelRow;
-import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.Config;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.MessageFormat;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.StartMode;
@@ -38,9 +34,7 @@ import org.apache.seatunnel.connectors.seatunnel.kafka.config.StartMode;
 import com.google.auto.service.AutoService;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.Config.FORMAT;
 
@@ -76,8 +70,6 @@ public class KafkaSourceFactory implements TableSourceFactory {
     public <T, SplitT extends SourceSplit, StateT extends Serializable>
             TableSource<T, SplitT, StateT> createSource(TableSourceFactoryContext context) {
         return () -> {
-            SeaTunnelDataType<SeaTunnelRow> dataType;
-            Map<String, String> primaryKeyMap = new HashMap<>();
             List<CatalogTable> catalogTables;
             if (context.getOptions().get(FORMAT).equals(MessageFormat.KINGBASE_JSON)) {
                 catalogTables =
@@ -88,27 +80,8 @@ public class KafkaSourceFactory implements TableSourceFactory {
                         CatalogTableUtil.getCatalogTablesFromConfig(
                                 context.getOptions(), context.getClassLoader());
             }
-            if (catalogTables.size() == 1) {
-                dataType = catalogTables.get(0).getTableSchema().toPhysicalRowDataType();
-            } else {
-                Map<String, SeaTunnelRowType> rowTypeMap = new HashMap<>();
-                for (CatalogTable catalogTable : catalogTables) {
-                    String tableId = catalogTable.getTableId().toTablePath().toString();
-                    rowTypeMap.put(tableId, catalogTable.getTableSchema().toPhysicalRowDataType());
-                    if (catalogTable.getTableSchema().getPrimaryKey() != null) {
-                        primaryKeyMap.put(
-                                tableId,
-                                catalogTable
-                                        .getTableSchema()
-                                        .getPrimaryKey()
-                                        .getColumnNames()
-                                        .get(0));
-                    }
-                }
-                dataType = new MultipleRowType(rowTypeMap);
-            }
             return (SeaTunnelSource<T, SplitT, StateT>)
-                    new KafkaSource(context.getOptions(), dataType, primaryKeyMap);
+                    new KafkaSource(context.getOptions(), catalogTables);
         };
     }
 

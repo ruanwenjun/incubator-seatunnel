@@ -28,7 +28,8 @@ import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SourceReader;
 import org.apache.seatunnel.api.source.SourceSplitEnumerator;
 import org.apache.seatunnel.api.source.SupportParallelism;
-import org.apache.seatunnel.api.table.type.MultipleRowType;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -52,9 +53,11 @@ import org.apache.seatunnel.format.text.TextDeserializationSchema;
 import org.apache.kafka.common.TopicPartition;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Lists;
 import lombok.NoArgsConstructor;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -81,16 +84,14 @@ public class KafkaSource
 
     private final ConsumerMetadata metadata = new ConsumerMetadata();
     private DeserializationSchema<SeaTunnelRow> deserializationSchema;
-    private SeaTunnelDataType<SeaTunnelRow> typeInfo;
+    private List<CatalogTable> catalogTables;
     private JobContext jobContext;
     private long discoveryIntervalMillis;
     private MessageFormatErrorHandleWay messageFormatErrorHandleWay =
             MessageFormatErrorHandleWay.FAIL;
 
-    public KafkaSource(
-            ReadonlyConfig option,
-            SeaTunnelDataType<SeaTunnelRow> dataType,
-            Map<String, String> primaryKeyMap) {
+    public KafkaSource(ReadonlyConfig option, List<CatalogTable> catalogTables) {
+        this.catalogTables = catalogTables;
 
         this.metadata.setTopic(option.get(TOPIC));
         this.metadata.setPattern(option.get(PATTERN));
@@ -156,8 +157,7 @@ public class KafkaSource
                 break;
         }
 
-        this.typeInfo = dataType;
-        setDeserialization(option, dataType, primaryKeyMap);
+        setDeserialization(option, catalogTables);
     }
 
     @Override
@@ -181,12 +181,17 @@ public class KafkaSource
 
     @Override
     public SeaTunnelDataType<SeaTunnelRow> getProducedType() {
-        return this.typeInfo;
+        return CatalogTableUtil.toSeaTunnelRowType(catalogTables);
+    }
+
+    @Override
+    public List<CatalogTable> getProducedCatalogTables() {
+        return Lists.newArrayList(catalogTables);
     }
 
     @Override
     public SourceReader<SeaTunnelRow, KafkaSourceSplit> createReader(
-            SourceReader.Context readerContext) throws Exception {
+            SourceReader.Context readerContext) {
         return new KafkaSourceReader(
                 this.metadata, deserializationSchema, readerContext, messageFormatErrorHandleWay);
     }
@@ -212,76 +217,68 @@ public class KafkaSource
         this.jobContext = jobContext;
     }
 
-    private void setDeserialization(
-            ReadonlyConfig option,
-            SeaTunnelDataType<SeaTunnelRow> dataType,
-            Map<String, String> primaryKeyMap) {
-        deserializationSchema = getDeserializationSchema(option, dataType, primaryKeyMap);
+    private void setDeserialization(ReadonlyConfig option, List<CatalogTable> catalogTables) {
+        deserializationSchema = getDeserializationSchema(option, catalogTables);
     }
 
     private DeserializationSchema<SeaTunnelRow> getDeserializationSchema(
-            ReadonlyConfig option,
-            SeaTunnelDataType<SeaTunnelRow> typeInfo,
-            Map<String, String> primaryKeyMap) {
+            ReadonlyConfig option, List<CatalogTable> catalogTables) {
         MessageFormat format = option.get(FORMAT);
         switch (format) {
             case JSON:
-                if (typeInfo instanceof SeaTunnelRowType) {
-                    return new JsonDeserializationSchema(false, false, (SeaTunnelRowType) typeInfo);
-                } else {
+                if (catalogTables.size() > 1) {
                     throw new KafkaConnectorException(
                             CommonErrorCode.UNSUPPORTED_DATA_TYPE,
                             "Unsupported multi-table format: " + format);
                 }
+                return new JsonDeserializationSchema(
+                        false,
+                        false,
+                        (SeaTunnelRowType) catalogTables.get(0).getSeaTunnelRowType());
             case TEXT:
-                if (typeInfo instanceof SeaTunnelRowType) {
-                    return TextDeserializationSchema.builder()
-                            .seaTunnelRowType((SeaTunnelRowType) typeInfo)
-                            .delimiter(option.get(FIELD_DELIMITER))
-                            .build();
-                } else {
+                if (catalogTables.size() > 1) {
                     throw new KafkaConnectorException(
                             CommonErrorCode.UNSUPPORTED_DATA_TYPE,
                             "Unsupported multi-table format: " + format);
                 }
+                return TextDeserializationSchema.builder()
+                        .seaTunnelRowType(catalogTables.get(0).getSeaTunnelRowType())
+                        .delimiter(option.get(FIELD_DELIMITER))
+                        .build();
             case CANAL_JSON:
-                if (typeInfo instanceof SeaTunnelRowType) {
-                    return CanalJsonDeserializationSchema.builder((SeaTunnelRowType) typeInfo)
-                            .setIgnoreParseErrors(true)
-                            .build();
-                } else {
+                if (catalogTables.size() > 1) {
                     throw new KafkaConnectorException(
                             CommonErrorCode.UNSUPPORTED_DATA_TYPE,
                             "Unsupported multi-table format: " + format);
                 }
+                return CanalJsonDeserializationSchema.builder(
+                                catalogTables.get(0).getSeaTunnelRowType())
+                        .setIgnoreParseErrors(true)
+                        .build();
             case KINGBASE_JSON:
-                if (typeInfo instanceof SeaTunnelRowType) {
+                if (catalogTables.size() <= 1) {
                     throw new KafkaConnectorException(
                             CommonErrorCode.UNSUPPORTED_DATA_TYPE,
                             "Unsupported table format: " + format);
-                } else {
-                    return new KingbaseJsonDeserializationSchema(
-                            (MultipleRowType) typeInfo, primaryKeyMap);
                 }
+                return new KingbaseJsonDeserializationSchema(catalogTables);
             case COMPATIBLE_KAFKA_CONNECT_JSON:
-                if (typeInfo instanceof MultipleRowType) {
-                    throw new KafkaConnectorException(
-                            CommonErrorCode.UNSUPPORTED_DATA_TYPE,
-                            "Unsupported table format: " + format);
-                } else {
-                    return new CompatibleKafkaConnectDeserializationSchema(
-                            (SeaTunnelRowType) typeInfo, option, false, false);
-                }
-            case DEBEZIUM_JSON:
-                if (typeInfo instanceof SeaTunnelRowType) {
-                    boolean includeSchema = option.get(DEBEZIUM_RECORD_INCLUDE_SCHEMA);
-                    return new DebeziumJsonDeserializationSchema(
-                            (SeaTunnelRowType) typeInfo, true, includeSchema);
-                } else {
+                if (catalogTables.size() > 1) {
                     throw new KafkaConnectorException(
                             CommonErrorCode.UNSUPPORTED_DATA_TYPE,
                             "Unsupported multi-table format: " + format);
                 }
+                return new CompatibleKafkaConnectDeserializationSchema(
+                        catalogTables.get(0).getSeaTunnelRowType(), option, false, false);
+            case DEBEZIUM_JSON:
+                if (catalogTables.size() > 1) {
+                    throw new KafkaConnectorException(
+                            CommonErrorCode.UNSUPPORTED_DATA_TYPE,
+                            "Unsupported multi-table format: " + format);
+                }
+                boolean includeSchema = option.get(DEBEZIUM_RECORD_INCLUDE_SCHEMA);
+                return new DebeziumJsonDeserializationSchema(
+                        catalogTables.get(0).getSeaTunnelRowType(), true, includeSchema);
             default:
                 throw new SeaTunnelJsonFormatException(
                         CommonErrorCode.UNSUPPORTED_DATA_TYPE, "Unsupported format: " + format);
