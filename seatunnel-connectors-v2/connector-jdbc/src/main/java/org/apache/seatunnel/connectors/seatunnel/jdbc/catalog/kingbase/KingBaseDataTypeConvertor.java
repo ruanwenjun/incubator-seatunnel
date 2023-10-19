@@ -68,6 +68,7 @@ public class KingBaseDataTypeConvertor implements DataTypeConvertor<String> {
     private static final String PG_SMALLSERIAL = "SMALLSERIAL";
     private static final String PG_SERIAL = "SERIAL";
     private static final String PG_BIGSERIAL = "BIGSERIAL";
+    private static final String PG_TINYINT = "TINYINT";
     private static final String PG_BYTEA = "BYTEA";
     private static final String PG_BYTEA_ARRAY = "_BYTEA";
     private static final String PG_SMALLINT = "INT2";
@@ -124,6 +125,8 @@ public class KingBaseDataTypeConvertor implements DataTypeConvertor<String> {
                 return PrimitiveByteArrayType.INSTANCE;
             case PG_BYTEA_ARRAY:
                 return ArrayType.BYTE_ARRAY_TYPE;
+            case PG_TINYINT:
+                return BasicType.BYTE_TYPE;
             case PG_SMALLINT:
             case PG_SMALLSERIAL:
                 return BasicType.SHORT_TYPE;
