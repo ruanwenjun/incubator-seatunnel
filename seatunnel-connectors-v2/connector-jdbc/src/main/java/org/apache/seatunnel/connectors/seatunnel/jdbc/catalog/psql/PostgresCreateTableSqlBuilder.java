@@ -24,6 +24,7 @@ import org.apache.seatunnel.api.table.catalog.PrimaryKey;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.type.DecimalType;
 import org.apache.seatunnel.api.table.type.SqlType;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCreateTableSqlBuilder;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -38,7 +39,7 @@ import java.util.stream.Collectors;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_BYTEA;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_NUMERIC;
 
-public class PostgresCreateTableSqlBuilder {
+public class PostgresCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuilder {
     private List<Column> columns;
     private PrimaryKey primaryKey;
     private PostgresDataTypeConvertor postgresDataTypeConvertor;
@@ -199,7 +200,13 @@ public class PostgresCreateTableSqlBuilder {
                                                         constraintKeyColumn.getColumnName(),
                                                         fieldIde)))
                         .collect(Collectors.joining(", "));
-        return "CONSTRAINT " + constraintName + " UNIQUE (" + indexColumns + ")";
+        return "CONSTRAINT "
+                + constraintName
+                + "_"
+                + getRandomStringSuffix()
+                + " UNIQUE ("
+                + indexColumns
+                + ")";
     }
 
     private String buildIndexKeySql(TablePath tablePath, ConstraintKey constraintKey) {
@@ -221,6 +228,8 @@ public class PostgresCreateTableSqlBuilder {
 
         return "CREATE INDEX "
                 + constraintName
+                + "_"
+                + getRandomStringSuffix()
                 + " ON "
                 + tablePath.getSchemaAndTableName("\"")
                 + "("
