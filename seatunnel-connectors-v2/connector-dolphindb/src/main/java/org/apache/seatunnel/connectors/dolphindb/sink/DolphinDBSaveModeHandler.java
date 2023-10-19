@@ -72,6 +72,7 @@ public class DolphinDBSaveModeHandler extends DefaultSaveModeHandler {
                             database,
                             tableName,
                             catalogTable.getTableSchema());
+            log.info("Create table with sql: {}", finalTemplate);
             catalog.executeScript(finalTemplate);
         }
     }
