@@ -47,6 +47,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -207,11 +208,7 @@ public class KingbaseCatalog implements Catalog {
                             tablePath.getSchemaName(),
                             tablePath.getTableName());
             return CatalogTable.of(
-                    tableIdentifier,
-                    builder.build(),
-                    Collections.emptyMap(),
-                    Collections.emptyList(),
-                    "");
+                    tableIdentifier, builder.build(), new HashMap<>(), new ArrayList<>(), "");
         } catch (Exception e) {
             throw new CatalogException("get table fields failed", e);
         }
