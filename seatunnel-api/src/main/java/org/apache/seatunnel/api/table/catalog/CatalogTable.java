@@ -93,8 +93,8 @@ public final class CatalogTable implements Serializable {
             String catalogName) {
         this.tableId = tableId;
         this.tableSchema = tableSchema;
-        this.options = options;
-        this.partitionKeys = partitionKeys;
+        this.options = new HashMap<>(options);
+        this.partitionKeys = new ArrayList<>(partitionKeys);
         this.comment = comment;
         this.catalogName = catalogName;
     }
