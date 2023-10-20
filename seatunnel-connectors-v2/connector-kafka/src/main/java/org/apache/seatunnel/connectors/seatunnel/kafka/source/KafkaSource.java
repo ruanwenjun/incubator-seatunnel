@@ -256,11 +256,6 @@ public class KafkaSource
                         .setIgnoreParseErrors(true)
                         .build();
             case KINGBASE_JSON:
-                if (catalogTables.size() <= 1) {
-                    throw new KafkaConnectorException(
-                            CommonErrorCode.UNSUPPORTED_DATA_TYPE,
-                            "Unsupported table format: " + format);
-                }
                 return new KingbaseJsonDeserializationSchema(catalogTables);
             case COMPATIBLE_KAFKA_CONNECT_JSON:
                 if (catalogTables.size() > 1) {
