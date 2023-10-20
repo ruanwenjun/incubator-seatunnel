@@ -40,7 +40,7 @@ public class KingbaseCatalogFactory implements CatalogFactory {
 
     @Override
     public String factoryIdentifier() {
-        return "Kingbase";
+        return "KafkaKingbase";
     }
 
     @Override

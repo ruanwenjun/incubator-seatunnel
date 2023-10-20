@@ -74,7 +74,7 @@ public class KafkaSourceFactory implements TableSourceFactory {
             if (context.getOptions().get(FORMAT).equals(MessageFormat.KINGBASE_JSON)) {
                 catalogTables =
                         CatalogTableUtil.getCatalogTablesFromConfig(
-                                "Kingbase", context.getOptions(), context.getClassLoader());
+                                "KafkaKingbase", context.getOptions(), context.getClassLoader());
             } else {
                 catalogTables =
                         CatalogTableUtil.getCatalogTablesFromConfig(
