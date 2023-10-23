@@ -214,7 +214,7 @@ public class MysqlCreateTableSqlBuilder {
             columnSqls.add(MysqlType.TEXT.getName());
         } else if (columnLength >= 65535 && columnLength <= 16777215) {
             columnSqls.add(MysqlType.MEDIUMTEXT.getName());
-        } else if (columnLength > 16777215 || columnLength == -1) {
+        } else if (columnLength > 16777215 || columnLength < 0) {
             columnSqls.add(MysqlType.LONGTEXT.getName());
         } else {
             // Column type
