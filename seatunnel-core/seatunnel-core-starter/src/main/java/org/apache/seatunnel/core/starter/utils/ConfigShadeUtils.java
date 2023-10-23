@@ -28,7 +28,11 @@ import org.apache.seatunnel.common.Constants;
 import org.apache.seatunnel.common.config.TypesafeConfigUtils;
 import org.apache.seatunnel.common.utils.JsonUtils;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -48,7 +52,7 @@ public final class ConfigShadeUtils {
     private static final String SHADE_IDENTIFIER_OPTION = "shade.identifier";
 
     private static final String[] DEFAULT_SENSITIVE_OPTIONS =
-            new String[] {"password", "username", "auth"};
+            new String[] {"password", "username", "auth", "user"};
 
     private static final Map<String, ConfigShade> CONFIG_SHADES = new HashMap<>();
 
@@ -185,6 +189,49 @@ public final class ConfigShadeUtils {
         @Override
         public String decrypt(String content) {
             return new String(DECODER.decode(content));
+        }
+    }
+
+    public static class AES256ConfigShade implements ConfigShade {
+
+        private static final String ALGORITHM = "AES";
+        private static final String MODE = "AES/CBC/PKCS5Padding";
+        private static final String SECRET_KEY = "uBdUx26vPkDKb997d5NkjFoNcKWLwang";
+        private static final byte[] KEY_VI = "c798GqWXPK2QUlMc".getBytes();
+        private static final String IDENTIFIER = "aes256";
+
+        @Override
+        public String getIdentifier() {
+            return IDENTIFIER;
+        }
+
+        @SneakyThrows
+        @Override
+        public String encrypt(String content) {
+            SecretKey secretKey = new SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance(MODE);
+            cipher.init(
+                    javax.crypto.Cipher.ENCRYPT_MODE,
+                    secretKey,
+                    new javax.crypto.spec.IvParameterSpec(KEY_VI));
+            byte[] byteEncode = content.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] byteAES = cipher.doFinal(byteEncode);
+            return Base64.getEncoder().encodeToString(byteAES);
+        }
+
+        @SneakyThrows
+        @Override
+        public String decrypt(String content) {
+            javax.crypto.SecretKey secretKey =
+                    new javax.crypto.spec.SecretKeySpec(SECRET_KEY.getBytes(), ALGORITHM);
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance(MODE);
+            cipher.init(
+                    javax.crypto.Cipher.DECRYPT_MODE,
+                    secretKey,
+                    new javax.crypto.spec.IvParameterSpec(KEY_VI));
+            byte[] byteContent = Base64.getDecoder().decode(content);
+            byte[] byteDecode = cipher.doFinal(byteContent);
+            return new String(byteDecode, java.nio.charset.StandardCharsets.UTF_8);
         }
     }
 }
