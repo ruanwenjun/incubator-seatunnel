@@ -148,9 +148,15 @@ public class Oracle9BridgeDmlEntryFactory {
             OracleValueConverters oracleValueConverters, String value, Column column) {
         Object oracleValue = value;
 
-        if (column.typeName().equals("DATE")) {
-            oracleValue = LocalDate.from(DATE_FORMATTER.parse(value));
+        try {
+            if (column.typeName().equals("DATE")) {
+                oracleValue = LocalDate.from(DATE_FORMATTER.parse(value));
+            }
+        } catch (Exception ex) {
+            // this is a tmp solution
+            oracleValue = LocalDate.from(TIMESTAMP_FORMATTER.parse(value));
         }
+
         if (column.typeName().startsWith("TIMESTAMP")) {
             oracleValue = LocalDateTime.from(TIMESTAMP_FORMATTER.parse(value));
         }

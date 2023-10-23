@@ -40,7 +40,6 @@ public class Oracle9BridgeIncrementalSourceFactory implements TableSourceFactory
                         Oracle9BridgeSourceOptions.ORACLE9BRIDGE_AGENT_HOST,
                         Oracle9BridgeSourceOptions.ORACLE9BRIDGE_AGENT_PORT)
                 .optional(
-                        JdbcSourceOptions.PORT,
                         JdbcSourceOptions.DATABASE_NAMES,
                         JdbcSourceOptions.SERVER_TIME_ZONE,
                         JdbcSourceOptions.CONNECT_TIMEOUT_MS,
