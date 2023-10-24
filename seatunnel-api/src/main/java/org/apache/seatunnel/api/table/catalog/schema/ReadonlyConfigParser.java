@@ -144,7 +144,13 @@ public class ReadonlyConfigParser implements TableSchemaParser<ReadonlyConfig> {
                                         columnLength,
                                         nullable,
                                         defaultValue,
-                                        comment);
+                                        comment,
+                                        null,
+                                        false,
+                                        false,
+                                        null,
+                                        null,
+                                        columnLength == null ? null : columnLength.longValue());
                             })
                     .collect(Collectors.toList());
         }
