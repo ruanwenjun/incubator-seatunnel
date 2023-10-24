@@ -51,6 +51,10 @@ public class DwsGaussDBMemoryTable {
         return upsertRows.values();
     }
 
+    public int size() {
+        return deleteRows.size() + upsertRows.size();
+    }
+
     public void truncate() {
         upsertRows.clear();
         deleteRows.clear();

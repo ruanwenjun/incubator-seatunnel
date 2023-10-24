@@ -11,6 +11,7 @@ import org.apache.seatunnel.api.table.type.BasicType;
 import org.apache.seatunnel.api.table.type.LocalTimeType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption;
+import org.apache.seatunnel.connectors.dws.guassdb.sink.writer.SnapshotIdManager;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -97,22 +98,12 @@ public class DwsGaussSqlGeneratorTest {
         fields[3] = LocalDateTime.of(2023, 9, 7, 10, 10, 10);
         SeaTunnelRow seaTunnelRow = new SeaTunnelRow(fields);
         String deleteRows =
-                dwsGaussSqlGenerator.getTemporaryRows(
-                        Lists.newArrayList(seaTunnelRow),
-                        true,
-                        "be9a636f-7e24-474b-84ae-62bc7ea3f914");
-        Assertions.assertEquals(
-                "1|tom|18|2023-09-07T10:10:10|be9a636f-7e24-474b-84ae-62bc7ea3f914|true",
-                deleteRows);
+                dwsGaussSqlGenerator.getTemporaryRows(Lists.newArrayList(seaTunnelRow), true, 1L);
+        Assertions.assertEquals("1|tom|18|2023-09-07T10:10:10|1|true", deleteRows);
 
         String upsertRows =
-                dwsGaussSqlGenerator.getTemporaryRows(
-                        Lists.newArrayList(seaTunnelRow),
-                        false,
-                        "be9a636f-7e24-474b-84ae-62bc7ea3f914");
-        Assertions.assertEquals(
-                "1|tom|18|2023-09-07T10:10:10|be9a636f-7e24-474b-84ae-62bc7ea3f914|false",
-                upsertRows);
+                dwsGaussSqlGenerator.getTemporaryRows(Lists.newArrayList(seaTunnelRow), false, 1L);
+        Assertions.assertEquals("1|tom|18|2023-09-07T10:10:10|1|false", upsertRows);
     }
 
     @Test
@@ -141,11 +132,9 @@ public class DwsGaussSqlGeneratorTest {
 
     @Test
     void getDeleteTemporarySnapshotSql() {
-        String deleteTemporarySnapshotSql =
-                dwsGaussSqlGenerator.getDeleteTemporarySnapshotSql(
-                        "be9a636f-7e24-474b-84ae-62bc7ea3f914");
+        String deleteTemporarySnapshotSql = dwsGaussSqlGenerator.getDeleteTemporarySnapshotSql(1L);
         Assertions.assertEquals(
-                "DELETE FROM \"public\".\"st_temporary_t_st_users WHERE st_snapshot_id = 'be9a636f-7e24-474b-84ae-62bc7ea3f914'",
+                "DELETE FROM \"public\".\"st_temporary_t_st_users WHERE st_snapshot_id = 1",
                 deleteTemporarySnapshotSql);
     }
 
@@ -205,31 +194,29 @@ public class DwsGaussSqlGeneratorTest {
 
     @Test
     void getMergeInTargetTableSql() {
-        String mergeInTargetTableSql =
-                dwsGaussSqlGenerator.getMergeInTargetTableSql(
-                        "be9a636f-7e24-474b-84ae-62bc7ea3f914");
+        String mergeInTargetTableSql = dwsGaussSqlGenerator.getMergeInTargetTableSql(1L);
         Assertions.assertEquals(
-                "INSERT INTO \"public\".\"t_st_users\" SELECT id,name,age,create_time FROM \"public\".\"st_temporary_t_st_users\" WHERE st_current_snapshot_id = be9a636f-7e24-474b-84ae-62bc7ea3f914 ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,age=EXCLUDED.age,create_time=EXCLUDED.create_time;",
+                "INSERT INTO \"public\".\"t_st_users\" SELECT id,name,age,create_time FROM \"public\".\"st_temporary_t_st_users\" WHERE st_current_snapshot_id = 1 ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,age=EXCLUDED.age,create_time=EXCLUDED.create_time;",
                 mergeInTargetTableSql);
     }
 
     @Test
     void getDeleteRowsInTargetTableSql() {
-        String deleteRowsInTargetTableSql =
-                dwsGaussSqlGenerator.getDeleteRowsInTargetTableSql(
-                        "be9a636f-7e24-474b-84ae-62bc7ea3f914");
+        String deleteRowsInTargetTableSql = dwsGaussSqlGenerator.getDeleteRowsInTargetTableSql(1L);
         Assertions.assertEquals(
-                "DELETE FROM \"public\".\"t_st_users\" WHERE id IN (SELECT id FROM \"public\".\"st_temporary_t_st_users\" WHERE st_snapshot_id = 'be9a636f-7e24-474b-84ae-62bc7ea3f914' AND st_is_deleted = true)",
+                "DELETE FROM \"public\".\"t_st_users\" WHERE id IN (SELECT id FROM \"public\".\"st_temporary_t_st_users\" WHERE st_snapshot_id = 1 AND st_is_deleted = true)",
                 deleteRowsInTargetTableSql);
     }
 
     @Test
     void getDeleteRowsInTemporaryTableSql() {
+        Long currentSnapshotId = new SnapshotIdManager().getCurrentSnapshotId();
         String deleteRowsInTemporaryTableSql =
-                dwsGaussSqlGenerator.getDeleteRowsInTemporaryTableSql(
-                        "be9a636f-7e24-474b-84ae-62bc7ea3f914");
+                dwsGaussSqlGenerator.getDeleteRowsInTemporaryTableSql(currentSnapshotId);
         Assertions.assertEquals(
-                "DELETE FROM \"public\".\"st_temporary_t_st_users\" WHERE st_snapshot_id = 'be9a636f-7e24-474b-84ae-62bc7ea3f914' AND st_is_deleted = true",
+                "DELETE FROM \"public\".\"st_temporary_t_st_users\" WHERE st_snapshot_id = "
+                        + currentSnapshotId
+                        + " AND st_is_deleted = true",
                 deleteRowsInTemporaryTableSql);
     }
 }

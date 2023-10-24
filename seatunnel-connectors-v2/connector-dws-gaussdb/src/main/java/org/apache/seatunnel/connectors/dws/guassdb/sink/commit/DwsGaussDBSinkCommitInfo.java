@@ -5,19 +5,20 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Data
 public class DwsGaussDBSinkCommitInfo implements Serializable {
 
     private final String temporaryTableName;
     private final String targetTableName;
-    private final String currentSnapshotId;
+    private final List<Long> currentSnapshotId;
     private final SeaTunnelRowType rowType;
 
     public DwsGaussDBSinkCommitInfo(
             String temporaryTableName,
             String targetTableName,
-            String currentSnapshotId,
+            List<Long> currentSnapshotId,
             SeaTunnelRowType rowType) {
         this.temporaryTableName = temporaryTableName;
         this.targetTableName = targetTableName;

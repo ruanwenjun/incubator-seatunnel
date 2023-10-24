@@ -45,12 +45,12 @@ public class DwsGaussDBSinkAggregatedCommitter
         List<DwsGaussDBSinkAggregatedCommitInfo> needRetryCommitInfo = new ArrayList<>();
         for (DwsGaussDBSinkAggregatedCommitInfo commitInfo : aggregatedCommitInfo) {
             try {
-                for (String snapshotId : commitInfo.getCurrentSnapshotIds()) {
+                for (Long snapshotId : commitInfo.getCurrentSnapshotIds()) {
                     dealWithDeleteRowsInTemporaryTable(snapshotId);
                     // using thread-pool
                     mergeTemporaryIntoTargetTable(snapshotId);
-                    clearTemporaryTable(snapshotId);
                 }
+                clearTemporaryTable(commitInfo.getCurrentSnapshotIds());
             } catch (Exception ex) {
                 log.error(
                         "DwsGaussDBSinkAggregatedCommitter commit failed, commitInfo: {}",
@@ -68,9 +68,10 @@ public class DwsGaussDBSinkAggregatedCommitter
             return null;
         }
         DwsGaussDBSinkCommitInfo dwsGaussDBSinkCommitInfo = commitInfos.get(0);
-        List<String> snapshotIds =
+        List<Long> snapshotIds =
                 commitInfos.stream()
                         .map(DwsGaussDBSinkCommitInfo::getCurrentSnapshotId)
+                        .flatMap(List::stream)
                         .collect(Collectors.toList());
         return new DwsGaussDBSinkAggregatedCommitInfo(
                 dwsGaussDBSinkCommitInfo.getTargetTableName(),
@@ -88,9 +89,7 @@ public class DwsGaussDBSinkAggregatedCommitter
         for (DwsGaussDBSinkAggregatedCommitInfo dwsGaussDBSinkAggregatedCommitInfo :
                 aggregatedCommitInfo) {
             // todo: use batch clear
-            for (String snapshotId : dwsGaussDBSinkAggregatedCommitInfo.getCurrentSnapshotIds()) {
-                clearTemporaryTable(snapshotId);
-            }
+            clearTemporaryTable(dwsGaussDBSinkAggregatedCommitInfo.getCurrentSnapshotIds());
         }
     }
 
@@ -99,7 +98,7 @@ public class DwsGaussDBSinkAggregatedCommitter
         try (DwsGaussDBCatalog dwsGaussDBCatalog1 = dwsGaussDBCatalog) {}
     }
 
-    private void dealWithDeleteRowsInTemporaryTable(String currentSnapshotId) {
+    private void dealWithDeleteRowsInTemporaryTable(Long currentSnapshotId) {
         String deleteRowsInTargetTableSql =
                 dwsGaussSqlGenerator.getDeleteRowsInTargetTableSql(currentSnapshotId);
         dwsGaussDBCatalog.executeUpdateSql(deleteRowsInTargetTableSql);
@@ -109,13 +108,16 @@ public class DwsGaussDBSinkAggregatedCommitter
         dwsGaussDBCatalog.executeUpdateSql(deleteRowsInTemporaryTableSql);
     }
 
-    private void mergeTemporaryIntoTargetTable(String currentSnapshotId) {
+    private void mergeTemporaryIntoTargetTable(Long currentSnapshotId) {
         String mergeInTargetTableSql =
                 dwsGaussSqlGenerator.getMergeInTargetTableSql(currentSnapshotId);
         dwsGaussDBCatalog.executeUpdateSql(mergeInTargetTableSql);
     }
 
-    private void clearTemporaryTable(String currentSnapshotIds) {
+    private void clearTemporaryTable(List<Long> currentSnapshotIds) {
+        if (CollectionUtils.isEmpty(currentSnapshotIds)) {
+            return;
+        }
         String deleteTemporarySnapshotSql =
                 dwsGaussSqlGenerator.getDeleteTemporarySnapshotSql(currentSnapshotIds);
         dwsGaussDBCatalog.executeUpdateSql(deleteTemporarySnapshotSql);

@@ -30,7 +30,7 @@ public class DwsGaussDBSinkWriterFactory {
                         sqlGenerator, catalogTable, readonlyConfig);
             case USING_TEMPORARY_TABLE:
                 return new DwsGaussDBUsingTemporaryTableSinkWriter(
-                        sqlGenerator, catalogTable, readonlyConfig);
+                        sqlGenerator, catalogTable, readonlyConfig, false);
             default:
                 throw new IllegalArgumentException("Unsupported write mode: " + writeMode);
         }
@@ -52,7 +52,7 @@ public class DwsGaussDBSinkWriterFactory {
                         sqlGenerator, catalogTable, readonlyConfig);
             case USING_TEMPORARY_TABLE:
                 return new DwsGaussDBUsingTemporaryTableSinkWriter(
-                        sqlGenerator, catalogTable, readonlyConfig);
+                        sqlGenerator, catalogTable, readonlyConfig, true);
             default:
                 throw new IllegalArgumentException("Unsupported write mode: " + writeMode);
         }

@@ -4,11 +4,13 @@ import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.type.RowKind;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.dws.guassdb.catalog.DwsGaussDBCatalog;
 import org.apache.seatunnel.connectors.dws.guassdb.catalog.DwsGaussDBCatalogFactory;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.commit.DwsGaussDBSinkCommitInfo;
+import org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.sql.DwsGaussSqlGenerator;
 import org.apache.seatunnel.connectors.dws.guassdb.sink.state.DwsGaussDBSinkState;
 
@@ -21,7 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.io.StringReader;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +42,10 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
     private final DwsGaussSqlGenerator sqlGenerator;
     private final SeaTunnelRowType seaTunnelRowType;
     private final String primaryKey;
+    private final int batchSize;
+    private volatile boolean directlyCopyToTargetTable;
+
+    private final List<Long> snapshotIds = Collections.synchronizedList(new ArrayList<>());
 
     private final SnapshotIdManager snapshotIdManager;
 
@@ -46,7 +54,8 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
     public DwsGaussDBUsingTemporaryTableSinkWriter(
             DwsGaussSqlGenerator sqlGenerator,
             CatalogTable catalogTable,
-            ReadonlyConfig readonlyConfig)
+            ReadonlyConfig readonlyConfig,
+            boolean isRestore)
             throws SQLException {
         this.dwsGaussDBCatalog =
                 new DwsGaussDBCatalogFactory()
@@ -57,11 +66,27 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
         this.snapshotIdManager = new SnapshotIdManager();
         this.dwsGaussDBMemoryTable = new DwsGaussDBMemoryTable(seaTunnelRowType, primaryKey);
         this.copyManager = new CopyManager(dwsGaussDBCatalog.getDefaultConnection());
+        this.batchSize = readonlyConfig.get(DwsGaussDBSinkOption.BATCH_SIZE);
+        this.directlyCopyToTargetTable = !isRestore;
     }
 
     @Override
     public void write(SeaTunnelRow element) {
         dwsGaussDBMemoryTable.write(element);
+        // If the row kind is not INSERT, means this is in cdc incremental mode
+        // We need to write the data to temporary table and merge to target table
+        if (element.getRowKind() != RowKind.INSERT) {
+            directlyCopyToTargetTable = false;
+        }
+        if (dwsGaussDBMemoryTable.size() > batchSize) {
+            // If the directlyCopyToTargetTable is true, means we can directly copy the data to
+            // target table
+            if (directlyCopyToTargetTable) {
+                flushMemoryTableToTargetTable();
+            } else {
+                flushMemoryTableToTemporaryTable();
+            }
+        }
     }
 
     @Override
@@ -69,20 +94,17 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
         try {
             // Write the data to temporary table
             // clear the data in memory table
-            // increase the snapshotId
-            Collection<SeaTunnelRow> deleteRows = dwsGaussDBMemoryTable.getDeleteRows();
-            Collection<SeaTunnelRow> upsertRows = dwsGaussDBMemoryTable.getUpsertRows();
-            writeDeleteRowsInTemplateTable(deleteRows);
-            writeUpsertRowsInTemplateTable(upsertRows);
-            dwsGaussDBMemoryTable.truncate();
+            flushMemoryTableToTemporaryTable();
 
+            // increase the snapshotId
             DwsGaussDBSinkCommitInfo dwsGaussDBSinkCommitInfo =
                     new DwsGaussDBSinkCommitInfo(
                             sqlGenerator.getTemporaryTableName(),
                             sqlGenerator.getTargetTableName(),
-                            snapshotIdManager.getCurrentSnapshotId(),
+                            snapshotIds,
                             seaTunnelRowType);
-            snapshotIdManager.increaseSnapshotId();
+
+            snapshotIds.clear();
             return Optional.of(dwsGaussDBSinkCommitInfo);
         } catch (Exception ex) {
             throw new RuntimeException(
@@ -92,16 +114,47 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
         }
     }
 
+    private void flushMemoryTableToTemporaryTable() {
+        // Write the data to temporary table
+        // clear the data in memory table
+        try {
+            Collection<SeaTunnelRow> deleteRows = dwsGaussDBMemoryTable.getDeleteRows();
+            Collection<SeaTunnelRow> upsertRows = dwsGaussDBMemoryTable.getUpsertRows();
+            writeDeleteRowsInTemplateTable(deleteRows);
+            writeUpsertRowsInTemplateTable(upsertRows);
+            dwsGaussDBMemoryTable.truncate();
+
+            snapshotIds.add(snapshotIdManager.getCurrentSnapshotId());
+            snapshotIdManager.increaseSnapshotId();
+        } catch (Exception ex) {
+            throw new RuntimeException(
+                    "Failed to Write rows in temporaryTable: "
+                            + sqlGenerator.getTemporaryTableName(),
+                    ex);
+        }
+    }
+
+    private void flushMemoryTableToTargetTable() {
+        try {
+            Collection<SeaTunnelRow> upsertRows = dwsGaussDBMemoryTable.getUpsertRows();
+            copyInsertRowsInTargetTable(upsertRows);
+            dwsGaussDBMemoryTable.truncate();
+        } catch (Exception ex) {
+            throw new RuntimeException(
+                    "Failed to Write rows in targetTable: " + sqlGenerator.getTargetTableName(),
+                    ex);
+        }
+    }
+
     @Override
     public List<DwsGaussDBSinkState> snapshotState(long checkpointId) {
-        return Lists.newArrayList(
-                new DwsGaussDBSinkState(snapshotIdManager.getCurrentSnapshotId()));
+        return Lists.newArrayList(new DwsGaussDBSinkState(snapshotIds));
     }
 
     @Override
     public void abortPrepare() {
         // clear the template table and memory table
-        deleteRowsInTemplateTable(snapshotIdManager.getCurrentSnapshotId());
+        deleteRowsInTemplateTable(snapshotIds);
         dwsGaussDBMemoryTable.truncate();
         snapshotIdManager.increaseSnapshotId();
     }
@@ -117,7 +170,7 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
         if (CollectionUtils.isEmpty(deleteRows)) {
             return;
         }
-        String currentSnapshotId = snapshotIdManager.getCurrentSnapshotId();
+        Long currentSnapshotId = snapshotIdManager.getCurrentSnapshotId();
         String temporaryRows = sqlGenerator.getTemporaryRows(deleteRows, true, currentSnapshotId);
         try (StringReader stringReader = new StringReader(temporaryRows)) {
             copyManager.copyIn(sqlGenerator.getCopyInTemporaryTableSql(), stringReader);
@@ -128,12 +181,26 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
         }
     }
 
+    private void copyInsertRowsInTargetTable(Collection<SeaTunnelRow> insertRows)
+            throws SQLException, IOException {
+        if (CollectionUtils.isEmpty(insertRows)) {
+            return;
+        }
+        String temporaryRows = sqlGenerator.getTargetTableRows(insertRows);
+        try (StringReader stringReader = new StringReader(temporaryRows)) {
+            copyManager.copyIn(sqlGenerator.getCopyInTargetTableSql(), stringReader);
+            log.debug(
+                    "Success write insert rows has been copy to target table{}",
+                    sqlGenerator.getTargetTableName());
+        }
+    }
+
     private void writeUpsertRowsInTemplateTable(Collection<SeaTunnelRow> upsertRows)
             throws SQLException, IOException {
         if (CollectionUtils.isEmpty(upsertRows)) {
             return;
         }
-        String currentSnapshotId = snapshotIdManager.getCurrentSnapshotId();
+        Long currentSnapshotId = snapshotIdManager.getCurrentSnapshotId();
         String temporaryRows = sqlGenerator.getTemporaryRows(upsertRows, false, currentSnapshotId);
         try (StringReader stringReader = new StringReader(temporaryRows)) {
             copyManager.copyIn(sqlGenerator.getCopyInTemporaryTableSql(), stringReader);
@@ -144,7 +211,7 @@ public class DwsGaussDBUsingTemporaryTableSinkWriter
         }
     }
 
-    private void deleteRowsInTemplateTable(String snapshotId) {
+    private void deleteRowsInTemplateTable(List<Long> snapshotId) {
         try {
             dwsGaussDBCatalog.executeUpdateSql(
                     sqlGenerator.getDeleteTemporarySnapshotSql(snapshotId));

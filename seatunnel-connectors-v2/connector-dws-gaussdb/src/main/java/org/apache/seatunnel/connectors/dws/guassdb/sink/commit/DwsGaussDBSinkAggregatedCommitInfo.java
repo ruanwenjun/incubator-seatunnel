@@ -14,6 +14,6 @@ public class DwsGaussDBSinkAggregatedCommitInfo implements Serializable {
 
     private final String temporaryTableName;
     private final String targetTableName;
-    private final List<String> currentSnapshotIds;
+    private final List<Long> currentSnapshotIds;
     private final SeaTunnelRowType rowType;
 }

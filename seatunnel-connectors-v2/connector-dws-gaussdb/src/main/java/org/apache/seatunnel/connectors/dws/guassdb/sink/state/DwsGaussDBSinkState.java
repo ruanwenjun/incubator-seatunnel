@@ -4,10 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Data
 @AllArgsConstructor
 public class DwsGaussDBSinkState implements Serializable {
 
-    private String snapshotId;
+    private List<Long> snapshotId;
 }

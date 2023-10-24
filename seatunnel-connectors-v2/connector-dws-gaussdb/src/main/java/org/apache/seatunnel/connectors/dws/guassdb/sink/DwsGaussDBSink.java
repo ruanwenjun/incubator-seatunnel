@@ -34,6 +34,7 @@ import lombok.Getter;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption.FIELD_IDE;
 import static org.apache.seatunnel.connectors.dws.guassdb.sink.config.DwsGaussDBSinkOption.PRIMARY_KEY;
@@ -97,9 +98,15 @@ public class DwsGaussDBSink
                 try (DwsGaussDBCatalog dwsGaussDBCatalog =
                         new DwsGaussDBCatalogFactory()
                                 .createCatalog(catalogTable.getCatalogName(), readonlyConfig)) {
-                    for (DwsGaussDBSinkState state : states) {
+
+                    List<Long> snapshotIds =
+                            states.stream()
+                                    .flatMap(state -> state.getSnapshotId().stream())
+                                    .collect(Collectors.toList());
+
+                    if (CollectionUtils.isNotEmpty(snapshotIds)) {
                         String deleteTemporarySnapshotSql =
-                                sqlGenerator.getDeleteTemporarySnapshotSql(state.getSnapshotId());
+                                sqlGenerator.getDeleteTemporarySnapshotSql(snapshotIds);
                         dwsGaussDBCatalog.executeUpdateSql(deleteTemporarySnapshotSql);
                     }
                 }
