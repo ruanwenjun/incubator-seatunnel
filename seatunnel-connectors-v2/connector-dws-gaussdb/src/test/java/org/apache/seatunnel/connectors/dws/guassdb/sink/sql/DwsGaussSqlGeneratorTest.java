@@ -132,9 +132,9 @@ public class DwsGaussSqlGeneratorTest {
 
     @Test
     void getDeleteTemporarySnapshotSql() {
-        String deleteTemporarySnapshotSql = dwsGaussSqlGenerator.getDeleteTemporarySnapshotSql(1L);
+        String deleteTemporarySnapshotSql = dwsGaussSqlGenerator.getDeleteTemporarySnapshotSql(Lists.newArrayList(1L));
         Assertions.assertEquals(
-                "DELETE FROM \"public\".\"st_temporary_t_st_users WHERE st_snapshot_id = 1",
+                "DELETE FROM \"public\".\"st_temporary_t_st_users\" WHERE st_snapshot_id in (1)",
                 deleteTemporarySnapshotSql);
     }
 
