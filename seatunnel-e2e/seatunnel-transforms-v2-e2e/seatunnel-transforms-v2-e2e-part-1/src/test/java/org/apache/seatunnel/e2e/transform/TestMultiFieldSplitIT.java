@@ -28,8 +28,22 @@ import java.io.IOException;
 public class TestMultiFieldSplitIT extends TestSuiteBase {
 
     @TestTemplate
-    public void testSplit(TestContainer container) throws IOException, InterruptedException {
-        Container.ExecResult execResult = container.executeJob("/multiFieldSplit_transform.conf");
-        Assertions.assertEquals(0, execResult.getExitCode());
+    public void testFakeConnector(TestContainer container)
+            throws IOException, InterruptedException {
+        Container.ExecResult fakeWithTableNames =
+                container.executeJob("/fake_to_console_with_multitable_mode.conf");
+        Assertions.assertFalse(
+                container.getServerLogs().contains("MultiTableWriterRunnable error"));
+        Assertions.assertEquals(0, fakeWithTableNames.getExitCode());
+
+        Container.ExecResult fakeWithException =
+                container.executeJob("/fake_to_assert_with_multitable_exception.conf");
+        Assertions.assertTrue(container.getServerLogs().contains("MultiTableWriterRunnable error"));
+        Assertions.assertTrue(
+                container
+                        .getServerLogs()
+                        .contains(
+                                "at org.apache.seatunnel.connectors.seatunnel.common.multitablesink.MultiTableSinkWriter.checkQueueRemain(MultiTableSinkWriter.java"));
+        Assertions.assertEquals(1, fakeWithException.getExitCode());
     }
 }
