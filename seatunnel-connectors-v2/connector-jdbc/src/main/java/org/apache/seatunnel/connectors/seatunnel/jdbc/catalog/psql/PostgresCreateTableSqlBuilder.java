@@ -200,13 +200,7 @@ public class PostgresCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBui
                                                         constraintKeyColumn.getColumnName(),
                                                         fieldIde)))
                         .collect(Collectors.joining(", "));
-        return "CONSTRAINT "
-                + constraintName
-                + "_"
-                + getRandomStringSuffix()
-                + " UNIQUE ("
-                + indexColumns
-                + ")";
+        return "CONSTRAINT " + constraintName + " UNIQUE (" + indexColumns + ")";
     }
 
     private String buildIndexKeySql(TablePath tablePath, ConstraintKey constraintKey) {
@@ -228,8 +222,6 @@ public class PostgresCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBui
 
         return "CREATE INDEX "
                 + constraintName
-                + "_"
-                + getRandomStringSuffix()
                 + " ON "
                 + tablePath.getSchemaAndTableName("\"")
                 + "("
