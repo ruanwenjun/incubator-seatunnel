@@ -35,27 +35,71 @@ public class MysqlColumnConverter {
             new MysqlDataTypeConvertor();
 
     public static Column convert(io.debezium.relational.Column column) {
-        SeaTunnelDataType datatype = convertDataType(column);
-        long longColumnLength;
-        switch (datatype.getSqlType()) {
-            case STRING:
-                longColumnLength = column.length() * 3;
+        MysqlType mysqlType = MysqlType.getByName(column.typeName());
+        int columnLength = column.length();
+        long longColumnLength = column.length();
+        long bitLength = 0;
+        switch (mysqlType) {
+            case CHAR:
+            case VARCHAR:
+                columnLength = column.length() * 3;
+                longColumnLength = columnLength;
+                break;
+            case JSON:
+                longColumnLength = 4 * 1024 * 1024 * 1024L;
+                columnLength = (int) longColumnLength;
+                break;
+            case TINYTEXT:
+                columnLength = 255;
+                longColumnLength = columnLength;
+                break;
+            case TEXT:
+            case ENUM:
+                columnLength = 65535;
+                longColumnLength = columnLength;
+                break;
+            case MEDIUMTEXT:
+                columnLength = 16777215;
+                longColumnLength = columnLength;
+                break;
+            case LONGTEXT:
+                longColumnLength = 4294967295L;
+                columnLength = Integer.MAX_VALUE;
+                break;
+            case TINYBLOB:
+                bitLength = 255 * 8;
+                break;
+            case BLOB:
+                bitLength = 65535 * 8;
+                break;
+            case MEDIUMBLOB:
+                bitLength = 16777215 * 8;
+                break;
+            case LONGBLOB:
+                bitLength = 4294967295L * 8;
+                break;
+            case BIT:
+                bitLength = column.length();
+                break;
+            case BINARY:
+            case VARBINARY:
+                bitLength = column.length() * 8;
                 break;
             default:
-                longColumnLength = column.length();
                 break;
         }
+        SeaTunnelDataType seaTunnelDatatype = convertDataType(column);
         return PhysicalColumn.of(
                 column.name(),
-                datatype,
-                column.length(),
+                seaTunnelDatatype,
+                columnLength,
                 column.isOptional(),
                 column.defaultValue(),
                 null,
                 column.typeName(),
                 false,
                 false,
-                null,
+                bitLength,
                 null,
                 longColumnLength);
     }
