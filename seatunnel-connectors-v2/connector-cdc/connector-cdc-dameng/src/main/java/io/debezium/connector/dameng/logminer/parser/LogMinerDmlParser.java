@@ -314,6 +314,10 @@ public class LogMinerDmlParser implements DmlParser {
         if (tmp.startsWith("0x")) {
             return tmp;
         }
+        if (tmp.equals("OUT_BLOB")) {
+            // Unsupported read blog type
+            return null;
+        }
         if (NumberUtils.isNumber(tmp)) {
             return NumberUtils.createNumber(tmp);
         }
