@@ -49,7 +49,7 @@ public class PostgresDialect implements JdbcDialect {
 
     @Override
     public String dialectName() {
-        return "PostgreSQL";
+        return "Postgres";
     }
 
     @Override
