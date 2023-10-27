@@ -214,6 +214,10 @@ public abstract class AbstractJdbcCatalog implements Catalog {
             throws TableAlreadyExistException, DatabaseNotExistException, CatalogException {
         checkNotNull(tablePath, "Table path cannot be null");
 
+        if (tableExists(tablePath) && !ignoreIfExists) {
+            throw new TableAlreadyExistException(catalogName, tablePath);
+        }
+
         if (!databaseExists(tablePath.getDatabaseName())) {
             throw new DatabaseNotExistException(catalogName, tablePath.getDatabaseName());
         }
@@ -224,9 +228,7 @@ public abstract class AbstractJdbcCatalog implements Catalog {
                             defaultSchema.get(),
                             tablePath.getTableName());
         }
-        if (!createTableInternal(tablePath, table) && !ignoreIfExists) {
-            throw new TableAlreadyExistException(catalogName, tablePath);
-        }
+        createTableInternal(tablePath, table);
     }
 
     protected abstract boolean createTableInternal(TablePath tablePath, CatalogTable table)

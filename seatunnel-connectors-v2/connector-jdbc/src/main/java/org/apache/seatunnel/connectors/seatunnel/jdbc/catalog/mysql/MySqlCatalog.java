@@ -307,11 +307,12 @@ public class MySqlCatalog extends AbstractJdbcCatalog {
         Connection connection = getConnection(dbUrl);
         log.info("create table sql: {}", createTableSql);
         try (PreparedStatement ps = connection.prepareStatement(createTableSql)) {
-            return ps.execute();
+            ps.execute();
         } catch (Exception e) {
             throw new CatalogException(
                     String.format("Failed creating table %s", tablePath.getFullName()), e);
         }
+        return true;
     }
 
     @Override

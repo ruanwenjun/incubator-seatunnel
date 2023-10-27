@@ -214,20 +214,16 @@ public class KingbaseCatalog extends AbstractJdbcCatalog {
 
     @Override
     public boolean tableExists(TablePath tablePath) throws CatalogException {
-        try (Connection connection = DriverManager.getConnection(defaultUrl, username, pwd)) {
-            String sql =
-                    String.format(
-                            "SELECT 1 FROM information_schema.tables WHERE table_schema = '%s' AND table_name = '%s';",
-                            tablePath.getSchemaName(), tablePath.getTableName());
-            PreparedStatement ps = connection.prepareStatement(sql);
-            ResultSet resultSet = ps.executeQuery();
-            if (resultSet == null) {
-                return false;
+        try {
+            if (StringUtils.isNotBlank(tablePath.getDatabaseName())) {
+                return databaseExists(tablePath.getDatabaseName())
+                        && listTables(tablePath.getDatabaseName())
+                                .contains(tablePath.getSchemaAndTableName());
             }
-            return resultSet.next();
-        } catch (SQLException e) {
-            throw new CatalogException(
-                    String.format("Failed Connection JDBC error %s", tablePath.getFullName()), e);
+
+            return listTables(defaultDatabase).contains(tablePath.getSchemaAndTableName());
+        } catch (DatabaseNotExistException e) {
+            return false;
         }
     }
 
