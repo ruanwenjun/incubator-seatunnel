@@ -32,7 +32,7 @@ import java.util.Optional;
 
 @AutoService(Factory.class)
 public class PostgresCatalogFactory implements CatalogFactory {
-    public static final String IDENTIFIER = "Postgres";
+    public static final String IDENTIFIER = "PostgreSQL";
 
     @Override
     public String factoryIdentifier() {
