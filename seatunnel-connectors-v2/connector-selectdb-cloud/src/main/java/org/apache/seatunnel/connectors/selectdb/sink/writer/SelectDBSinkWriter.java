@@ -20,13 +20,16 @@ package org.apache.seatunnel.connectors.selectdb.sink.writer;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.event.SchemaChangeEvent;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig;
 import org.apache.seatunnel.connectors.selectdb.serialize.SeaTunnelRowSerializer;
 import org.apache.seatunnel.connectors.selectdb.serialize.SelectDBSerializer;
+import org.apache.seatunnel.connectors.selectdb.sink.SelectDbDdlUtil;
 import org.apache.seatunnel.connectors.selectdb.sink.committer.SelectDBCommitInfo;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -108,6 +111,14 @@ public class SelectDBSinkWriter
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @SneakyThrows
+    @Override
+    public void applySchemaChange(SchemaChangeEvent event) {
+        log.info("received schema change event: " + event);
+        this.selectDBStageLoad.flush(false);
+        SelectDbDdlUtil.executeDdl(selectdbConfig, event);
     }
 
     @Override
