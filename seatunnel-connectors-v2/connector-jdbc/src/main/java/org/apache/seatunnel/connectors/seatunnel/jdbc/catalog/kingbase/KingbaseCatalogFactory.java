@@ -24,6 +24,7 @@ import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import com.google.auto.service.AutoService;
 
@@ -33,7 +34,7 @@ public class KingbaseCatalogFactory implements CatalogFactory {
     public Catalog createCatalog(String catalogName, ReadonlyConfig options) {
         String url = options.get(JdbcCatalogOptions.BASE_URL);
         return new KingbaseCatalog(
-                "Kingbase",
+                catalogName,
                 options.get(JdbcCatalogOptions.USERNAME),
                 options.get(JdbcCatalogOptions.PASSWORD),
                 JdbcUrlUtil.getUrlInfo(url),
@@ -42,7 +43,7 @@ public class KingbaseCatalogFactory implements CatalogFactory {
 
     @Override
     public String factoryIdentifier() {
-        return "Kingbase";
+        return DatabaseIdentifier.KINGBASE;
     }
 
     @Override

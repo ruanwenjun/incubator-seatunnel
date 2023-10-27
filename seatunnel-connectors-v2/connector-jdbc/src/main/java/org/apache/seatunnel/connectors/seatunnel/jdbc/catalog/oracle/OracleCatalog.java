@@ -323,7 +323,7 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                                 buildConnectorOptions(tablePath),
                                 Collections.emptyList(),
                                 "",
-                                "oracle");
+                                catalogName);
                 log.info(
                         "OracleCatalog get CatalogTable for: {} success cost {}/ms",
                         tablePath,

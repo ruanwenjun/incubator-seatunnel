@@ -14,6 +14,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.db2.DB2TypeMapper;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -140,7 +141,7 @@ public class DB2Catalog extends AbstractJdbcCatalog {
                         buildConnectorOptions(tablePath),
                         Collections.emptyList(),
                         "",
-                        "DB2");
+                        catalogName);
             }
 
         } catch (Exception e) {
@@ -352,5 +353,10 @@ public class DB2Catalog extends AbstractJdbcCatalog {
         dataTypeProperties.put(DB2DataTypeConvertor.PRECISION, precision);
         dataTypeProperties.put(DB2DataTypeConvertor.SCALE, scale);
         return new DB2DataTypeConvertor().toSeaTunnelType(typeName, dataTypeProperties);
+    }
+
+    @Override
+    public CatalogTable getTable(String sqlQuery) throws SQLException {
+        return CatalogUtils.getCatalogTable(defaultConnection, sqlQuery, new DB2TypeMapper());
     }
 }
