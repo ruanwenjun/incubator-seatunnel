@@ -72,6 +72,16 @@ public class DefaultSaveModeHandler implements SaveModeHandler {
         }
     }
 
+    @Override
+    public SchemaSaveMode getSchemaSaveMode() {
+        return schemaSaveMode;
+    }
+
+    @Override
+    public DataSaveMode getDataSaveMode() {
+        return dataSaveMode;
+    }
+
     protected void recreateSchema() {
         if (tableExists()) {
             dropTable();
