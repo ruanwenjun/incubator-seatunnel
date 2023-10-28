@@ -26,6 +26,7 @@ import org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig;
 import org.apache.seatunnel.connectors.selectdb.serialize.SeaTunnelRowSerializer;
 import org.apache.seatunnel.connectors.selectdb.serialize.SelectDBSerializer;
 import org.apache.seatunnel.connectors.selectdb.sink.committer.SelectDBCommitInfo;
+import org.apache.seatunnel.connectors.selectdb.util.UnsupportedTypeConverterUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -98,7 +99,7 @@ public class SelectDBSinkWriter
 
     @Override
     public void write(SeaTunnelRow element) throws IOException {
-        byte[] serialize = serializer.serialize(element);
+        byte[] serialize = serializer.serialize(UnsupportedTypeConverterUtils.convertRow(element));
         if (Objects.isNull(serialize)) {
             // schema change is null
             return;

@@ -28,6 +28,7 @@ import org.apache.seatunnel.api.table.factory.TableSinkFactoryContext;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.selectdb.sink.committer.SelectDBCommitInfo;
 import org.apache.seatunnel.connectors.selectdb.sink.writer.SelectDBSinkState;
+import org.apache.seatunnel.connectors.selectdb.util.UnsupportedTypeConverterUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -90,7 +91,8 @@ public class SelectDBSinkFactory
     @Override
     public TableSink<SeaTunnelRow, SelectDBSinkState, SelectDBCommitInfo, SelectDBCommitInfo>
             createSink(TableSinkFactoryContext context) {
-        CatalogTable catalogTable = context.getCatalogTable();
+        CatalogTable catalogTable =
+                UnsupportedTypeConverterUtils.convertCatalogTable(context.getCatalogTable());
         ReadonlyConfig options = context.getOptions();
         return () -> new SelectDBSink(renameCatalogTable(options, catalogTable), options);
     }

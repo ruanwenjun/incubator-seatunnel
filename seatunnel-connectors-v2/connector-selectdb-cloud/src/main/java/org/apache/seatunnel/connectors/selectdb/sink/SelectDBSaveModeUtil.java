@@ -143,7 +143,7 @@ public class SelectDBSaveModeUtil {
             case DECIMAL:
                 DecimalType decimalType = (DecimalType) dataType;
                 return String.format(
-                        "Decimal(%d, %d)", decimalType.getPrecision(), decimalType.getScale());
+                        "Decimalv3(%d, %d)", decimalType.getPrecision(), decimalType.getScale());
             case MAP:
             case ROW:
                 return "JSON";
