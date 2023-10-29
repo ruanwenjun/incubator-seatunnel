@@ -272,7 +272,7 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
                         buildConnectorOptions(tablePath),
                         Collections.emptyList(),
                         "",
-                        "postgres");
+                        catalogName);
             }
 
         } catch (Exception e) {

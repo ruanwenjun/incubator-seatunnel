@@ -27,6 +27,7 @@ import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.type.BasicType;
 import org.apache.seatunnel.api.table.type.LocalTimeType;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MysqlCreateTableSqlBuilder;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -92,7 +93,8 @@ public class MysqlCreateTableSqlBuilderTest {
                         "User table");
 
         String createTableSql =
-                MysqlCreateTableSqlBuilder.builder(tablePath, catalogTable).build("mysql");
+                MysqlCreateTableSqlBuilder.builder(tablePath, catalogTable)
+                        .build(DatabaseIdentifier.MYSQL);
         String expect =
                 "CREATE TABLE IF NOT EXISTS `test_table` (\n"
                         + "\t`id` null NOT NULL COMMENT 'id', \n"

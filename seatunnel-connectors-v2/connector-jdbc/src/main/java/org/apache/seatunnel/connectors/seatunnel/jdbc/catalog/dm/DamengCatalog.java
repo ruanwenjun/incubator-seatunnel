@@ -32,6 +32,8 @@ import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.dm.DmdbTypeMapper;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -251,7 +253,7 @@ public class DamengCatalog extends AbstractJdbcCatalog {
                     buildConnectorOptions(tablePath),
                     Collections.emptyList(),
                     "",
-                    "dameng");
+                    catalogName);
         } catch (Exception e) {
             throw new CatalogException(
                     String.format("Failed getting table %s", tablePath.getFullName()), e);
@@ -348,5 +350,10 @@ public class DamengCatalog extends AbstractJdbcCatalog {
         options.put("username", username);
         options.put("password", pwd);
         return options;
+    }
+
+    @Override
+    public CatalogTable getTable(String sqlQuery) throws SQLException {
+        return CatalogUtils.getCatalogTable(defaultConnection, sqlQuery, new DmdbTypeMapper());
     }
 }

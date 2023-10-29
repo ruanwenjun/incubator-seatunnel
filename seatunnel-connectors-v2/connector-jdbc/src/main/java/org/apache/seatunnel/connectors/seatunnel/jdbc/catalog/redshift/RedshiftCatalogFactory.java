@@ -27,6 +27,7 @@ import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -37,11 +38,9 @@ import java.util.Optional;
 @AutoService(Factory.class)
 public class RedshiftCatalogFactory implements CatalogFactory {
 
-    public static final String IDENTIFIER = "Redshift";
-
     @Override
     public String factoryIdentifier() {
-        return IDENTIFIER;
+        return DatabaseIdentifier.REDSHIFT;
     }
 
     @Override
