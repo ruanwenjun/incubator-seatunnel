@@ -73,6 +73,15 @@ public class DefaultSaveModeHandler implements SaveModeHandler {
     }
 
     @Override
+    public void handleSchemaSaveModeWithRestore() {
+        if (SchemaSaveMode.ERROR_WHEN_SCHEMA_NOT_EXIST == schemaSaveMode) {
+            errorWhenSchemaNotExist();
+        } else {
+            createSchemaWhenNotExist();
+        }
+    }
+
+    @Override
     public SchemaSaveMode getSchemaSaveMode() {
         return schemaSaveMode;
     }

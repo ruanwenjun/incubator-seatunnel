@@ -6,6 +6,8 @@ public interface SaveModeHandler extends AutoCloseable {
 
     void handleDataSaveMode();
 
+    void handleSchemaSaveModeWithRestore();
+
     default void handleSaveMode() {
         handleSchemaSaveMode();
         handleDataSaveMode();
