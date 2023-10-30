@@ -138,6 +138,25 @@ public class SelectDBConfig implements Serializable {
                     .defaultValue(1)
                     .withDescription("Queue length for async upload to object storage");
 
+    public static final Option<String> COLUMN_PATTERN =
+            Options.key("column_pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The old string that will be replaced for Column");
+
+    public static final Option<String> COLUMN_REPLACEMENT =
+            Options.key("column_replacement")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The new string for replace for Column");
+
+    public static final Option<Boolean> NEEDS_UNSUPPORTED_TYPE_CASTING =
+            Options.key("needs_unsupported_type_casting")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to enable the unsupported type casting, such as Decimal64 to Double");
+
     private static Map<String, String> createDefaultSelectdbConfigMap() {
         Map<String, String> defaultMap = new HashMap<>();
         defaultMap.put("file.type", "json");
@@ -171,6 +190,7 @@ public class SelectDBConfig implements Serializable {
     private SchemaSaveMode schemaSaveMode;
     private String customSql;
     private String saveModeCreateTemplate;
+    private Boolean needsUnsupportedTypeCasting;
 
     public static SelectDBConfig loadConfig(ReadonlyConfig pluginConfig) {
         SelectDBConfig selectdbConfig = new SelectDBConfig();
@@ -192,6 +212,8 @@ public class SelectDBConfig implements Serializable {
         selectdbConfig.setSchemaSaveMode(pluginConfig.get(SCHEMA_SAVE_MODE));
         selectdbConfig.setDataSaveMode(pluginConfig.get(DATA_SAVE_MODE));
         selectdbConfig.setSaveModeCreateTemplate(pluginConfig.get(SAVE_MODE_CREATE_TEMPLATE));
+        selectdbConfig.setNeedsUnsupportedTypeCasting(
+                pluginConfig.get(NEEDS_UNSUPPORTED_TYPE_CASTING));
         return selectdbConfig;
     }
 

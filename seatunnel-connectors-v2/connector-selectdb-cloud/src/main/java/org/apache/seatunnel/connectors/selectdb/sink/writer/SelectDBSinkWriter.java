@@ -99,7 +99,11 @@ public class SelectDBSinkWriter
 
     @Override
     public void write(SeaTunnelRow element) throws IOException {
-        byte[] serialize = serializer.serialize(UnsupportedTypeConverterUtils.convertRow(element));
+        byte[] serialize =
+                serializer.serialize(
+                        selectdbConfig.getNeedsUnsupportedTypeCasting()
+                                ? UnsupportedTypeConverterUtils.convertRow(element)
+                                : element);
         if (Objects.isNull(serialize)) {
             // schema change is null
             return;

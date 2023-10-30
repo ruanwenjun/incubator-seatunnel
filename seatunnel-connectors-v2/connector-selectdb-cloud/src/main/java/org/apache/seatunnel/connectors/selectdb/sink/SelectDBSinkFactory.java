@@ -20,7 +20,9 @@ package org.apache.seatunnel.connectors.selectdb.sink;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.Column;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
+import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
@@ -34,16 +36,24 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.auto.service.AutoService;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.seatunnel.api.sink.SinkCommonOptions.MULTI_TABLE_SINK_REPLICA;
 import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_DATABASE_NAME_KEY;
 import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_SCHEMA_NAME_KEY;
 import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_TABLE_NAME_KEY;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.BASE_URL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CLUSTER_NAME;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.COLUMN_PATTERN;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.COLUMN_REPLACEMENT;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.CUSTOM_SQL;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.DATABASE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.DATA_SAVE_MODE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.LOAD_URL;
+import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.NEEDS_UNSUPPORTED_TYPE_CASTING;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.PASSWORD;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SAVE_MODE_CREATE_TEMPLATE;
 import static org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig.SCHEMA_SAVE_MODE;
@@ -70,6 +80,7 @@ public class SelectDBSinkFactory
     public OptionRule optionRule() {
         return OptionRule.builder()
                 .required(BASE_URL, LOAD_URL, CLUSTER_NAME, USERNAME, PASSWORD)
+                .bundled(COLUMN_PATTERN, COLUMN_REPLACEMENT)
                 .optional(
                         DATABASE,
                         TABLE,
@@ -84,16 +95,20 @@ public class SelectDBSinkFactory
                         CUSTOM_SQL,
                         SAVE_MODE_CREATE_TEMPLATE,
                         SELECTDB_SINK_CONFIG_PREFIX,
-                        MULTI_TABLE_SINK_REPLICA)
+                        MULTI_TABLE_SINK_REPLICA,
+                        NEEDS_UNSUPPORTED_TYPE_CASTING)
                 .build();
     }
 
     @Override
     public TableSink<SeaTunnelRow, SelectDBSinkState, SelectDBCommitInfo, SelectDBCommitInfo>
             createSink(TableSinkFactoryContext context) {
-        CatalogTable catalogTable =
-                UnsupportedTypeConverterUtils.convertCatalogTable(context.getCatalogTable());
         ReadonlyConfig options = context.getOptions();
+        CatalogTable catalogTable =
+                options.get(NEEDS_UNSUPPORTED_TYPE_CASTING)
+                        ? UnsupportedTypeConverterUtils.convertCatalogTable(
+                                context.getCatalogTable())
+                        : context.getCatalogTable();
         return () -> new SelectDBSink(renameCatalogTable(options, catalogTable), options);
     }
 
@@ -117,6 +132,14 @@ public class SelectDBSinkFactory
         TableIdentifier newTableId =
                 TableIdentifier.of(tableId.getCatalogName(), namespace, null, tableName);
 
+        if (options.get(COLUMN_PATTERN) != null && options.get(COLUMN_REPLACEMENT) != null) {
+            catalogTable =
+                    replaceColumnName(
+                            catalogTable,
+                            options.get(COLUMN_PATTERN),
+                            options.get(COLUMN_REPLACEMENT));
+        }
+
         return CatalogTable.of(newTableId, catalogTable);
     }
 
@@ -131,5 +154,39 @@ public class SelectDBSinkFactory
             original = original.replace(REPLACE_DATABASE_NAME_KEY, tableId.getDatabaseName());
         }
         return original;
+    }
+
+    private CatalogTable replaceColumnName(
+            CatalogTable catalogTable, String original, String replacement) {
+        checkNotNull(original, "original can not be null");
+        checkNotNull(replacement, "replacement can not be null");
+        checkArgument(StringUtils.isNotEmpty(original), "original can not be empty");
+        TableSchema tableSchema = catalogTable.getTableSchema();
+        List<Column> columns = catalogTable.getTableSchema().getColumns();
+        List<Column> newColumns =
+                columns.stream()
+                        .map(
+                                column -> {
+                                    if (column.getName().contains(original)) {
+                                        return column.rename(
+                                                column.getName().replace(original, replacement));
+                                    }
+                                    return column;
+                                })
+                        .collect(Collectors.toList());
+
+        TableSchema newTableSchema =
+                TableSchema.builder()
+                        .primaryKey(tableSchema.getPrimaryKey())
+                        .constraintKey(tableSchema.getConstraintKeys())
+                        .columns(newColumns)
+                        .build();
+
+        return CatalogTable.of(
+                catalogTable.getTableId(),
+                newTableSchema,
+                catalogTable.getOptions(),
+                catalogTable.getPartitionKeys(),
+                catalogTable.getComment());
     }
 }
