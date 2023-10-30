@@ -10,4 +10,8 @@ public interface SaveModeHandler extends AutoCloseable {
         handleSchemaSaveMode();
         handleDataSaveMode();
     }
+
+    SchemaSaveMode getSchemaSaveMode();
+
+    DataSaveMode getDataSaveMode();
 }
