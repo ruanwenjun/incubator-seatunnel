@@ -34,6 +34,7 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.postgres.source.reader.snap
 import org.apache.seatunnel.connectors.seatunnel.cdc.postgres.source.reader.wal.PostgresWalFetchTask;
 import org.apache.seatunnel.connectors.seatunnel.cdc.postgres.utils.PostgresSchema;
 import org.apache.seatunnel.connectors.seatunnel.cdc.postgres.utils.TableDiscoveryUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import io.debezium.connector.postgresql.PostgresConnectorConfig;
 import io.debezium.connector.postgresql.PostgresValueConverter;
@@ -61,7 +62,7 @@ public class PostgresDialect implements JdbcDataSourceDialect {
 
     @Override
     public String getName() {
-        return "Postgres";
+        return DatabaseIdentifier.POSTGRESQL;
     }
 
     @Override

@@ -29,6 +29,8 @@ import org.apache.seatunnel.api.table.catalog.exception.TableNotExistException;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.kingbase.KingBaseTypeMapper;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -313,5 +315,10 @@ public class KingbaseCatalog extends AbstractJdbcCatalog {
         dataTypeProperties.put(KingBaseDataTypeConvertor.PRECISION, precision);
         dataTypeProperties.put(KingBaseDataTypeConvertor.SCALE, scale);
         return new KingBaseDataTypeConvertor().toSeaTunnelType(typeName, dataTypeProperties);
+    }
+
+    @Override
+    public CatalogTable getTable(String sqlQuery) throws SQLException {
+        return CatalogUtils.getCatalogTable(defaultConnection, sqlQuery, new KingBaseTypeMapper());
     }
 }

@@ -33,6 +33,7 @@ import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.DamengSour
 import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.logminer.DamengLogMinerFetchTask;
 import org.apache.seatunnel.connectors.cdc.dameng.source.reader.fetch.snapshot.DamengSnapshotFetchTask;
 import org.apache.seatunnel.connectors.cdc.dameng.utils.DamengSchema;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import io.debezium.connector.dameng.DamengConnection;
 import io.debezium.jdbc.JdbcConnection;
@@ -56,7 +57,7 @@ public class DamengDialect implements JdbcDataSourceDialect {
 
     @Override
     public String getName() {
-        return "Dameng";
+        return DatabaseIdentifier.DAMENG;
     }
 
     @Override

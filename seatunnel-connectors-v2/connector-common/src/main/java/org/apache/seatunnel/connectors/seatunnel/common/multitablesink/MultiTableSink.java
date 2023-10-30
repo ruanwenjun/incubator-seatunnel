@@ -37,6 +37,7 @@ import com.google.auto.service.AutoService;
 import lombok.NoArgsConstructor;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,15 +110,21 @@ public class MultiTableSink
                 SinkIdentifier sinkIdentifier = SinkIdentifier.of(tableIdentifier, index);
                 List<?> state =
                         states.stream()
-                                .flatMap(
+                                .map(
                                         multiTableState ->
-                                                multiTableState.getStates().get(sinkIdentifier)
-                                                        .stream())
+                                                multiTableState.getStates().get(sinkIdentifier))
                                 .filter(Objects::nonNull)
+                                .flatMap(Collection::stream)
                                 .collect(Collectors.toList());
-                writers.put(
-                        sinkIdentifier,
-                        sink.restoreWriter(new SinkContextProxy(index, context), state));
+                if (state.isEmpty()) {
+                    writers.put(
+                            sinkIdentifier,
+                            sink.createWriter(new SinkContextProxy(index, context)));
+                } else {
+                    writers.put(
+                            sinkIdentifier,
+                            sink.restoreWriter(new SinkContextProxy(index, context), state));
+                }
             }
         }
         return new MultiTableSinkWriter(writers, replicaNum);

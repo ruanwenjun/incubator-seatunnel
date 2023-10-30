@@ -7,6 +7,7 @@ import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.type.DecimalType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -77,7 +78,7 @@ public class InformixCreateTableSqlBuilder {
         // For simplicity, assume the column type in SeaTunnelDataType is the same as in Informix
         // SQL
         String columnType =
-                sourceCatalogName.equalsIgnoreCase("Informix")
+                sourceCatalogName.equalsIgnoreCase(DatabaseIdentifier.INFORMIX)
                         ? column.getSourceType()
                         : buildColumnType(column);
         columnSql.append(columnType);

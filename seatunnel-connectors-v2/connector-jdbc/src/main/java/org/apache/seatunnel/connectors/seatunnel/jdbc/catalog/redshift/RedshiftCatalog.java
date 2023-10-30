@@ -33,6 +33,7 @@ import org.apache.seatunnel.common.utils.JdbcUrlUtil;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.AbstractJdbcCatalog;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MysqlDataTypeConvertor;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.redshift.RedshiftTypeMapper;
 
 import com.mysql.cj.MysqlType;
 import com.mysql.cj.jdbc.result.ResultSetImpl;
@@ -225,7 +226,7 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
                         buildConnectorOptions(tablePath),
                         Collections.emptyList(),
                         "",
-                        "redshift");
+                        catalogName);
             }
 
         } catch (Exception e) {
@@ -438,5 +439,10 @@ public class RedshiftCatalog extends AbstractJdbcCatalog {
     private String getUrlFromDatabaseName(String databaseName) {
         String url = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
         return url + databaseName + suffix;
+    }
+
+    @Override
+    public CatalogTable getTable(String sqlQuery) throws SQLException {
+        return CatalogUtils.getCatalogTable(defaultConnection, sqlQuery, new RedshiftTypeMapper());
     }
 }

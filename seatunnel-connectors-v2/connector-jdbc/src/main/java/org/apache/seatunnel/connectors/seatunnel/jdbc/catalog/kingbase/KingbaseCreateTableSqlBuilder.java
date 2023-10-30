@@ -8,6 +8,7 @@ import org.apache.seatunnel.api.table.type.DecimalType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -77,7 +78,8 @@ public class KingbaseCreateTableSqlBuilder {
 
         // For simplicity, assume the column type in SeaTunnelDataType is the same as in PostgreSQL
         String columnType =
-                sourceCatalogName.equals("postgres")
+                sourceCatalogName.equals(DatabaseIdentifier.KINGBASE)
+                                || sourceCatalogName.equals(DatabaseIdentifier.POSTGRESQL)
                         ? column.getSourceType()
                         : buildColumnType(column);
         columnSql.append(columnType);

@@ -8,6 +8,7 @@ import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.type.DecimalType;
 import org.apache.seatunnel.api.table.type.SqlType;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.utils.CatalogUtils;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -101,7 +102,9 @@ public class DB2CreateTableSqlBuilder {
 
         // For simplicity, assume the column type in SeaTunnelDataType is the same as in DB2
         String columnType =
-                sourceCatalogName.equals("DB2") ? column.getSourceType() : buildColumnType(column);
+                sourceCatalogName.equals(DatabaseIdentifier.DB_2)
+                        ? column.getSourceType()
+                        : buildColumnType(column);
         columnSql.append(columnType);
 
         // Add NOT NULL if column is not nullable
