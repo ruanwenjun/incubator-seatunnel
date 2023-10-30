@@ -15,6 +15,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.cdc.base.option.JdbcSourceOptions;
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.config.Oracle9BridgeSourceOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import com.google.auto.service.AutoService;
 
@@ -58,7 +59,9 @@ public class Oracle9BridgeIncrementalSourceFactory implements TableSourceFactory
         return () -> {
             List<CatalogTable> catalogTables =
                     CatalogTableUtil.getCatalogTablesFromConfig(
-                            "Oracle", context.getOptions(), context.getClassLoader());
+                            DatabaseIdentifier.ORACLE,
+                            context.getOptions(),
+                            context.getClassLoader());
             SeaTunnelDataType<SeaTunnelRow> dataType =
                     CatalogTableUtil.convertToDataType(catalogTables);
             return (SeaTunnelSource<T, SplitT, StateT>)

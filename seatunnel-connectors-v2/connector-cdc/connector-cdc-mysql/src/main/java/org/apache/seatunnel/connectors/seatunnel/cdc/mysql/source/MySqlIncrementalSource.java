@@ -48,6 +48,7 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.mysql.source.offset.BinlogO
 import org.apache.seatunnel.connectors.seatunnel.cdc.mysql.utils.MySqlConnectionUtils;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.JdbcCatalogOptions;
 import org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.mysql.MySqlCatalogFactory;
+import org.apache.seatunnel.connectors.seatunnel.jdbc.internal.dialect.DatabaseIdentifier;
 
 import org.apache.kafka.connect.data.Struct;
 
@@ -126,7 +127,8 @@ public class MySqlIncrementalSource<T> extends IncrementalSource<T, JdbcSourceCo
         SeaTunnelDataType<SeaTunnelRow> physicalRowType;
         if (dataType == null) {
             // TODO: support metadata keys
-            try (Catalog catalog = new MySqlCatalogFactory().createCatalog("mysql", config)) {
+            try (Catalog catalog =
+                    new MySqlCatalogFactory().createCatalog(DatabaseIdentifier.MYSQL, config)) {
                 catalog.open();
                 CatalogTable table =
                         catalog.getTable(
