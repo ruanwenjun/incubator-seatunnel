@@ -1,5 +1,6 @@
 package org.apache.seatunnel.connectors.selectdb.sink;
 
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.event.AlterTableAddColumnEvent;
 import org.apache.seatunnel.api.table.event.AlterTableChangeColumnEvent;
@@ -11,24 +12,28 @@ import org.apache.seatunnel.connectors.selectdb.config.SelectDBConfig;
 
 import org.apache.commons.collections4.CollectionUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class SelectDbDdlUtil {
 
-    public static void executeDdl(SelectDBConfig selectDBConfig, SchemaChangeEvent event) {
-        final List<String> ddlSqlList = getDdlSqlList(selectDBConfig, event);
+    public static void executeDdl(
+            SelectDBConfig selectDBConfig, SchemaChangeEvent event, CatalogTable catalogTable) {
+        final List<String> ddlSqlList = getDdlSqlList(event, catalogTable);
         if (!CollectionUtils.isEmpty(ddlSqlList)) {
             executeDdlSql(ddlSqlList, selectDBConfig);
         }
     }
 
-    private static List<String> getDdlSqlList(
-            SelectDBConfig selectDBConfig, SchemaChangeEvent event) {
-        TablePath tablePath = TablePath.of(selectDBConfig.getDatabase(), selectDBConfig.getTable());
+    private static List<String> getDdlSqlList(SchemaChangeEvent event, CatalogTable catalogTable) {
+        TablePath tablePath = catalogTable.getTableId().toTablePath();
         return getSQLFromSchemaChangeEvent(tablePath, event);
     }
 
@@ -42,8 +47,12 @@ public class SelectDbDdlUtil {
             for (String ddlSql : ddlSqlList) {
                 statement.execute(ddlSql);
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (SQLException e) {
+            if (e.getMessage().contains("Nothing is changed")) {
+                log.warn(e.getMessage(), e);
+            } else {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -58,13 +67,13 @@ public class SelectDbDdlUtil {
                                 if (column instanceof AlterTableChangeColumnEvent) {
                                     String sql =
                                             String.format(
-                                                    "alter table %s CHANGE %s %s",
+                                                    "alter table %s RENAME COLUMN %s %s",
                                                     tablePath.getFullName(),
                                                     ((AlterTableChangeColumnEvent) column)
                                                             .getOldColumn(),
-                                                    SelectDBSaveModeUtil.columnToStarrocksType(
-                                                            ((AlterTableAddColumnEvent) column)
-                                                                    .getColumn()));
+                                                    ((AlterTableAddColumnEvent) column)
+                                                            .getColumn()
+                                                            .getName());
                                     sqlList.add(sql);
                                 } else if (column instanceof AlterTableModifyColumnEvent) {
                                     String sql =
