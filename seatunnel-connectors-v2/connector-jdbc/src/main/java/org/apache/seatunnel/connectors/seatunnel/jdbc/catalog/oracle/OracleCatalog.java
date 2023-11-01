@@ -154,7 +154,8 @@ public class OracleCatalog extends AbstractJdbcCatalog {
     @Override
     protected boolean createTableInternal(TablePath tablePath, CatalogTable table)
             throws CatalogException {
-        String createTableSql = new OracleCreateTableSqlBuilder(table).build(tablePath);
+        OracleCreateTableSqlBuilder createTableSqlBuilder = new OracleCreateTableSqlBuilder(table);
+        String createTableSql = createTableSqlBuilder.build(tablePath);
         String[] createTableSqls = createTableSql.split(";");
         for (String sql : createTableSqls) {
             log.info("create table sql: {}", sql);
@@ -165,6 +166,17 @@ public class OracleCatalog extends AbstractJdbcCatalog {
                         String.format("Failed creating table %s", tablePath.getFullName()), e);
             }
         }
+        for (String sql : createTableSqlBuilder.getCreateIndexSqls()) {
+            log.info("create table index sql: {}", sql);
+            try (PreparedStatement ps = defaultConnection.prepareStatement(sql)) {
+                ps.execute();
+            } catch (Exception e) {
+                throw new CatalogException(
+                        String.format("Failed creating table index %s", tablePath.getFullName()),
+                        e);
+            }
+        }
+
         return true;
     }
 

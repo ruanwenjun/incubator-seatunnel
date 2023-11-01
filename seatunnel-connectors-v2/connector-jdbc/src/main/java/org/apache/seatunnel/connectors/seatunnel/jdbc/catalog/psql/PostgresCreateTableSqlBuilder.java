@@ -205,8 +205,9 @@ public class PostgresCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBui
     }
 
     private String buildIndexKeySql(TablePath tablePath, ConstraintKey constraintKey) {
-
-        String constraintName = constraintKey.getConstraintName();
+        // We add table name to index name to avoid name conflict in PG
+        // Since index name in PG should unique in the schema
+        String constraintName = tablePath.getTableName() + "_" + constraintKey.getConstraintName();
         if (constraintName.length() > 25) {
             constraintName = constraintName.substring(0, 25);
         }
