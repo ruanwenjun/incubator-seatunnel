@@ -134,9 +134,9 @@ public class MaxComputeDataTypeConvertor implements DataTypeConvertor<TypeInfo> 
             case "DATE":
                 return LocalTimeType.LOCAL_DATE_TYPE;
             case "TIMESTAMP":
-                return LocalTimeType.LOCAL_TIME_TYPE;
+                return LocalTimeType.LOCAL_DATE_TIME_TYPE;
             case "TIME":
-                return LocalTimeType.LOCAL_DATE_TYPE;
+                return LocalTimeType.LOCAL_TIME_TYPE;
             case "BOOLEAN":
                 return DecimalType.BOOLEAN_TYPE;
             case "NULL":

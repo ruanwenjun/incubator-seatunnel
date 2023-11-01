@@ -18,6 +18,7 @@
 package org.apache.seatunnel.connectors.seatunnel.maxcompute.catalog;
 
 import org.apache.seatunnel.api.table.type.BasicType;
+import org.apache.seatunnel.api.table.type.LocalTimeType;
 import org.apache.seatunnel.api.table.type.MapType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.connectors.seatunnel.maxcompute.config.MaxcomputeConfig;
@@ -36,11 +37,14 @@ public class MaxComputeDataTypeConvertorTest {
 
     @Test
     public void testTypeInfoStrToSeaTunnelType() {
-        String typeInfoStr = "MAP<STRING,STRING>";
         SeaTunnelDataType<?> seaTunnelType =
-                maxComputeDataTypeConvertor.toSeaTunnelType(typeInfoStr);
+                maxComputeDataTypeConvertor.toSeaTunnelType("MAP<STRING,STRING>");
         Assertions.assertEquals(BasicType.STRING_TYPE, ((MapType) seaTunnelType).getKeyType());
-        Assertions.assertEquals(BasicType.STRING_TYPE, ((MapType) seaTunnelType).getKeyType());
+        Assertions.assertEquals(BasicType.STRING_TYPE, ((MapType) seaTunnelType).getValueType());
+
+        Assertions.assertEquals(
+                LocalTimeType.LOCAL_DATE_TIME_TYPE,
+                maxComputeDataTypeConvertor.toSeaTunnelType("TIMESTAMP"));
     }
 
     @Test
