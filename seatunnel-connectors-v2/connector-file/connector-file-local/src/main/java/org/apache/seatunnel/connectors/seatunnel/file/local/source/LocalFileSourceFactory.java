@@ -28,7 +28,7 @@ import org.apache.seatunnel.api.table.factory.TableSourceFactoryContext;
 import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSourceConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileSystemType;
-import org.apache.seatunnel.connectors.seatunnel.file.local.source.config.LocalSourceConfig;
+import org.apache.seatunnel.connectors.seatunnel.file.local.source.config.LocalFileSourceOptions;
 
 import com.google.auto.service.AutoService;
 
@@ -43,10 +43,17 @@ public class LocalFileSourceFactory implements TableSourceFactory {
     }
 
     @Override
+    public <T, SplitT extends SourceSplit, StateT extends Serializable>
+            TableSource<T, SplitT, StateT> createSource(TableSourceFactoryContext context) {
+        return () -> (SeaTunnelSource<T, SplitT, StateT>) new LocalFileSource(context.getOptions());
+    }
+
+    @Override
     public OptionRule optionRule() {
         return OptionRule.builder()
-                .required(LocalSourceConfig.FILE_PATH)
-                .required(BaseSourceConfig.FILE_FORMAT_TYPE)
+                .optional(LocalFileSourceOptions.LOCAL_FILE_SOURCE_CONFIGS)
+                .optional(BaseSourceConfig.FILE_PATH)
+                .optional(BaseSourceConfig.FILE_FORMAT_TYPE)
                 .conditional(
                         BaseSourceConfig.FILE_FORMAT_TYPE,
                         FileFormat.TEXT,
@@ -62,12 +69,6 @@ public class LocalFileSourceFactory implements TableSourceFactory {
                 .optional(BaseSourceConfig.TIME_FORMAT)
                 .optional(BaseSourceConfig.FILE_FILTER_PATTERN)
                 .build();
-    }
-
-    @Override
-    public <T, SplitT extends SourceSplit, StateT extends Serializable>
-            TableSource<T, SplitT, StateT> createSource(TableSourceFactoryContext context) {
-        return () -> (SeaTunnelSource<T, SplitT, StateT>) new LocalFileSource(context.getOptions());
     }
 
     @Override
