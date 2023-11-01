@@ -237,8 +237,8 @@ public class OracleCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
     private String buildIndexKeySql(TablePath tablePath, ConstraintKey constraintKey) {
 
         String constraintName = tablePath.getTableName() + "_" + constraintKey.getConstraintName();
-        if (constraintName.length() > 25) {
-            constraintName = constraintName.substring(0, 25);
+        if (constraintName.length() > 30) {
+            constraintName = constraintName.substring(0, 30);
         }
         String indexColumns =
                 constraintKey.getColumnNames().stream()
