@@ -257,6 +257,6 @@ public class OracleCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
                 + tablePath.getSchemaAndTableName("\"")
                 + "("
                 + indexColumns
-                + ");";
+                + ")";
     }
 }
