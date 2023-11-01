@@ -94,10 +94,12 @@ public class OracleCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
                         isHaveConstraintKey = true;
                         String uniqueKeySql = buildUniqueKeySql(constraintKey);
                         columnSqls.add("\t" + uniqueKeySql);
+                        break;
                     case INDEX_KEY:
                         isHaveConstraintKey = true;
                         String indexKeySql = buildIndexKeySql(tablePath, constraintKey);
                         createIndexSqls.add(indexKeySql);
+                        break;
                     case FOREIGN_KEY:
                         break;
                 }
