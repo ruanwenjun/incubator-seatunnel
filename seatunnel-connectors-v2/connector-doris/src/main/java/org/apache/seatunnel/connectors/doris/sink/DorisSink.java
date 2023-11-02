@@ -18,15 +18,23 @@
 package org.apache.seatunnel.connectors.doris.sink;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
+import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
 
 import org.apache.seatunnel.api.common.JobContext;
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.serialization.Serializer;
+import org.apache.seatunnel.api.sink.DataSaveMode;
+import org.apache.seatunnel.api.sink.SaveModeHandler;
+import org.apache.seatunnel.api.sink.SchemaSaveMode;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
 import org.apache.seatunnel.api.sink.SinkCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSink;
+import org.apache.seatunnel.api.sink.SupportSaveMode;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -51,15 +59,30 @@ import java.util.Optional;
 
 @AutoService(SeaTunnelSink.class)
 public class DorisSink
-        implements SeaTunnelSink<SeaTunnelRow, DorisSinkState, DorisCommitInfo, DorisCommitInfo> {
+        implements SeaTunnelSink<SeaTunnelRow, DorisSinkState, DorisCommitInfo, DorisCommitInfo>,
+                SupportSaveMode,
+                SupportMultiTableSink {
 
     private Config pluginConfig;
     private SeaTunnelRowType seaTunnelRowType;
     private String jobId;
+    private final CatalogTable catalogTable;
+    private final ReadonlyConfig readonlyConfig;
+    private final DataSaveMode dataSaveMode;
+    private final SchemaSaveMode schemaSaveMode;
 
     @Override
     public String getPluginName() {
         return "Doris";
+    }
+
+    public DorisSink(CatalogTable catalogTable, ReadonlyConfig readonlyConfig) {
+        this.catalogTable = catalogTable;
+        this.readonlyConfig = readonlyConfig;
+        this.schemaSaveMode = readonlyConfig.get(DorisConfig.SCHEMA_SAVE_MODE);
+        this.dataSaveMode = readonlyConfig.get(DorisConfig.DATA_SAVE_MODE);
+        this.setTypeInfo(catalogTable.getSeaTunnelRowType());
+        this.pluginConfig = ConfigFactory.parseMap(readonlyConfig.toMap());
     }
 
     @Override
@@ -138,5 +161,11 @@ public class DorisSink
     @Override
     public Optional<Serializer<DorisCommitInfo>> getAggregatedCommitInfoSerializer() {
         return Optional.empty();
+    }
+
+    @Override
+    public SaveModeHandler getSaveModeHandler() {
+
+        return null;
     }
 }
