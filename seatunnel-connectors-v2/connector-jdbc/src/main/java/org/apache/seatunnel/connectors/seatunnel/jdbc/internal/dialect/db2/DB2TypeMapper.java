@@ -59,8 +59,12 @@ public class DB2TypeMapper implements JdbcDialectTypeMapper {
     private static final String DB2_DECFLOAT = "DECFLOAT";
     // string
     private static final String DB2_CHAR = "CHAR";
+    private static final String DB2_CHARACTER = "CHARACTER";
+    private static final String DB2_CHAR_FOR_BIT_DATA = "CHAR FOR BIT DATA";
     private static final String DB2_VARCHAR = "VARCHAR";
+    private static final String DB2_VARCHAR_FOR_BIT_DATA = "VARCHAR FOR BIT DATA";
     private static final String DB2_LONG_VARCHAR = "LONG VARCHAR";
+    private static final String DB2_LONG_VARCHAR_FOR_BIT_DATA = "LONG VARCHAR FOR BIT DATA";
     private static final String DB2_CLOB = "CLOB";
     // graphic
     private static final String DB2_GRAPHIC = "GRAPHIC";
@@ -116,6 +120,7 @@ public class DB2TypeMapper implements JdbcDialectTypeMapper {
             case DB2_DECFLOAT:
                 return BasicType.DOUBLE_TYPE;
             case DB2_CHAR:
+            case DB2_CHARACTER:
             case DB2_VARCHAR:
             case DB2_LONG_VARCHAR:
             case DB2_CLOB:
@@ -126,6 +131,9 @@ public class DB2TypeMapper implements JdbcDialectTypeMapper {
                 return BasicType.STRING_TYPE;
             case DB2_BINARY:
             case DB2_VARBINARY:
+            case DB2_CHAR_FOR_BIT_DATA:
+            case DB2_VARCHAR_FOR_BIT_DATA:
+            case DB2_LONG_VARCHAR_FOR_BIT_DATA:
             case DB2_BLOB:
                 return PrimitiveByteArrayType.INSTANCE;
             case DB2_DATE:
