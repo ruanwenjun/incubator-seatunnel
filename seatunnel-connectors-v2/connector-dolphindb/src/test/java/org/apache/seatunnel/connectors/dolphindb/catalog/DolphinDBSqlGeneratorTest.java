@@ -6,12 +6,15 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import com.dolphindb.jdbc.Utils;
 import com.google.common.collect.Lists;
+
+import java.sql.SQLException;
 
 class DolphinDBSqlGeneratorTest {
 
     @Test
-    void generateDeleteRowSql() {
+    void generateDeleteRowSql() throws SQLException {
         String[] fields = Lists.newArrayList("id", "name", "age").toArray(new String[0]);
         BasicType[] seaTunnelRowTypes =
                 Lists.newArrayList(BasicType.INT_TYPE, BasicType.STRING_TYPE, BasicType.INT_TYPE)
@@ -20,8 +23,9 @@ class DolphinDBSqlGeneratorTest {
         String sql =
                 DolphinDBSqlGenerator.generateDeleteRowSql(
                         "dfs://whalescheduler", "users", seaTunnelRowType);
-        Assertions.assertEquals(
-                "delete from 'dfs://whalescheduler'.'users' where id = ? , name = ? , age = ?",
-                sql);
+        Assertions.assertEquals("delete from users where id = ? , name = ? , age = ?", sql);
+
+        String tableName = Utils.getTableName(sql);
+        Assertions.assertEquals(" users ", tableName);
     }
 }

@@ -99,6 +99,7 @@ public class DamengCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
 
         String columnType =
                 StringUtils.equals(sourceCatalogName, DatabaseIdentifier.DAMENG)
+                                && StringUtils.isNotEmpty(column.getSourceType())
                         ? column.getSourceType()
                         : buildColumnType(column);
         columnSql.append(columnType);

@@ -65,7 +65,7 @@ public class SelectDBSaveModeUtil {
                         rowTypeFields);
     }
 
-    private static String columnToStarrocksType(Column column) {
+    public static String columnToStarrocksType(Column column) {
         checkNotNull(column, "The column is required.");
         return String.format(
                 "`%s` %s %s ",

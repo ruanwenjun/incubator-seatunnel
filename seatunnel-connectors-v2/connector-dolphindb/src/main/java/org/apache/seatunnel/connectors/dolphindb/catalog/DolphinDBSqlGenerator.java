@@ -6,8 +6,7 @@ public class DolphinDBSqlGenerator {
 
     public static String generateDeleteRowSql(
             String database, String table, SeaTunnelRowType seaTunnelRowType) {
-        String deleteSql =
-                "delete from " + "'" + database + "'" + "." + "'" + table + "'" + " where ";
+        String deleteSql = "delete from " + table + " where ";
         String[] fieldNames = seaTunnelRowType.getFieldNames();
         for (int i = 0; i < fieldNames.length; i++) {
             deleteSql += fieldNames[i] + " = ?";

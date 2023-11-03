@@ -94,10 +94,12 @@ public class OracleCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
                         isHaveConstraintKey = true;
                         String uniqueKeySql = buildUniqueKeySql(constraintKey);
                         columnSqls.add("\t" + uniqueKeySql);
+                        break;
                     case INDEX_KEY:
                         isHaveConstraintKey = true;
                         String indexKeySql = buildIndexKeySql(tablePath, constraintKey);
                         createIndexSqls.add(indexKeySql);
+                        break;
                     case FOREIGN_KEY:
                         break;
                 }
@@ -236,9 +238,9 @@ public class OracleCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
 
     private String buildIndexKeySql(TablePath tablePath, ConstraintKey constraintKey) {
 
-        String constraintName = constraintKey.getConstraintName();
-        if (constraintName.length() > 25) {
-            constraintName = constraintName.substring(0, 25);
+        String constraintName = tablePath.getTableName() + "_" + constraintKey.getConstraintName();
+        if (constraintName.length() > 30) {
+            constraintName = constraintName.substring(0, 30);
         }
         String indexColumns =
                 constraintKey.getColumnNames().stream()
@@ -257,6 +259,6 @@ public class OracleCreateTableSqlBuilder extends AbstractJdbcCreateTableSqlBuild
                 + tablePath.getSchemaAndTableName("\"")
                 + "("
                 + indexColumns
-                + ");";
+                + ")";
     }
 }
