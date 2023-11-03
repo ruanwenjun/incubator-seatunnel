@@ -34,7 +34,9 @@ import org.apache.seatunnel.api.sink.SinkCommitter;
 import org.apache.seatunnel.api.sink.SinkWriter;
 import org.apache.seatunnel.api.sink.SupportMultiTableSink;
 import org.apache.seatunnel.api.sink.SupportSaveMode;
+import org.apache.seatunnel.api.table.catalog.Catalog;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -56,6 +58,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.seatunnel.api.table.factory.FactoryUtil.discoverFactory;
 
 @AutoService(SeaTunnelSink.class)
 public class DorisSink
@@ -82,7 +86,7 @@ public class DorisSink
         this.schemaSaveMode = readonlyConfig.get(DorisConfig.SCHEMA_SAVE_MODE);
         this.dataSaveMode = readonlyConfig.get(DorisConfig.DATA_SAVE_MODE);
         this.setTypeInfo(catalogTable.getSeaTunnelRowType());
-        this.pluginConfig = ConfigFactory.parseMap(readonlyConfig.toMap());
+        this.pluginConfig = ConfigFactory.parseMap(readonlyConfig.getConfData());
     }
 
     @Override
@@ -165,7 +169,23 @@ public class DorisSink
 
     @Override
     public SaveModeHandler getSaveModeHandler() {
+        CatalogFactory catalogFactory =
+                discoverFactory(
+                        Thread.currentThread().getContextClassLoader(),
+                        CatalogFactory.class,
+                        "Doris");
+        if (catalogFactory == null) {
+            throw new DorisConnectorException(
+                    SeaTunnelAPIErrorCode.CONFIG_VALIDATION_FAILED,
+                    String.format(
+                            "PluginName: %s, PluginType: %s, Message: %s",
+                            getPluginName(), PluginType.SINK, "Cannot find Doris catalog factory"));
+        }
 
-        return null;
+        Catalog catalog =
+                catalogFactory.createCatalog(catalogFactory.factoryIdentifier(), readonlyConfig);
+        catalog.open();
+
+        return new DorisSaveModeHandler(readonlyConfig, catalog, catalogTable);
     }
 }

@@ -229,6 +229,13 @@ public class DorisConfig {
     public static final Option<String> CUSTOM_SQL =
             Options.key("custom_sql").stringType().noDefaultValue().withDescription("custom_sql");
 
+    public static final Option<Boolean> NEEDS_UNSUPPORTED_TYPE_CASTING =
+            Options.key("needs_unsupported_type_casting")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to enable the unsupported type casting, such as Decimal64 to Double");
+
     public static final Option<String> SAVE_MODE_CREATE_TEMPLATE =
             Options.key("save_mode_create_template")
                     .stringType()
@@ -237,9 +244,14 @@ public class DorisConfig {
                                     + "${rowtype_fields}\n"
                                     + ") ENGINE=OLAP\n"
                                     + " UNIQUE KEY (${rowtype_primary_key})\n"
-                                    + "DISTRIBUTED BY HASH (${rowtype_primary_key})")
-                    .withDescription(
-                            "Create table statement template, used to create StarRocks table");
+                                    + "DISTRIBUTED BY HASH (${rowtype_primary_key})\n "
+                                    + "PROPERTIES (\n"
+                                    + "\"replication_allocation\" = \"tag.location.default: 1\",\n"
+                                    + "\"in_memory\" = \"false\",\n"
+                                    + "\"storage_format\" = \"V2\",\n"
+                                    + "\"disable_auto_compaction\" = \"false\"\n"
+                                    + ")")
+                    .withDescription("Create table statement template, used to create Doris table");
 
     // common option
     private String frontends;
@@ -275,6 +287,7 @@ public class DorisConfig {
     private String customSql;
     private String table;
     private String database;
+    private Boolean needsUnsupportedTypeCasting;
 
     public static DorisConfig loadConfig(Config pluginConfig) {
         DorisConfig dorisConfig = new DorisConfig();
@@ -378,6 +391,8 @@ public class DorisConfig {
         } else {
             dorisConfig.setEnableDelete(SINK_ENABLE_DELETE.defaultValue());
         }
+        dorisConfig.setNeedsUnsupportedTypeCasting(
+                pluginConfig.getBoolean(NEEDS_UNSUPPORTED_TYPE_CASTING.key()));
         return dorisConfig;
     }
 

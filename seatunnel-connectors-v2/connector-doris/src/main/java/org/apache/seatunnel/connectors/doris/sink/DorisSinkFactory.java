@@ -23,6 +23,7 @@ import org.apache.seatunnel.api.sink.DataSaveMode;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.Column;
 import org.apache.seatunnel.api.table.catalog.TableIdentifier;
+import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.catalog.TableSchema;
 import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
@@ -32,12 +33,14 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.doris.config.DorisConfig;
 import org.apache.seatunnel.connectors.doris.sink.committer.DorisCommitInfo;
 import org.apache.seatunnel.connectors.doris.sink.writer.DorisSinkState;
+import org.apache.seatunnel.connectors.doris.util.UnsupportedTypeConverterUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.auto.service.AutoService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -49,6 +52,7 @@ import static org.apache.seatunnel.api.sink.SinkReplaceNameConstant.REPLACE_TABL
 import static org.apache.seatunnel.connectors.doris.config.DorisConfig.COLUMN_PATTERN;
 import static org.apache.seatunnel.connectors.doris.config.DorisConfig.COLUMN_REPLACEMENT;
 import static org.apache.seatunnel.connectors.doris.config.DorisConfig.DATABASE;
+import static org.apache.seatunnel.connectors.doris.config.DorisConfig.NEEDS_UNSUPPORTED_TYPE_CASTING;
 import static org.apache.seatunnel.connectors.doris.config.DorisConfig.SAVE_MODE_CREATE_TEMPLATE;
 import static org.apache.seatunnel.connectors.doris.config.DorisConfig.TABLE;
 
@@ -66,6 +70,7 @@ public class DorisSinkFactory implements TableSinkFactory {
     public OptionRule optionRule() {
         return OptionRule.builder()
                 .required(
+                        DorisConfig.BASE_URL,
                         DorisConfig.DATABASE,
                         DorisConfig.TABLE,
                         DorisConfig.FENODES,
@@ -80,7 +85,8 @@ public class DorisSinkFactory implements TableSinkFactory {
                         DorisConfig.SINK_ENABLE_2PC,
                         DorisConfig.SINK_ENABLE_DELETE,
                         MULTI_TABLE_SINK_REPLICA,
-                        SAVE_MODE_CREATE_TEMPLATE)
+                        SAVE_MODE_CREATE_TEMPLATE,
+                        NEEDS_UNSUPPORTED_TYPE_CASTING)
                 .conditional(
                         DorisConfig.DATA_SAVE_MODE,
                         DataSaveMode.CUSTOM_PROCESSING,
@@ -91,11 +97,20 @@ public class DorisSinkFactory implements TableSinkFactory {
     @Override
     public TableSink<SeaTunnelRow, DorisSinkState, DorisCommitInfo, DorisCommitInfo> createSink(
             TableSinkFactoryContext context) {
-        CatalogTable catalogTable = context.getCatalogTable();
         ReadonlyConfig readonlyConfig = context.getOptions();
-        return () ->
-                new DorisSink(
-                        this.renameCatalogTable(readonlyConfig, catalogTable), readonlyConfig);
+        CatalogTable catalogTable =
+                readonlyConfig.get(NEEDS_UNSUPPORTED_TYPE_CASTING)
+                        ? UnsupportedTypeConverterUtils.convertCatalogTable(
+                                context.getCatalogTable())
+                        : context.getCatalogTable();
+        final CatalogTable finalCatalogTable =
+                this.renameCatalogTable(readonlyConfig, catalogTable);
+        // rename table.identifier
+        TablePath tablePath = finalCatalogTable.getTableId().toTablePath();
+        String tableIdentifier = tablePath.getDatabaseName() + "." + tablePath.getTableName();
+        final Map<String, Object> confData = readonlyConfig.getConfData();
+        confData.put(DorisConfig.TABLE_IDENTIFIER.key(), tableIdentifier);
+        return () -> new DorisSink(finalCatalogTable, ReadonlyConfig.fromMap(confData));
     }
 
     private CatalogTable renameCatalogTable(ReadonlyConfig options, CatalogTable catalogTable) {

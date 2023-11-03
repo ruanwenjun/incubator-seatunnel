@@ -28,7 +28,7 @@ import com.google.auto.service.AutoService;
 
 @AutoService(Factory.class)
 public class DorisCatalogFactory implements CatalogFactory {
-    public static final String IDENTIFIER = "SelectDBCloud";
+    public static final String IDENTIFIER = "Doris";
 
     @Override
     public Catalog createCatalog(String catalogName, ReadonlyConfig options) {
