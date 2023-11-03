@@ -159,6 +159,7 @@ public class DmdbTypeMapper implements JdbcDialectTypeMapper {
             case DM_LONG:
             case DM_LONGVARCHAR:
             case DM_CLOB:
+            case DM_BFILE:
                 return BasicType.STRING_TYPE;
 
             case DM_TIMESTAMP:
@@ -177,7 +178,6 @@ public class DmdbTypeMapper implements JdbcDialectTypeMapper {
             case DM_VARBINARY:
             case DM_LONGVARBINARY:
             case DM_IMAGE:
-            case DM_BFILE:
                 return PrimitiveByteArrayType.INSTANCE;
 
                 // Doesn't support yet
