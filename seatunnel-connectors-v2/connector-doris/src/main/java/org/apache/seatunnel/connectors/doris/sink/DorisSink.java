@@ -127,7 +127,7 @@ public class DorisSink
             SinkWriter.Context context) throws IOException {
         DorisSinkWriter dorisSinkWriter =
                 new DorisSinkWriter(
-                        context, Collections.emptyList(), seaTunnelRowType, pluginConfig, jobId);
+                        context, Collections.emptyList(), catalogTable, pluginConfig, jobId);
         dorisSinkWriter.initializeLoad(Collections.emptyList());
         return dorisSinkWriter;
     }
@@ -136,7 +136,7 @@ public class DorisSink
     public SinkWriter<SeaTunnelRow, DorisCommitInfo, DorisSinkState> restoreWriter(
             SinkWriter.Context context, List<DorisSinkState> states) throws IOException {
         DorisSinkWriter dorisWriter =
-                new DorisSinkWriter(context, states, seaTunnelRowType, pluginConfig, jobId);
+                new DorisSinkWriter(context, states, catalogTable, pluginConfig, jobId);
         dorisWriter.initializeLoad(states);
         return dorisWriter;
     }
