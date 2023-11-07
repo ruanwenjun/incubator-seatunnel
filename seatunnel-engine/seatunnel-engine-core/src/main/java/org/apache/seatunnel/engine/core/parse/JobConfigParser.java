@@ -19,7 +19,6 @@ package org.apache.seatunnel.engine.core.parse;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
-import org.apache.seatunnel.api.common.CommonOptions;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -54,7 +53,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.seatunnel.engine.core.parse.MultipleTableJobConfigParser.DEFAULT_ID;
 import static org.apache.seatunnel.engine.core.parse.MultipleTableJobConfigParser.checkProducedTypeEquals;
 import static org.apache.seatunnel.engine.core.parse.MultipleTableJobConfigParser.ensureJobModeMatch;
 import static org.apache.seatunnel.engine.core.parse.MultipleTableJobConfigParser.handleSaveMode;
@@ -86,8 +84,7 @@ public class JobConfigParser {
         source.setJobContext(jobConfig.getJobContext());
         ensureJobModeMatch(jobConfig.getJobContext(), source);
         String actionName =
-                createSourceActionName(
-                        0, config.getString(CollectionConstants.PLUGIN_NAME), getTableName(config));
+                createSourceActionName(0, config.getString(CollectionConstants.PLUGIN_NAME));
         SourceAction action =
                 new SourceAction(
                         idGenerator.getNextId(), actionName, tuple.getLeft(), tuple.getRight());
@@ -113,8 +110,7 @@ public class JobConfigParser {
         transform.prepare(config);
         transform.setJobContext(jobConfig.getJobContext());
         transform.setTypeInfo((SeaTunnelDataType) rowType);
-        final String actionName =
-                createTransformActionName(0, tuple.getLeft().getPluginName(), getTableName(config));
+        final String actionName = createTransformActionName(0, tuple.getLeft().getPluginName());
         final TransformAction action =
                 new TransformAction(
                         idGenerator.getNextId(),
@@ -197,8 +193,7 @@ public class JobConfigParser {
         if (!isStartWithSavePoint) {
             handleSaveMode(sink);
         }
-        final String actionName =
-                createSinkActionName(0, tuple.getLeft().getPluginName(), getTableName(config));
+        final String actionName = createSinkActionName(0, tuple.getLeft().getPluginName());
         final SinkAction action =
                 new SinkAction<>(
                         idGenerator.getNextId(),
@@ -210,30 +205,19 @@ public class JobConfigParser {
         return action;
     }
 
-    static String createSourceActionName(int configIndex, String pluginName, String tableName) {
-        return String.format("Source[%s]-%s-%s", configIndex, pluginName, tableName);
+    static String createSourceActionName(int configIndex, String pluginName) {
+        return String.format("Source[%s]-%s", configIndex, pluginName);
     }
 
-    static String createSinkActionName(int configIndex, String pluginName, String tableName) {
-        return String.format("Sink[%s]-%s-%s", configIndex, pluginName, tableName);
+    static String createSinkActionName(int configIndex, String pluginName) {
+        return String.format("Sink[%s]-%s", configIndex, pluginName);
     }
 
-    static String createTransformActionName(int configIndex, String pluginName, String tableName) {
-        return String.format("Transform[%s]-%s-%s", configIndex, pluginName, tableName);
+    static String createSinkActionName(int configIndex, String pluginName, String table) {
+        return String.format("Sink[%s]-%s-%s", configIndex, pluginName, table);
     }
 
-    static String getTableName(Config config) {
-        return getTableName(config, DEFAULT_ID);
-    }
-
-    static String getTableName(Config config, String defaultValue) {
-        String resultTableName = null;
-        if (config.hasPath(CommonOptions.RESULT_TABLE_NAME.key())) {
-            resultTableName = config.getString(CommonOptions.RESULT_TABLE_NAME.key());
-        }
-        if (resultTableName == null) {
-            return defaultValue;
-        }
-        return resultTableName;
+    static String createTransformActionName(int configIndex, String pluginName) {
+        return String.format("Transform[%s]-%s", configIndex, pluginName);
     }
 }
