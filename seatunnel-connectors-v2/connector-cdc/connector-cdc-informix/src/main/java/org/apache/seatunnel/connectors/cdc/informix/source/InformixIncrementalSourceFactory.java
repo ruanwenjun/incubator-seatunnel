@@ -78,7 +78,7 @@ public class InformixIncrementalSourceFactory implements TableSourceFactory {
                     CatalogTableUtil.getCatalogTablesFromConfig(
                             context.getOptions(), context.getClassLoader());
             SeaTunnelDataType<SeaTunnelRow> dataType =
-                    CatalogTableUtil.convertToDataType(catalogTables);
+                    CatalogTableUtil.convertToMultipleRowType(catalogTables);
             return (SeaTunnelSource<T, SplitT, StateT>)
                     new InformixIncrementalSource<>(context.getOptions(), dataType, catalogTables);
         };

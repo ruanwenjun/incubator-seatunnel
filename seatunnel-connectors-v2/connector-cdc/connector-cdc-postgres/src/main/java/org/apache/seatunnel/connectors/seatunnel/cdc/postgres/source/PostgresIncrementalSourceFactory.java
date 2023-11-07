@@ -86,7 +86,7 @@ public class PostgresIncrementalSourceFactory implements TableSourceFactory {
                     CatalogTableUtil.getCatalogTablesFromConfig(
                             context.getOptions(), context.getClassLoader());
             SeaTunnelDataType<SeaTunnelRow> dataType =
-                    CatalogTableUtil.convertToDataType(catalogTables);
+                    CatalogTableUtil.convertToMultipleRowType(catalogTables);
             return (SeaTunnelSource<T, SplitT, StateT>)
                     new PostgresIncrementalSource<>(context.getOptions(), dataType, catalogTables);
         };

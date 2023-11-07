@@ -63,7 +63,7 @@ public class Oracle9BridgeIncrementalSourceFactory implements TableSourceFactory
                             context.getOptions(),
                             context.getClassLoader());
             SeaTunnelDataType<SeaTunnelRow> dataType =
-                    CatalogTableUtil.convertToDataType(catalogTables);
+                    CatalogTableUtil.convertToMultipleRowType(catalogTables);
             return (SeaTunnelSource<T, SplitT, StateT>)
                     new Oracle9BridgeIncrementalSource<>(
                             context.getOptions(), dataType, catalogTables);

@@ -105,7 +105,7 @@ public class MySqlIncrementalSourceFactory implements TableSourceFactory {
                     CatalogTableUtil.getCatalogTablesFromConfig(
                             context.getOptions(), context.getClassLoader());
             SeaTunnelDataType<SeaTunnelRow> dataType =
-                    CatalogTableUtil.convertToDataType(catalogTables);
+                    CatalogTableUtil.convertToMultipleRowType(catalogTables);
             return (SeaTunnelSource<T, SplitT, StateT>)
                     new MySqlIncrementalSource<>(context.getOptions(), dataType, catalogTables);
         };

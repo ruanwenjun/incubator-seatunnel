@@ -103,7 +103,7 @@ public class OracleIncrementalSourceFactory implements TableSourceFactory {
                     CatalogTableUtil.getCatalogTablesFromConfig(
                             context.getOptions(), context.getClassLoader());
             SeaTunnelDataType<SeaTunnelRow> dataType =
-                    CatalogTableUtil.convertToDataType(catalogTables);
+                    CatalogTableUtil.convertToMultipleRowType(catalogTables);
             return new OracleIncrementalSource(context.getOptions(), dataType, catalogTables);
         };
     }
