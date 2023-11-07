@@ -4,11 +4,11 @@ import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleDeleteOperation;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleInsertOperation;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleOperation;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleQmiOperation;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleUpdateOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleDeleteOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleInsertOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleQmiOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleUpdateOperation;
 
 import io.debezium.connector.oracle.OracleValueConverters;
 import io.debezium.relational.Column;

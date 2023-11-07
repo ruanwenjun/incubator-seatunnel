@@ -10,7 +10,7 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.config.Oracle
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.source.reader.fetch.Oracle9BridgeSourceFetchTaskContext;
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.source.reader.fetch.incremental.Oracle9BridgeIncrementalSplitFetchTask;
 
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClientFactory;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentClientFactory;
 
 import io.debezium.connector.oracle.Oracle9BridgeOffsetContext;
 import io.debezium.pipeline.source.spi.ChangeEventSource;
@@ -48,7 +48,7 @@ public class Oracle9BridgeSnapshotFetchTask implements FetchTask<SourceSplitBase
                         sourceFetchTaskContext.getConnection(),
                         sourceFetchTaskContext.getDispatcher(),
                         split,
-                        Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
+                        OracleAgentClientFactory.getOrCreateStartedSocketClient(
                                 oracle9BridgeSourceConfig.getOracle9BridgeHost(),
                                 oracle9BridgeSourceConfig.getOracle9BridgePort()));
 

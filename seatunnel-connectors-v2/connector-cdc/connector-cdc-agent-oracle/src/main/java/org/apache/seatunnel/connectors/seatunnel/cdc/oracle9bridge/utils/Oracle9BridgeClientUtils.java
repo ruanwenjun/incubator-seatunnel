@@ -4,12 +4,12 @@ import org.apache.seatunnel.common.utils.RetryUtils;
 
 import org.apache.commons.collections4.CollectionUtils;
 
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClient;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeException;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleOperation;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleTransactionData;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleTransactionDataFetchRequest;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleTransactionFileNumberFetchRequest;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentClient;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentException;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleTransactionData;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleTransactionDataFetchRequest;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleTransactionFileNumberFetchRequest;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,7 +21,7 @@ import java.util.List;
 public class Oracle9BridgeClientUtils {
 
     public static List<OracleTransactionData> fetchOracleTransactionData(
-            Oracle9BridgeClient oracle9BridgeClient,
+            OracleAgentClient oracle9BridgeClient,
             List<String> tableOwners,
             List<String> tables,
             Integer fzsFileNumber) {
@@ -31,16 +31,16 @@ public class Oracle9BridgeClientUtils {
     }
 
     public static List<OracleTransactionData> fetchOracleTransactionData(
-            Oracle9BridgeClient oracle9BridgeClient, OracleTransactionDataFetchRequest request) {
+            OracleAgentClient oracle9BridgeClient, OracleTransactionDataFetchRequest request) {
         try {
             return oracle9BridgeClient.fetchTransactionData(request);
-        } catch (Oracle9BridgeException e) {
+        } catch (OracleAgentException e) {
             throw new RuntimeException("Query oracle transaction error, request: " + request, e);
         }
     }
 
     public static Long currentMaxScn(
-            Oracle9BridgeClient oracle9BridgeClient,
+            OracleAgentClient oracle9BridgeClient,
             String tableOwner,
             String table,
             Integer fzsFileNumber) {
@@ -52,30 +52,42 @@ public class Oracle9BridgeClientUtils {
     }
 
     public static Long currentMaxScn(
-            Oracle9BridgeClient oracle9BridgeClient,
+            OracleAgentClient oracle9BridgeClient,
             List<String> tableOwners,
             List<String> tables,
             Integer fzsFileNumber) {
-        List<OracleTransactionData> oracleTransactionData =
-                fetchOracleTransactionData(
-                        oracle9BridgeClient,
-                        new OracleTransactionDataFetchRequest(tableOwners, tables, fzsFileNumber));
-        if (oracleTransactionData.isEmpty()) {
-            return null;
-        }
-        long maxScn = 0L;
-        for (OracleTransactionData transactionData : oracleTransactionData) {
-            for (OracleOperation op : transactionData.getOp()) {
-                String scn = op.getScn();
-                BigInteger bigInteger = new BigInteger(scn, 16);
-                maxScn = Math.max(maxScn, bigInteger.longValue());
+        try {
+            List<OracleTransactionData> oracleTransactionData =
+                    fetchOracleTransactionData(
+                            oracle9BridgeClient,
+                            new OracleTransactionDataFetchRequest(
+                                    tableOwners, tables, fzsFileNumber));
+            if (oracleTransactionData.isEmpty()) {
+                return 0L;
             }
+            long maxScn = 0L;
+            for (OracleTransactionData transactionData : oracleTransactionData) {
+                for (OracleOperation op : transactionData.getOp()) {
+                    String scn = op.getScn();
+                    BigInteger bigInteger = new BigInteger(scn, 16);
+                    maxScn = Math.max(maxScn, bigInteger.longValue());
+                }
+            }
+            return maxScn;
+        } catch (Throwable throwable) {
+            throw new RuntimeException(
+                    "Query currentMaxScn error, request: "
+                            + tableOwners
+                            + " "
+                            + tables
+                            + " "
+                            + fzsFileNumber,
+                    throwable);
         }
-        return maxScn;
     }
 
     public static Long currentMinScn(
-            Oracle9BridgeClient oracle9BridgeClient,
+            OracleAgentClient oracle9BridgeClient,
             String tableOwner,
             String table,
             Integer fzsFileNumber) {
@@ -87,7 +99,7 @@ public class Oracle9BridgeClientUtils {
     }
 
     public static Long currentMinScn(
-            Oracle9BridgeClient oracle9BridgeClient,
+            OracleAgentClient oracle9BridgeClient,
             List<String> tableOwners,
             List<String> tables,
             Integer fzsFileNumber) {
@@ -111,21 +123,21 @@ public class Oracle9BridgeClientUtils {
     }
 
     public static Integer currentMinFzsFileNumber(
-            Oracle9BridgeClient oracle9BridgeClient, String tableOwner, String table) {
+            OracleAgentClient oracle9BridgeClient, String tableOwner, String table) {
         return currentMaxFzsFileNumber(
                 oracle9BridgeClient,
                 new OracleTransactionFileNumberFetchRequest(tableOwner, table));
     }
 
     public static Integer currentMinFzsFileNumber(
-            Oracle9BridgeClient oracle9BridgeClient, List<String> tableOwner, List<String> table) {
+            OracleAgentClient oracle9BridgeClient, List<String> tableOwner, List<String> table) {
         return currentMinFzsFileNumber(
                 oracle9BridgeClient,
                 new OracleTransactionFileNumberFetchRequest(tableOwner, table));
     }
 
     public static Integer currentMinFzsFileNumber(
-            Oracle9BridgeClient oracle9BridgeClient,
+            OracleAgentClient oracle9BridgeClient,
             OracleTransactionFileNumberFetchRequest fetchRequest) {
         // todo: can we directly get the min fzs number?
         Integer maxTransactionFileNumber =
@@ -173,21 +185,21 @@ public class Oracle9BridgeClientUtils {
     }
 
     public static Integer currentMaxFzsFileNumber(
-            Oracle9BridgeClient oracle9BridgeClient, String tableOwner, String table) {
+            OracleAgentClient oracle9BridgeClient, String tableOwner, String table) {
         return currentMaxFzsFileNumber(
                 oracle9BridgeClient,
                 new OracleTransactionFileNumberFetchRequest(tableOwner, table));
     }
 
     public static Integer currentMaxFzsFileNumber(
-            Oracle9BridgeClient oracle9BridgeClient, List<String> tableOwner, List<String> table) {
+            OracleAgentClient oracle9BridgeClient, List<String> tableOwner, List<String> table) {
         return currentMaxFzsFileNumber(
                 oracle9BridgeClient,
                 new OracleTransactionFileNumberFetchRequest(tableOwner, table));
     }
 
     public static Integer currentMaxFzsFileNumber(
-            Oracle9BridgeClient oracle9BridgeClient,
+            OracleAgentClient oracle9BridgeClient,
             OracleTransactionFileNumberFetchRequest fetchRequest) {
         // get the max fzs and scn
         try {

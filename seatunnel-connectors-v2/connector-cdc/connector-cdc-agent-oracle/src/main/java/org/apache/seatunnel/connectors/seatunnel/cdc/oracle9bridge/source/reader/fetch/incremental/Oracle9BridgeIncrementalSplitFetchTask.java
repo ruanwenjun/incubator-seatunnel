@@ -7,7 +7,7 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.config.Oracle
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.source.offset.Oracle9BridgeOffset;
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.source.reader.fetch.snapshot.Oracle9BridgeSnapshotFetchTask;
 
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleOperation;
 
 import io.debezium.DebeziumException;
 import io.debezium.connector.oracle.Oracle9BridgeConnectorConfig;

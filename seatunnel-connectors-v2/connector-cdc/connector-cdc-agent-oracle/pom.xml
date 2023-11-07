@@ -13,7 +13,7 @@
 
     <properties>
         <oracle.version>19.18.0.0</oracle.version>
-        <oracle9bridge-sdk.version>1.0.5</oracle9bridge-sdk.version>
+        <oracleagent-sdk.version>1.0.7</oracleagent-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -52,8 +52,22 @@
             </dependency>
             <dependency>
                 <groupId>org.whaleops</groupId>
-                <artifactId>oracle9bridge-sdk</artifactId>
-                <version>${oracle9bridge-sdk.version}</version>
+                <artifactId>oracleagent-sdk</artifactId>
+                <version>${oracleagent-sdk.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-annotations</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-databind</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>jackson-core</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -85,7 +99,7 @@
         </dependency>
         <dependency>
             <groupId>org.whaleops</groupId>
-            <artifactId>oracle9bridge-sdk</artifactId>
+            <artifactId>oracleagent-sdk</artifactId>
         </dependency>
     </dependencies>
 

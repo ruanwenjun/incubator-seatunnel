@@ -7,12 +7,12 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.utils.OracleC
 
 import org.apache.commons.collections4.CollectionUtils;
 
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClient;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClientFactory;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleDDLOperation;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleOperation;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleTransactionData;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.model.OracleTransactionFileNumberFetchRequest;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentClient;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentClientFactory;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleDDLOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleOperation;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleTransactionData;
+import org.whaleops.whaletunnel.oracleagent.sdk.model.OracleTransactionFileNumberFetchRequest;
 
 import io.debezium.connector.oracle.oracle9bridge.Oracle9BridgeDmlEntry;
 import io.debezium.connector.oracle.oracle9bridge.Oracle9BridgeDmlEntryFactory;
@@ -86,8 +86,8 @@ public class Oracle9BridgeStreamingChangeEventSource
                     offsetContext.getFzsFileNumber(),
                     offsetContext.getScn());
             long pollInterval = sourceConfig.getDbzConnectorConfig().getPollInterval().toMillis();
-            Oracle9BridgeClient oracle9BridgeClient =
-                    Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
+            OracleAgentClient oracle9BridgeClient =
+                    OracleAgentClientFactory.getOrCreateStartedSocketClient(
                             sourceConfig.getOracle9BridgeHost(),
                             sourceConfig.getOracle9BridgePort());
             Integer currentFzsFileNumber = offsetContext.getFzsFileNumber();

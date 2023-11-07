@@ -24,8 +24,8 @@ import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.source.Oracle
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.utils.Oracle9BridgeClientUtils;
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.utils.OracleConnectionUtils;
 
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClient;
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClientFactory;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentClient;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentClientFactory;
 
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.TableId;
@@ -53,9 +53,10 @@ public class Oracle9BridgeOffsetFactory extends OffsetFactory {
 
     @Override
     public Offset earliest() {
+        log.info("Begin to get the earliest offset for OracleAgent");
         // todo: How to query the earliest fzs number from the oracle9bridge server?
-        Oracle9BridgeClient oracle9BridgeClient =
-                Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
+        OracleAgentClient oracle9BridgeClient =
+                OracleAgentClientFactory.getOrCreateStartedSocketClient(
                         sourceConfig.getOracle9BridgeHost(), sourceConfig.getOracle9BridgePort());
         List<String> tables =
                 dialect.discoverDataCollections(sourceConfig).stream()
@@ -94,8 +95,9 @@ public class Oracle9BridgeOffsetFactory extends OffsetFactory {
 
     @Override
     public Offset latest() {
-        Oracle9BridgeClient oracle9BridgeClient =
-                Oracle9BridgeClientFactory.getOrCreateStartedSocketClient(
+        log.info("Begin to get the latest offset for OracleAgent");
+        OracleAgentClient oracle9BridgeClient =
+                OracleAgentClientFactory.getOrCreateStartedSocketClient(
                         sourceConfig.getOracle9BridgeHost(), sourceConfig.getOracle9BridgePort());
         List<String> tables =
                 dialect.discoverDataCollections(sourceConfig).stream()

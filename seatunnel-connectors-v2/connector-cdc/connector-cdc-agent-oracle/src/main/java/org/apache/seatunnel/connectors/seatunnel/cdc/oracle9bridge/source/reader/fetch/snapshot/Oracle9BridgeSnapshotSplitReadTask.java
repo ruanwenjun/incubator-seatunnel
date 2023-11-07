@@ -13,7 +13,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.ConnectException;
 
-import org.whaleops.whaletunnel.oracle9bridge.sdk.Oracle9BridgeClient;
+import org.whaleops.whaletunnel.oracleagent.sdk.OracleAgentClient;
 
 import io.debezium.connector.oracle.Oracle9BridgeConnectorConfig;
 import io.debezium.connector.oracle.Oracle9BridgeOffsetContext;
@@ -52,7 +52,7 @@ public class Oracle9BridgeSnapshotSplitReadTask extends AbstractSnapshotChangeEv
     private final Oracle9BridgeConnectorConfig connectorConfig;
     private final OracleDatabaseSchema databaseSchema;
     private final OracleConnection jdbcConnection;
-    private final Oracle9BridgeClient oracle9BridgeClient;
+    private final OracleAgentClient oracle9BridgeClient;
     private final JdbcSourceEventDispatcher dispatcher;
     private final Clock clock;
     private final SnapshotSplit snapshotSplit;
@@ -67,7 +67,7 @@ public class Oracle9BridgeSnapshotSplitReadTask extends AbstractSnapshotChangeEv
             OracleConnection jdbcConnection,
             JdbcSourceEventDispatcher dispatcher,
             SnapshotSplit snapshotSplit,
-            Oracle9BridgeClient oracle9BridgeClient) {
+            OracleAgentClient oracle9BridgeClient) {
         super(connectorConfig, snapshotProgressListener);
         this.offsetContext = previousOffset;
         this.connectorConfig = connectorConfig;
@@ -87,6 +87,9 @@ public class Oracle9BridgeSnapshotSplitReadTask extends AbstractSnapshotChangeEv
             SnapshotContext snapshotContext,
             SnapshottingTask snapshottingTask)
             throws Exception {
+        log.info(
+                "Begin to execute Oracle9BridgeSnapshotSplitReadTask for split: {}",
+                snapshotSplit.splitId());
         final RelationalSnapshotChangeEventSource.RelationalSnapshotContext ctx =
                 (RelationalSnapshotChangeEventSource.RelationalSnapshotContext) snapshotContext;
         ctx.offset = offsetContext;

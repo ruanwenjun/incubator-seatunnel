@@ -22,12 +22,14 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.cdc.base.config.JdbcSourceConfig;
 import org.apache.seatunnel.connectors.cdc.base.dialect.JdbcDataSourceDialect;
 import org.apache.seatunnel.connectors.cdc.base.source.enumerator.splitter.AbstractJdbcSourceChunkSplitter;
+import org.apache.seatunnel.connectors.cdc.base.utils.ObjectUtils;
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.utils.OracleTypeUtils;
 import org.apache.seatunnel.connectors.seatunnel.cdc.oracle9bridge.utils.OracleUtils;
 
 import io.debezium.jdbc.JdbcConnection;
 import io.debezium.relational.Column;
 import io.debezium.relational.TableId;
+import oracle.sql.ROWID;
 
 import java.sql.SQLException;
 
@@ -90,5 +92,13 @@ public class OracleChunkSplitter extends AbstractJdbcSourceChunkSplitter {
     @Override
     public SeaTunnelDataType<?> fromDbzColumn(Column splitColumn) {
         return OracleTypeUtils.convertFromColumn(splitColumn);
+    }
+
+    protected int ObjectCompare(Object obj1, Object obj2) {
+        if (obj1 instanceof ROWID && obj2 instanceof ROWID) {
+            return ROWID.compareBytes(((ROWID) obj1).getBytes(), ((ROWID) obj2).getBytes());
+        } else {
+            return ObjectUtils.compare(obj1, obj2);
+        }
     }
 }
