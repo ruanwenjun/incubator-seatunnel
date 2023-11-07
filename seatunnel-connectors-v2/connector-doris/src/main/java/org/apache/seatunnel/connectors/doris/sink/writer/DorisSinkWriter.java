@@ -20,6 +20,8 @@ package org.apache.seatunnel.connectors.doris.sink.writer;
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.sink.SupportMultiTableSinkWriter;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.doris.config.DorisConfig;
@@ -33,6 +35,7 @@ import org.apache.seatunnel.connectors.doris.serialize.SeaTunnelRowSerializer;
 import org.apache.seatunnel.connectors.doris.sink.LoadStatus;
 import org.apache.seatunnel.connectors.doris.sink.committer.DorisCommitInfo;
 import org.apache.seatunnel.connectors.doris.util.HttpUtil;
+import org.apache.seatunnel.connectors.doris.util.UnsupportedTypeConverterUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -54,7 +57,9 @@ import java.util.concurrent.TimeUnit;
 import static com.google.common.base.Preconditions.checkState;
 
 @Slf4j
-public class DorisSinkWriter implements SinkWriter<SeaTunnelRow, DorisCommitInfo, DorisSinkState> {
+public class DorisSinkWriter
+        implements SinkWriter<SeaTunnelRow, DorisCommitInfo, DorisSinkState>,
+                SupportMultiTableSinkWriter {
     private static final int INITIAL_DELAY = 200;
     private static final int CONNECT_TIMEOUT = 1000;
     private static final List<String> DORIS_SUCCESS_STATUS =
@@ -77,7 +82,7 @@ public class DorisSinkWriter implements SinkWriter<SeaTunnelRow, DorisCommitInfo
     public DorisSinkWriter(
             SinkWriter.Context context,
             List<DorisSinkState> state,
-            SeaTunnelRowType seaTunnelRowType,
+            CatalogTable catalogTable,
             Config pluginConfig,
             String jobId) {
         this.dorisConfig = DorisConfig.loadConfig(pluginConfig);
@@ -86,12 +91,16 @@ public class DorisSinkWriter implements SinkWriter<SeaTunnelRow, DorisCommitInfo
         log.info("labelPrefix " + dorisConfig.getLabelPrefix());
         this.dorisSinkState = new DorisSinkState(dorisConfig.getLabelPrefix(), lastCheckpointId);
         this.labelPrefix =
-                dorisConfig.getLabelPrefix() + "_" + jobId + "_" + context.getIndexOfSubtask();
+                dorisConfig.getLabelPrefix()
+                        + "_"
+                        + catalogTable.getTableId().toTablePath().getTableName()
+                        + "_"
+                        + context.getIndexOfSubtask();
         this.labelGenerator = new LabelGenerator(labelPrefix, dorisConfig.getEnable2PC());
         this.scheduledExecutorService =
                 new ScheduledThreadPoolExecutor(
                         1, new ThreadFactoryBuilder().setNameFormat("stream-load-check").build());
-        this.serializer = createSerializer(dorisConfig, seaTunnelRowType);
+        this.serializer = createSerializer(dorisConfig, catalogTable.getSeaTunnelRowType());
         this.intervalTime = dorisConfig.getCheckInterval();
         this.loading = false;
     }
@@ -121,7 +130,11 @@ public class DorisSinkWriter implements SinkWriter<SeaTunnelRow, DorisCommitInfo
     @Override
     public void write(SeaTunnelRow element) throws IOException {
         checkLoadException();
-        byte[] serialize = serializer.serialize(element);
+        byte[] serialize =
+                serializer.serialize(
+                        dorisConfig.getNeedsUnsupportedTypeCasting()
+                                ? UnsupportedTypeConverterUtils.convertRow(element)
+                                : element);
         if (Objects.isNull(serialize)) {
             return;
         }

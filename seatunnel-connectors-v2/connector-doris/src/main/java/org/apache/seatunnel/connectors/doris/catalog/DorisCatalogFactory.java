@@ -15,18 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.doris.config;
+package org.apache.seatunnel.connectors.doris.catalog;
 
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.table.catalog.Catalog;
+import org.apache.seatunnel.api.table.factory.CatalogFactory;
 import org.apache.seatunnel.api.table.factory.Factory;
-import org.apache.seatunnel.api.table.factory.TableSinkFactory;
+import org.apache.seatunnel.connectors.doris.config.DorisConfig;
 
 import com.google.auto.service.AutoService;
 
 @AutoService(Factory.class)
-public class DorisSinkFactory implements TableSinkFactory {
-
+public class DorisCatalogFactory implements CatalogFactory {
     public static final String IDENTIFIER = "Doris";
+
+    @Override
+    public Catalog createCatalog(String catalogName, ReadonlyConfig options) {
+        return new DorisCatalog(
+                catalogName,
+                options.get(DorisConfig.USERNAME),
+                options.get(DorisConfig.PASSWORD),
+                options.get(DorisConfig.BASE_URL));
+    }
 
     @Override
     public String factoryIdentifier() {
@@ -36,13 +47,9 @@ public class DorisSinkFactory implements TableSinkFactory {
     @Override
     public OptionRule optionRule() {
         return OptionRule.builder()
-                .required(
-                        DorisConfig.FENODES,
-                        DorisConfig.USERNAME,
-                        DorisConfig.PASSWORD,
-                        DorisConfig.SINK_LABEL_PREFIX,
-                        DorisConfig.DORIS_SINK_CONFIG_PREFIX)
-                .optional(DorisConfig.SINK_ENABLE_2PC, DorisConfig.SINK_ENABLE_DELETE)
+                .required(DorisConfig.BASE_URL)
+                .required(DorisConfig.USERNAME)
+                .required(DorisConfig.PASSWORD)
                 .build();
     }
 }
