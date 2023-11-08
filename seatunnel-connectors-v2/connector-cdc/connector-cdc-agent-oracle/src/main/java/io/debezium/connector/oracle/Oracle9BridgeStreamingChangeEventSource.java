@@ -145,6 +145,14 @@ public class Oracle9BridgeStreamingChangeEventSource
         for (OracleOperation oracleOperation : oracleOperations) {
             TableId tableId = tableNameToIdMap.get(oracleOperation.getTable());
             Table table = oracleDatabaseSchema.tableFor(tableId);
+            if (table == null) {
+                throw new IllegalArgumentException(
+                        "The table: "
+                                + tableId
+                                + " is not found in the schema, exist table is: "
+                                + oracleDatabaseSchema.getTables());
+            }
+
             Scn scn = new Scn(new BigInteger(oracleOperation.getScn(), 16));
             if (OracleDDLOperation.TYPE.equals(oracleOperation.getType())) {
                 log.info(

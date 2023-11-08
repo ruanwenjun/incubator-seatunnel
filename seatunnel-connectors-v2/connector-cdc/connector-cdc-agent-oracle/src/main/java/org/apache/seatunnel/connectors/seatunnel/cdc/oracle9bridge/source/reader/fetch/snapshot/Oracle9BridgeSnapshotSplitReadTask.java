@@ -153,8 +153,15 @@ public class Oracle9BridgeSnapshotSplitReadTask extends AbstractSnapshotChangeEv
         EventDispatcher.SnapshotReceiver snapshotReceiver =
                 dispatcher.getSnapshotChangeEventReceiver();
         log.debug("Snapshotting table {}", tableId);
-        createDataEventsForTable(
-                snapshotContext, snapshotReceiver, databaseSchema.tableFor(tableId));
+        Table table = databaseSchema.tableFor(tableId);
+        if (table == null) {
+            throw new IllegalArgumentException(
+                    "The table: "
+                            + tableId
+                            + " is not found in the schema, exist table is: "
+                            + databaseSchema.getTables());
+        }
+        createDataEventsForTable(snapshotContext, snapshotReceiver, table);
         snapshotReceiver.completeSnapshot();
     }
 

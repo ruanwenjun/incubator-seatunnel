@@ -127,15 +127,13 @@ public interface Catalog extends AutoCloseable {
         List<String> tableNames = config.get(CatalogOptions.TABLE_NAMES);
         List<CatalogTable> catalogTables = Collections.synchronizedList(new ArrayList<>());
         if (CollectionUtils.isNotEmpty(tableNames)) {
-            tableNames
-                    .parallelStream()
-                    .forEach(
-                            tableName -> {
-                                TablePath tablePath = TablePath.of(tableName);
-                                if (this.tableExists(tablePath)) {
-                                    catalogTables.add(this.getTable(tablePath));
-                                }
-                            });
+            tableNames.forEach(
+                    tableName -> {
+                        TablePath tablePath = TablePath.of(tableName);
+                        if (this.tableExists(tablePath)) {
+                            catalogTables.add(this.getTable(tablePath));
+                        }
+                    });
             return catalogTables;
         }
 
@@ -150,17 +148,12 @@ public interface Catalog extends AutoCloseable {
         allDatabase.removeIf(s -> !databasePattern.matcher(s).matches());
         for (String databaseName : allDatabase) {
             tableNames = this.listTables(databaseName);
-            tableNames
-                    .parallelStream()
-                    .forEach(
-                            tableName -> {
-                                if (tablePattern
-                                        .matcher(databaseName + "." + tableName)
-                                        .matches()) {
-                                    catalogTables.add(
-                                            this.getTable(TablePath.of(databaseName, tableName)));
-                                }
-                            });
+            tableNames.forEach(
+                    tableName -> {
+                        if (tablePattern.matcher(databaseName + "." + tableName).matches()) {
+                            catalogTables.add(this.getTable(TablePath.of(databaseName, tableName)));
+                        }
+                    });
         }
         return catalogTables;
     }
