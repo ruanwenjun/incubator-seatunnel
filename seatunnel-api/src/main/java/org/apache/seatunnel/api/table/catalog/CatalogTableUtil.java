@@ -271,6 +271,10 @@ public class CatalogTableUtil implements Serializable {
         return SIMPLE_SCHEMA;
     }
 
+    public static CatalogTable buildSimpleTextTable() {
+        return getCatalogTable("default", buildSimpleTextSchema());
+    }
+
     public static SeaTunnelDataType toSeaTunnelRowType(Collection<CatalogTable> catalogTables) {
 
         if (catalogTables.size() == 1) {
