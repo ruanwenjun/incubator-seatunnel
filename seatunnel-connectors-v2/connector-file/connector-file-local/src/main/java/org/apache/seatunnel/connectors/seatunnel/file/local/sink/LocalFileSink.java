@@ -19,16 +19,96 @@ package org.apache.seatunnel.connectors.seatunnel.file.local.sink;
 
 import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
+import org.apache.seatunnel.api.common.JobContext;
 import org.apache.seatunnel.api.common.PrepareFailException;
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.serialization.DefaultSerializer;
+import org.apache.seatunnel.api.serialization.Serializer;
 import org.apache.seatunnel.api.sink.SeaTunnelSink;
+import org.apache.seatunnel.api.sink.SinkAggregatedCommitter;
+import org.apache.seatunnel.api.sink.SinkWriter;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
+import org.apache.seatunnel.api.table.type.SeaTunnelRow;
+import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileSystemType;
+import org.apache.seatunnel.connectors.seatunnel.file.config.HadoopConf;
 import org.apache.seatunnel.connectors.seatunnel.file.local.config.LocalFileHadoopConf;
-import org.apache.seatunnel.connectors.seatunnel.file.sink.BaseFileSink;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.BaseFileSinkWriter;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileAggregatedCommitInfo;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileCommitInfo;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileSinkAggregatedCommitter;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.config.FileSinkConfig;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.state.FileSinkState;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.util.FileSystemUtils;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.writer.WriteStrategy;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.writer.WriteStrategyFactory;
 
-import com.google.auto.service.AutoService;
+import java.util.List;
+import java.util.Optional;
 
-@AutoService(SeaTunnelSink.class)
-public class LocalFileSink extends BaseFileSink {
+public class LocalFileSink
+        implements SeaTunnelSink<
+                SeaTunnelRow, FileSinkState, FileCommitInfo, FileAggregatedCommitInfo> {
+
+    private CatalogTable catalogTable;
+    private final ReadonlyConfig readonlyConfig;
+    private final HadoopConf hadoopConf;
+    private final FileSystemUtils fileSystemUtils;
+    private final FileSinkConfig fileSinkConfig;
+    private final WriteStrategy writeStrategy;
+    private String jobId;
+
+    public LocalFileSink(ReadonlyConfig readonlyConfig, CatalogTable catalogTable) {
+        this.readonlyConfig = readonlyConfig;
+        this.catalogTable = catalogTable;
+        this.hadoopConf = new LocalFileHadoopConf();
+        this.fileSinkConfig =
+                new FileSinkConfig(readonlyConfig.toConfig(), catalogTable.getSeaTunnelRowType());
+        this.writeStrategy =
+                WriteStrategyFactory.of(fileSinkConfig.getFileFormat(), fileSinkConfig);
+        this.fileSystemUtils = new FileSystemUtils(hadoopConf);
+        this.writeStrategy.setSeaTunnelRowTypeInfo(catalogTable.getSeaTunnelRowType());
+        this.writeStrategy.setFileSystemUtils(fileSystemUtils);
+    }
+
+    @Override
+    public void setJobContext(JobContext jobContext) {
+        this.jobId = jobContext.getJobId();
+    }
+
+    @Override
+    public SinkWriter<SeaTunnelRow, FileCommitInfo, FileSinkState> restoreWriter(
+            SinkWriter.Context context, List<FileSinkState> states) {
+        return new BaseFileSinkWriter(writeStrategy, hadoopConf, context, jobId, states);
+    }
+
+    @Override
+    public Optional<SinkAggregatedCommitter<FileCommitInfo, FileAggregatedCommitInfo>>
+            createAggregatedCommitter() {
+        return Optional.of(new FileSinkAggregatedCommitter(fileSystemUtils));
+    }
+
+    @Override
+    public SinkWriter<SeaTunnelRow, FileCommitInfo, FileSinkState> createWriter(
+            SinkWriter.Context context) {
+        return new BaseFileSinkWriter(writeStrategy, hadoopConf, context, jobId);
+    }
+
+    @Override
+    public Optional<Serializer<FileCommitInfo>> getCommitInfoSerializer() {
+        return Optional.of(new DefaultSerializer<>());
+    }
+
+    @Override
+    public Optional<Serializer<FileAggregatedCommitInfo>> getAggregatedCommitInfoSerializer() {
+        return Optional.of(new DefaultSerializer<>());
+    }
+
+    @Override
+    public Optional<Serializer<FileSinkState>> getWriterStateSerializer() {
+        return Optional.of(new DefaultSerializer<>());
+    }
 
     @Override
     public String getPluginName() {
@@ -37,7 +117,16 @@ public class LocalFileSink extends BaseFileSink {
 
     @Override
     public void prepare(Config pluginConfig) throws PrepareFailException {
-        super.prepare(pluginConfig);
-        hadoopConf = new LocalFileHadoopConf();
+        // do nothing
+    }
+
+    @Override
+    public void setTypeInfo(SeaTunnelRowType seaTunnelRowType) {
+        // to do nothing
+    }
+
+    @Override
+    public SeaTunnelDataType<SeaTunnelRow> getConsumedType() {
+        return catalogTable.getSeaTunnelRowType();
     }
 }

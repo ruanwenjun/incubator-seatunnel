@@ -17,17 +17,34 @@
 
 package org.apache.seatunnel.connectors.seatunnel.file.local.sink;
 
+import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.sink.SinkReplaceNameConstant;
+import org.apache.seatunnel.api.sink.SupportMultiTableSink;
+import org.apache.seatunnel.api.table.catalog.CatalogTable;
+import org.apache.seatunnel.api.table.catalog.TableIdentifier;
+import org.apache.seatunnel.api.table.connector.TableSink;
 import org.apache.seatunnel.api.table.factory.Factory;
 import org.apache.seatunnel.api.table.factory.TableSinkFactory;
+import org.apache.seatunnel.api.table.factory.TableSinkFactoryContext;
+import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSinkConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileFormat;
 import org.apache.seatunnel.connectors.seatunnel.file.config.FileSystemType;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileAggregatedCommitInfo;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.commit.FileCommitInfo;
+import org.apache.seatunnel.connectors.seatunnel.file.sink.state.FileSinkState;
 
 import com.google.auto.service.AutoService;
 
+import java.util.Map;
+
 @AutoService(Factory.class)
-public class LocalFileSinkFactory implements TableSinkFactory {
+public class LocalFileSinkFactory
+        implements TableSinkFactory<
+                        SeaTunnelRow, FileSinkState, FileCommitInfo, FileAggregatedCommitInfo>,
+                SupportMultiTableSink {
+
     @Override
     public String factoryIdentifier() {
         return FileSystemType.LOCAL.getFileSystemPluginName();
@@ -81,5 +98,66 @@ public class LocalFileSinkFactory implements TableSinkFactory {
                 .optional(BaseSinkConfig.DATETIME_FORMAT)
                 .optional(BaseSinkConfig.TIME_FORMAT)
                 .build();
+    }
+
+    @Override
+    public TableSink<SeaTunnelRow, FileSinkState, FileCommitInfo, FileAggregatedCommitInfo>
+            createSink(TableSinkFactoryContext context) {
+        ReadonlyConfig readonlyConfig = context.getOptions();
+        CatalogTable catalogTable = context.getCatalogTable();
+
+        ReadonlyConfig finalReadonlyConfig = replacePath(readonlyConfig, catalogTable);
+        return () -> new LocalFileSink(finalReadonlyConfig, catalogTable);
+    }
+
+    // replace the table name in sink config's path
+    private ReadonlyConfig replacePath(ReadonlyConfig readonlyConfig, CatalogTable catalogTable) {
+        // Copy the config to avoid modifying the original config
+        readonlyConfig = readonlyConfig.clone();
+        Map<String, Object> configMap = readonlyConfig.getConfData();
+
+        readonlyConfig
+                .getOptional(BaseSinkConfig.FILE_PATH)
+                .ifPresent(
+                        path -> {
+                            String replacedPath = injectCatalogTablePlaceholder(path, catalogTable);
+                            configMap.put(BaseSinkConfig.FILE_PATH.key(), replacedPath);
+                        });
+
+        readonlyConfig
+                .getOptional(BaseSinkConfig.TMP_PATH)
+                .ifPresent(
+                        path -> {
+                            String replacedPath = injectCatalogTablePlaceholder(path, catalogTable);
+                            configMap.put(BaseSinkConfig.TMP_PATH.key(), replacedPath);
+                        });
+
+        return ReadonlyConfig.fromMap(configMap);
+    }
+
+    private String injectCatalogTablePlaceholder(String originString, CatalogTable catalogTable) {
+        String path = originString;
+        TableIdentifier tableIdentifier = catalogTable.getTableId();
+        if (tableIdentifier != null) {
+            if (tableIdentifier.getDatabaseName() != null) {
+                path =
+                        path.replace(
+                                SinkReplaceNameConstant.REPLACE_DATABASE_NAME_KEY,
+                                tableIdentifier.getDatabaseName());
+            }
+            if (tableIdentifier.getSchemaName() != null) {
+                path =
+                        path.replace(
+                                SinkReplaceNameConstant.REPLACE_SCHEMA_NAME_KEY,
+                                tableIdentifier.getSchemaName());
+            }
+            if (tableIdentifier.getTableName() != null) {
+                path =
+                        path.replace(
+                                SinkReplaceNameConstant.REPLACE_TABLE_NAME_KEY,
+                                tableIdentifier.getTableName());
+            }
+        }
+        return path;
     }
 }
