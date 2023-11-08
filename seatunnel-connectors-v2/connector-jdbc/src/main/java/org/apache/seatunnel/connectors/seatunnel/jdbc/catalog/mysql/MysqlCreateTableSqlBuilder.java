@@ -210,55 +210,55 @@ public class MysqlCreateTableSqlBuilder {
     }
 
     private void getColumnNameNonBytes(Column column, List<String> columnSqls, Long columnLength) {
-        columnLength = columnLength == null ? Integer.MAX_VALUE : columnLength;
-        if (columnLength >= 16383 && columnLength <= 65535) {
-            columnSqls.add(MysqlType.TEXT.getName());
-        } else if (columnLength >= 65535 && columnLength <= 16777215) {
-            columnSqls.add(MysqlType.MEDIUMTEXT.getName());
-        } else if (columnLength > 16777215 || columnLength < 0) {
-            columnSqls.add(MysqlType.LONGTEXT.getName());
-        } else {
-            // Column type
-            final String name =
-                    mysqlDataTypeConvertor.toConnectorType(column.getDataType(), null).getName();
-            if (columnLength == 0
-                    && StringUtils.equalsIgnoreCase(name, MysqlType.VARCHAR.getName())) {
+        final String name =
+                mysqlDataTypeConvertor.toConnectorType(column.getDataType(), null).getName();
+        if (MysqlType.VARCHAR.getName().equalsIgnoreCase(name)) {
+            columnLength = columnLength == null ? Integer.MAX_VALUE : columnLength;
+            if (columnLength >= 16383 && columnLength <= 65535) {
+                columnSqls.add(MysqlType.TEXT.getName());
+                return;
+            } else if (columnLength >= 65535 && columnLength <= 16777215) {
+                columnSqls.add(MysqlType.MEDIUMTEXT.getName());
+                return;
+            } else if (columnLength > 16777215 || columnLength <= 0) {
                 columnSqls.add(MysqlType.LONGTEXT.getName());
                 return;
             }
-            columnSqls.add(
-                    mysqlDataTypeConvertor.toConnectorType(column.getDataType(), null).getName());
+        }
 
-            String fieSql = "";
-            List<String> list = new ArrayList<>();
-            list.add(MysqlType.VARCHAR.getName());
-            list.add(MysqlType.CHAR.getName());
-            list.add(MysqlType.BIGINT.getName());
-            list.add(MysqlType.INT.getName());
-            if (StringUtils.equals(name, MysqlType.DECIMAL.getName())) {
-                DecimalType decimalType = (DecimalType) column.getDataType();
+        // Column type
+
+        columnSqls.add(
+                mysqlDataTypeConvertor.toConnectorType(column.getDataType(), null).getName());
+
+        String fieSql = "";
+        List<String> list = new ArrayList<>();
+        list.add(MysqlType.VARCHAR.getName());
+        list.add(MysqlType.CHAR.getName());
+        list.add(MysqlType.BIGINT.getName());
+        list.add(MysqlType.INT.getName());
+        if (StringUtils.equals(name, MysqlType.DECIMAL.getName())) {
+            DecimalType decimalType = (DecimalType) column.getDataType();
+            fieSql = String.format("(%d, %d)", decimalType.getPrecision(), decimalType.getScale());
+            columnSqls.add(fieSql);
+            return;
+        }
+        if (list.contains(name)) {
+            if (MysqlType.VARCHAR.getName().equals(name)) {
+                fieSql = "(" + column.getLongColumnLength() + ")";
+            } else if (MysqlType.CHAR.getName().equals(name)) {
+                fieSql = "(" + column.getLongColumnLength() + ")";
+            } else {
+                // int and bigint
                 fieSql =
-                        String.format(
-                                "(%d, %d)", decimalType.getPrecision(), decimalType.getScale());
-                columnSqls.add(fieSql);
-                return;
+                        "("
+                                + ((column.getLongColumnLength() <= 0
+                                                || column.getLongColumnLength() > 11)
+                                        ? 11
+                                        : column.getLongColumnLength())
+                                + ")";
             }
-            if (list.contains(name)) {
-                if (MysqlType.VARCHAR.getName().equals(name)) {
-                    fieSql = "(" + column.getLongColumnLength() + ")";
-                } else if (MysqlType.CHAR.getName().equals(name)) {
-                    fieSql = "(" + column.getLongColumnLength() + ")";
-                } else {
-                    // int and bigint
-                    fieSql =
-                            "("
-                                    + (column.getLongColumnLength().equals(0L)
-                                            ? 11
-                                            : column.getLongColumnLength())
-                                    + ")";
-                }
-                columnSqls.add(fieSql);
-            }
+            columnSqls.add(fieSql);
         }
     }
 
