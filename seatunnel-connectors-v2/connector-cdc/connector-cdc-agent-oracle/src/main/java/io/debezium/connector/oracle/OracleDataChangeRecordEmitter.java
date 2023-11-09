@@ -1,6 +1,6 @@
 package io.debezium.connector.oracle;
 
-import io.debezium.connector.oracle.oracle9bridge.Oracle9BridgeDmlEntry;
+import io.debezium.connector.oracle.oracleAgent.OracleAgentDmlEntry;
 import io.debezium.data.Envelope;
 import io.debezium.pipeline.spi.OffsetContext;
 import io.debezium.relational.RelationalChangeRecordEmitter;
@@ -10,18 +10,18 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class OracleDataChangeRecordEmitter extends RelationalChangeRecordEmitter {
 
-    private final Oracle9BridgeDmlEntry oracle9BridgeDmlEntry;
+    private final OracleAgentDmlEntry oracleAgentDmlEntry;
 
     public OracleDataChangeRecordEmitter(
-            OffsetContext offsetContext, Clock clock, Oracle9BridgeDmlEntry oracle9BridgeDmlEntry) {
+            OffsetContext offsetContext, Clock clock, OracleAgentDmlEntry oracleAgentDmlEntry) {
         super(offsetContext, clock);
-        this.oracle9BridgeDmlEntry =
-                checkNotNull(oracle9BridgeDmlEntry, "oracle9BridgeDmlEntry must not be null");
+        this.oracleAgentDmlEntry =
+                checkNotNull(oracleAgentDmlEntry, "oracleAgentDmlEntry must not be null");
     }
 
     @Override
     protected Envelope.Operation getOperation() {
-        switch (oracle9BridgeDmlEntry.getOperation()) {
+        switch (oracleAgentDmlEntry.getOperation()) {
             case INSERT:
                 return Envelope.Operation.CREATE;
             case UPDATE:
@@ -31,17 +31,17 @@ public class OracleDataChangeRecordEmitter extends RelationalChangeRecordEmitter
             default:
                 throw new IllegalArgumentException(
                         "Received event of unexpected command type: "
-                                + oracle9BridgeDmlEntry.getOperation());
+                                + oracleAgentDmlEntry.getOperation());
         }
     }
 
     @Override
     protected Object[] getOldColumnValues() {
-        return oracle9BridgeDmlEntry.getOldValues();
+        return oracleAgentDmlEntry.getOldValues();
     }
 
     @Override
     protected Object[] getNewColumnValues() {
-        return oracle9BridgeDmlEntry.getNewValues();
+        return oracleAgentDmlEntry.getNewValues();
     }
 }

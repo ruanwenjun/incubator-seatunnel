@@ -48,7 +48,7 @@ public class SourceInfo extends BaseSourceInfo {
     private Instant sourceTime;
     private Set<TableId> tableIds;
 
-    public SourceInfo(Oracle9BridgeConnectorConfig config) {
+    public SourceInfo(OracleAgentConnectorConfig config) {
         super(config);
     }
 
