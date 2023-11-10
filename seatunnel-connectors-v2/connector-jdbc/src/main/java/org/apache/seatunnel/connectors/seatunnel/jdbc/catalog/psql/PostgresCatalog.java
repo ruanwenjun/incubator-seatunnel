@@ -66,6 +66,7 @@ import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.Postgr
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_GEOGRAPHY;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_GEOMETRY;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_INTERVAL;
+import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_NUMERIC;
 import static org.apache.seatunnel.connectors.seatunnel.jdbc.catalog.psql.PostgresDataTypeConvertor.PG_TEXT;
 
 @Slf4j
@@ -290,7 +291,12 @@ public class PostgresCatalog extends AbstractJdbcCatalog {
         String columnComment = resultSet.getString("column_comment");
         Object defaultValue = resultSet.getObject("default_value");
         boolean isNullable = resultSet.getString("is_nullable").equals("YES");
-
+        // dealingSpecialNumeric
+        if (typeName.equals(PG_NUMERIC) && columnLength < 1) {
+            fullTypeName = "numeric(38,10)";
+            columnLength = 38;
+            columnScale = 10;
+        }
         if (defaultValue != null && defaultValue.toString().contains("regclass"))
             defaultValue = null;
 
