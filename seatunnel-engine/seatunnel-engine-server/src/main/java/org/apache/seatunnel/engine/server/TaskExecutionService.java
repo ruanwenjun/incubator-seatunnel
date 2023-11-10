@@ -133,15 +133,12 @@ public class TaskExecutionService implements DynamicMetricsProvider {
     private final SeaTunnelConfig seaTunnelConfig;
 
     private final ScheduledExecutorService scheduledExecutorService;
-    private final IMap<Long, HashMap<TaskLocation, SeaTunnelMetricsContext>> metricsImap;
 
     public TaskExecutionService(NodeEngineImpl nodeEngine, HazelcastProperties properties) {
         seaTunnelConfig = ConfigProvider.locateAndGetSeaTunnelConfig();
         this.hzInstanceName = nodeEngine.getHazelcastInstance().getName();
         this.nodeEngine = nodeEngine;
         this.logger = nodeEngine.getLoggingService().getLogger(TaskExecutionService.class);
-        this.metricsImap =
-                nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_RUNNING_JOB_METRICS);
 
         MetricsRegistry registry = nodeEngine.getMetricsRegistry();
         MetricDescriptor descriptor =
@@ -522,6 +519,17 @@ public class TaskExecutionService implements DynamicMetricsProvider {
         Map<TaskGroupLocation, TaskGroupContext> contextMap = new HashMap<>();
         contextMap.putAll(finishedExecutionContexts);
         contextMap.putAll(executionContexts);
+        IMap<Long, HashMap<TaskLocation, SeaTunnelMetricsContext>> metricsImap;
+        try {
+            metricsImap =
+                    nodeEngine.getHazelcastInstance().getMap(Constant.IMAP_RUNNING_JOB_METRICS);
+        } catch (Exception e) {
+            // we catch the exception since if the imap is not initialize yet, will throw NPE here
+            logger.warning(
+                    "The Imap acquisition failed due to the hazelcast node being offline or restarted, and will be retried next time",
+                    e);
+            return;
+        }
         HashMap<TaskLocation, SeaTunnelMetricsContext> localMap = new HashMap<>();
         contextMap.forEach(
                 (taskGroupLocation, taskGroupContext) -> {

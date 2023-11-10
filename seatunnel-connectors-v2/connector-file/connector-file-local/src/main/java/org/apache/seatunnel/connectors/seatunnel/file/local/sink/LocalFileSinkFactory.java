@@ -106,12 +106,14 @@ public class LocalFileSinkFactory
         ReadonlyConfig readonlyConfig = context.getOptions();
         CatalogTable catalogTable = context.getCatalogTable();
 
-        ReadonlyConfig finalReadonlyConfig = replacePath(readonlyConfig, catalogTable);
+        ReadonlyConfig finalReadonlyConfig =
+                generateCurrentReadonlyConfig(readonlyConfig, catalogTable);
         return () -> new LocalFileSink(finalReadonlyConfig, catalogTable);
     }
 
     // replace the table name in sink config's path
-    private ReadonlyConfig replacePath(ReadonlyConfig readonlyConfig, CatalogTable catalogTable) {
+    private ReadonlyConfig generateCurrentReadonlyConfig(
+            ReadonlyConfig readonlyConfig, CatalogTable catalogTable) {
         // Copy the config to avoid modifying the original config
         readonlyConfig = readonlyConfig.clone();
         Map<String, Object> configMap = readonlyConfig.getConfData();
@@ -120,7 +122,7 @@ public class LocalFileSinkFactory
                 .getOptional(BaseSinkConfig.FILE_PATH)
                 .ifPresent(
                         path -> {
-                            String replacedPath = injectCatalogTablePlaceholder(path, catalogTable);
+                            String replacedPath = replaceCatalotTableInPath(path, catalogTable);
                             configMap.put(BaseSinkConfig.FILE_PATH.key(), replacedPath);
                         });
 
@@ -128,14 +130,14 @@ public class LocalFileSinkFactory
                 .getOptional(BaseSinkConfig.TMP_PATH)
                 .ifPresent(
                         path -> {
-                            String replacedPath = injectCatalogTablePlaceholder(path, catalogTable);
+                            String replacedPath = replaceCatalotTableInPath(path, catalogTable);
                             configMap.put(BaseSinkConfig.TMP_PATH.key(), replacedPath);
                         });
 
         return ReadonlyConfig.fromMap(configMap);
     }
 
-    private String injectCatalogTablePlaceholder(String originString, CatalogTable catalogTable) {
+    private String replaceCatalotTableInPath(String originString, CatalogTable catalogTable) {
         String path = originString;
         TableIdentifier tableIdentifier = catalogTable.getTableId();
         if (tableIdentifier != null) {

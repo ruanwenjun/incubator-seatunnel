@@ -28,8 +28,8 @@ import java.util.Map;
 
 public final class LocalFileSourceOptions extends BaseSourceConfig {
 
-    public static final Option<List<Map<String, Object>>> LOCAL_FILE_SOURCE_CONFIGS =
-            Options.key("local_file_source_configs")
+    public static final Option<List<Map<String, Object>>> tables_configs =
+            Options.key("tables_configs")
                     .type(new TypeReference<List<Map<String, Object>>>() {})
                     .noDefaultValue()
                     .withDescription(

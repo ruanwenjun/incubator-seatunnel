@@ -119,6 +119,7 @@ public class LocalFileSourceConfig implements Serializable {
             case CSV:
             case TEXT:
             case JSON:
+            case DEBEZIUM_JSON:
             case EXCEL:
                 readStrategy.setSeaTunnelRowTypeInfo(catalogTable.getSeaTunnelRowType());
                 return newCatalogTable(catalogTable, readStrategy.getActualSeaTunnelRowTypeInfo());

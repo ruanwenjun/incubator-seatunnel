@@ -51,7 +51,7 @@ public class LocalFileSourceFactory implements TableSourceFactory {
     @Override
     public OptionRule optionRule() {
         return OptionRule.builder()
-                .optional(LocalFileSourceOptions.LOCAL_FILE_SOURCE_CONFIGS)
+                .optional(LocalFileSourceOptions.tables_configs)
                 .optional(BaseSourceConfig.FILE_PATH)
                 .optional(BaseSourceConfig.FILE_FORMAT_TYPE)
                 .conditional(
@@ -61,7 +61,11 @@ public class LocalFileSourceFactory implements TableSourceFactory {
                 .conditional(
                         BaseSourceConfig.FILE_FORMAT_TYPE,
                         Arrays.asList(
-                                FileFormat.TEXT, FileFormat.JSON, FileFormat.EXCEL, FileFormat.CSV),
+                                FileFormat.TEXT,
+                                FileFormat.JSON,
+                                FileFormat.DEBEZIUM_JSON,
+                                FileFormat.EXCEL,
+                                FileFormat.CSV),
                         TableSchemaOptions.SCHEMA)
                 .optional(BaseSourceConfig.PARSE_PARTITION_FROM_PATH)
                 .optional(BaseSourceConfig.DATE_FORMAT)

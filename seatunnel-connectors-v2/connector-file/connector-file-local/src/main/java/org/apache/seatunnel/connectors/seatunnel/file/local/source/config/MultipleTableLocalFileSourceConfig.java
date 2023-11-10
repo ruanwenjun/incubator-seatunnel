@@ -34,7 +34,7 @@ public class MultipleTableLocalFileSourceConfig implements Serializable {
 
     public MultipleTableLocalFileSourceConfig(ReadonlyConfig localFileSourceRootConfig) {
         if (localFileSourceRootConfig
-                .getOptional(LocalFileSourceOptions.LOCAL_FILE_SOURCE_CONFIGS)
+                .getOptional(LocalFileSourceOptions.tables_configs)
                 .isPresent()) {
             parseFromLocalFileSourceConfigs(localFileSourceRootConfig);
         } else {
@@ -44,8 +44,7 @@ public class MultipleTableLocalFileSourceConfig implements Serializable {
 
     private void parseFromLocalFileSourceConfigs(ReadonlyConfig localFileSourceRootConfig) {
         this.localFileSourceConfigs =
-                localFileSourceRootConfig.get(LocalFileSourceOptions.LOCAL_FILE_SOURCE_CONFIGS)
-                        .stream()
+                localFileSourceRootConfig.get(LocalFileSourceOptions.tables_configs).stream()
                         .map(ReadonlyConfig::fromMap)
                         .map(LocalFileSourceConfig::new)
                         .collect(Collectors.toList());
