@@ -112,7 +112,8 @@ public class SourceOptions {
         return OptionRule.builder()
                 .optional(FORMAT)
                 .optional(SNAPSHOT_SPLIT_SIZE, SNAPSHOT_FETCH_SIZE)
-                .optional(INCREMENTAL_PARALLELISM)
+                // todo: we don't support config parallelism for incremantal stage
+                //                .optional(INCREMENTAL_PARALLELISM)
                 .optional(DEBEZIUM_PROPERTIES);
     }
 }

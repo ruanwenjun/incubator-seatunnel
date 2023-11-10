@@ -105,7 +105,10 @@ public abstract class IncrementalSource<T, C extends SourceConfig>
         this.startupConfig = getStartupConfig(readonlyConfig);
         this.stopConfig = getStopConfig(readonlyConfig);
         this.stopMode = stopConfig.getStopMode();
-        this.incrementalParallelism = readonlyConfig.get(SourceOptions.INCREMENTAL_PARALLELISM);
+        //        this.incrementalParallelism =
+        // readonlyConfig.get(SourceOptions.INCREMENTAL_PARALLELISM);
+        // avoid the old data influence the job
+        this.incrementalParallelism = 1;
         this.configFactory = createSourceConfigFactory(readonlyConfig);
         this.dataSourceDialect = createDataSourceDialect(readonlyConfig);
         this.deserializationSchema = createDebeziumDeserializationSchema(readonlyConfig);
@@ -119,7 +122,9 @@ public abstract class IncrementalSource<T, C extends SourceConfig>
         this.startupConfig = getStartupConfig(readonlyConfig);
         this.stopConfig = getStopConfig(readonlyConfig);
         this.stopMode = stopConfig.getStopMode();
-        this.incrementalParallelism = readonlyConfig.get(SourceOptions.INCREMENTAL_PARALLELISM);
+        //        this.incrementalParallelism =
+        // readonlyConfig.get(SourceOptions.INCREMENTAL_PARALLELISM);
+        this.incrementalParallelism = 1;
         this.configFactory = createSourceConfigFactory(readonlyConfig);
         this.dataSourceDialect = createDataSourceDialect(readonlyConfig);
         this.deserializationSchema = createDebeziumDeserializationSchema(readonlyConfig);

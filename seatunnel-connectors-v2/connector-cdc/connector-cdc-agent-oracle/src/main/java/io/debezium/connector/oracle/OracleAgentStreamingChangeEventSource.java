@@ -113,7 +113,8 @@ public class OracleAgentStreamingChangeEventSource
                         currentFzsFileNumber++;
                     } else {
                         log.info(
-                                "There is no data in the related fzs files: {}",
+                                "[{}] There is no data in the related fzs files: {}",
+                                tables,
                                 currentFzsFileNumber);
                         Thread.sleep(NO_DATA_AVAILABLE_SLEEP_MS);
                     }
