@@ -168,11 +168,13 @@ public class OracleAgentDmlEntryFactory {
             OracleValueConverters oracleValueConverters, String value, Column column) {
         Object oracleValue = value;
 
+        // Oracle agent doesn't distinguish between null and empty string
+        if (value == null || value.equals("")) {
+            return null;
+        }
+
         try {
             if (column.typeName().equals("DATE")) {
-                if (value == null) {
-                    return value;
-                }
                 oracleValue = LocalDate.from(DATE_FORMATTER.parse(value));
             }
         } catch (Exception ex) {
@@ -181,9 +183,6 @@ public class OracleAgentDmlEntryFactory {
         }
 
         if (column.typeName().startsWith("TIMESTAMP")) {
-            if (value == null) {
-                return value;
-            }
             oracleValue = LocalDateTime.from(TIMESTAMP_FORMATTER.parse(value));
         }
         SchemaBuilder schemaBuilder = oracleValueConverters.schemaBuilder(column);
