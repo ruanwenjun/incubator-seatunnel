@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -140,6 +141,13 @@ public class ReadonlyConfig implements Serializable {
             }
             return value;
         }
+    }
+
+    @Override
+    public ReadonlyConfig clone() {
+        Map<String, Object> copyConfData =
+                confData == null ? new HashMap<>() : new HashMap<>(confData);
+        return ReadonlyConfig.fromMap(copyConfData);
     }
 
     @Override

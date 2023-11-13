@@ -1,23 +1,5 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.seatunnel.connectors.seatunnel.file.source.reader;
 
-import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -26,7 +8,7 @@ import org.apache.seatunnel.connectors.seatunnel.file.config.BaseSourceConfig;
 import org.apache.seatunnel.connectors.seatunnel.file.config.CompressFormat;
 import org.apache.seatunnel.connectors.seatunnel.file.config.HadoopConf;
 import org.apache.seatunnel.connectors.seatunnel.file.exception.FileConnectorException;
-import org.apache.seatunnel.format.json.JsonDeserializationSchema;
+import org.apache.seatunnel.format.json.debezium.DebeziumJsonDeserializationSchema;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,11 +22,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 @Slf4j
-public class JsonReadStrategy extends AbstractReadStrategy {
-    private DeserializationSchema<SeaTunnelRow> deserializationSchema;
+public class DebeziumJsonReadStrategy extends AbstractReadStrategy {
+
+    private DebeziumJsonDeserializationSchema deserializationSchema;
     private CompressFormat compressFormat = BaseSourceConfig.COMPRESS_CODEC.defaultValue();
 
     @Override
@@ -54,27 +36,24 @@ public class JsonReadStrategy extends AbstractReadStrategy {
             String compressCodec = pluginConfig.getString(BaseSourceConfig.COMPRESS_CODEC.key());
             compressFormat = CompressFormat.valueOf(compressCodec.toUpperCase());
         }
+        if (isMergePartition) {
+            log.warn("DebeziumJsonReadStrategy not support merge partition");
+        }
     }
 
     @Override
     public void setSeaTunnelRowTypeInfo(SeaTunnelRowType seaTunnelRowType) {
         super.setSeaTunnelRowTypeInfo(seaTunnelRowType);
-        if (isMergePartition) {
-            deserializationSchema =
-                    new JsonDeserializationSchema(false, false, this.seaTunnelRowTypeWithPartition);
-        } else {
-            deserializationSchema =
-                    new JsonDeserializationSchema(false, false, this.seaTunnelRowType);
-        }
+        deserializationSchema =
+                new DebeziumJsonDeserializationSchema(seaTunnelRowType, false, true);
     }
 
     @Override
     public void read(String path, String tableId, Collector<SeaTunnelRow> output)
-            throws FileConnectorException, IOException {
+            throws IOException, FileConnectorException {
         Configuration conf = getConfiguration();
         FileSystem fs = FileSystem.get(conf);
         Path filePath = new Path(path);
-        Map<String, String> partitionsMap = parsePartitionsByPath(path);
         InputStream inputStream;
         switch (compressFormat) {
             case LZO:
@@ -91,22 +70,14 @@ public class JsonReadStrategy extends AbstractReadStrategy {
                 inputStream = fs.open(filePath);
                 break;
         }
+
         try (BufferedReader reader =
                 new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             reader.lines()
                     .forEach(
                             line -> {
                                 try {
-                                    SeaTunnelRow seaTunnelRow =
-                                            deserializationSchema.deserialize(line.getBytes());
-                                    if (isMergePartition) {
-                                        int index = seaTunnelRowType.getTotalFields();
-                                        for (String value : partitionsMap.values()) {
-                                            seaTunnelRow.setField(index++, value);
-                                        }
-                                    }
-                                    seaTunnelRow.setTableId(tableId);
-                                    output.collect(seaTunnelRow);
+                                    deserializationSchema.deserialize(line.getBytes(), output);
                                 } catch (IOException e) {
                                     String errorMsg =
                                             String.format(

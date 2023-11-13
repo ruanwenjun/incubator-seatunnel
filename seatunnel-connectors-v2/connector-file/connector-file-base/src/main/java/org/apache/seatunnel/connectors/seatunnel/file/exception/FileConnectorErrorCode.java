@@ -24,7 +24,9 @@ public enum FileConnectorErrorCode implements SeaTunnelErrorCode {
     DATA_DESERIALIZE_FAILED("FILE-02", "Data deserialization failed"),
     FILE_LIST_GET_FAILED("FILE-03", "Get file list failed"),
     FILE_LIST_EMPTY("FILE-04", "File list is empty"),
-    AGGREGATE_COMMIT_ERROR("FILE-05", "Aggregate committer error");
+    AGGREGATE_COMMIT_ERROR("FILE-05", "Aggregate committer error"),
+    FILE_READ_STRATEGY_NOT_SUPPORT("FILE-06", "File strategy not support"),
+    ;
 
     private final String code;
     private final String description;

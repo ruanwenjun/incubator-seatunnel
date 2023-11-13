@@ -108,5 +108,11 @@
             <version>19.18.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.seatunnel</groupId>
+            <artifactId>connector-file-local</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
     </dependencies>
 </project>

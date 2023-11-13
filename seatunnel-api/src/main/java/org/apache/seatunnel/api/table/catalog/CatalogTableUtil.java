@@ -290,4 +290,13 @@ public class CatalogTableUtil implements Serializable {
         }
         return new MultipleRowType(rowTypeMap);
     }
+
+    public static CatalogTable buildEmptyCatalogTable(String catalogName) {
+        return CatalogTable.of(
+                TableIdentifier.of(catalogName, TablePath.EMPTY),
+                TableSchema.builder().build(),
+                new HashMap<>(),
+                new ArrayList<>(),
+                null);
+    }
 }
