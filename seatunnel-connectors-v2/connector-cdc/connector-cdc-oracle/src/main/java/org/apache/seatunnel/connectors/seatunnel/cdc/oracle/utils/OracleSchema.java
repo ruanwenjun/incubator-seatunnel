@@ -63,6 +63,9 @@ public class OracleSchema {
         Tables tables = new Tables();
 
         try {
+            if (connectorConfig.getPdbName() != null) {
+                oracleConnection.setSessionToPdb(connectorConfig.getPdbName());
+            }
             oracleConnection.readSchema(
                     tables,
                     tableId.catalog(),
