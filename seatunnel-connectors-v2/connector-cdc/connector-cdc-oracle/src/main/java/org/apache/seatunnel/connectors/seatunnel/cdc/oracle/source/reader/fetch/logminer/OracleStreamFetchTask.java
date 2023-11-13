@@ -99,6 +99,8 @@ public class OracleStreamFetchTask implements FetchTask<SourceSplitBase> {
         private final IncrementalSplit redoLogSplit;
         private final JdbcSourceEventDispatcher dispatcher;
         private final ErrorHandler errorHandler;
+        private final OracleConnectorConfig connectorConfig;
+        private final OracleConnection connection;
         private ChangeEventSourceContext context;
 
         public RedoLogSplitReadTask(
@@ -122,11 +124,16 @@ public class OracleStreamFetchTask implements FetchTask<SourceSplitBase> {
             this.redoLogSplit = redoLogSplit;
             this.dispatcher = dispatcher;
             this.errorHandler = errorHandler;
+            this.connection = connection;
+            this.connectorConfig = connectorConfig;
         }
 
         @Override
         public void execute(ChangeEventSourceContext context, OracleOffsetContext offsetContext) {
             this.context = context;
+            if (connectorConfig.getPdbName() != null) {
+                connection.resetSessionToCdb();
+            }
             super.execute(context, offsetContext);
         }
 
