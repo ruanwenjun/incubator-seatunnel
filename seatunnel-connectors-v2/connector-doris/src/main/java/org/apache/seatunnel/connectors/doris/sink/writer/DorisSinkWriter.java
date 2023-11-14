@@ -95,6 +95,8 @@ public class DorisSinkWriter
                         + "_"
                         + catalogTable.getTableId().toTablePath().getTableName()
                         + "_"
+                        + jobId
+                        + "_"
                         + context.getIndexOfSubtask();
         this.labelGenerator = new LabelGenerator(labelPrefix, dorisConfig.getEnable2PC());
         this.scheduledExecutorService =
